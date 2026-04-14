@@ -164,4 +164,21 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
 document.getElementById("resetPasswordLink").addEventListener("click", async function(e) {
   e.preventDefault();
-  const email = document.getElementById("email
+  const email = document.getElementById("email").value;
+  if (!email) {
+    alert("上の入力欄に登録しているメールアドレスを入力してから、このリンクを押してください。");
+    return;
+  }
+  try {
+    const redirectUrl = window.location.origin + window.location.pathname.replace('login.html', 'update_password.html');
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    if (error) throw error;
+    alert("パスワード再設定用のメールを送信しました。\nメール内のリンクからパスワードを再設定してください。");
+  } catch (error) {
+    alert("エラー: " + error.message);
+  }
+});
+</script>
+
+</body>
+</html>
