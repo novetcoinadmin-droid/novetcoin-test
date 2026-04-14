@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Premium Illustration Studio</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #ff4500; --gold: #d4ac0d; --bg: #444; --panel: #fff; }
+        body { background: var(--bg); margin: 0; display: flex; height: 100vh; font-family: sans-serif; overflow: hidden; }
+
+        /* 左側：イラスト表示枠 */
+        .preview-area { 
+            flex: 1; display: flex; align-items: center; justify-content: center; 
+            background: #555; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); position: relative;
+        }
+        .preview-container {
+            width: 450px; height: 600px; background: #eee;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .preview-container img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* 右側：操作パネル */
+        .control-panel { 
+            width: 450px; background: var(--panel); padding: 20px; 
+            display: flex; flex-direction: column; gap: 15px; border-left: 1px solid #ccc; overflow-y: auto;
+        }
+
+        .section-card { background: #fdfdfd; padding: 12px; border-radius: 8px; border: 1px solid #eee; font-size: 12px; }
+        .section-title { font-weight: bold; color: #666; margin-bottom: 8px; display: block; border-bottom: 1px solid #eee; }
+
+        /* 15項目：グリッド */
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .item { margin-bottom: 5px; } /* 各項目間の微調整 */
+        .item label { display: block; font-size: 11px; color: #888; margin-bottom: 2px; }
+        select { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+
+        .btn { padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; transition: 0.2s; }
+        .btn-generate { background: linear-gradient(135deg, #f1c40f, #d4ac0d); color: #000; }
+        .btn-save-img { background: #2ecc71; color: white; display: none; }
+        
+        #loader { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 10; flex-direction: column; align-items: center; justify-content: center; color: var(--primary); }
+        .spinner { width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* 自由入力用テキストボックス */
+        .custom-input {
+            width: 100%; margin-top: 5px; padding: 6px; font-size: 12px;
+            border: 2px solid #4a90e2; border-radius: 4px; background-color: #f9fcff;
+            box-sizing: border-box; display: none; outline: none;
+        }
+    </style>
+<style>body { background: #2c2e33 !important; }</style></head>
+<body>
+
+<div class="preview-area">
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="load-status">30の要素を錬成中...</div>
+    </div>
+    <div class="preview-container" id="previewContainer">
+        <span style="color:#bbb;">PREVIEW AREA</span>
+    </div>
+</div>
+
+<div class="control-panel">
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin:0; font-size:18px;">💎 プレミアム生成</h2>
+        <a href="javascript:void(0)" onclick="goBack()" style="font-size:12px; color:#888;">キャンセルして戻る</a>
+    </div>
+
+    <div class="section-card">
+        <span class="section-title">📍 基盤データ (世界観5 + キャラ5)</span>
+        <div id="baseDisplay" style="color:#555; line-height: 1.6;">読み込み中...</div>
+    </div>
+
+    <div class="section-card">
+        <span class="section-title">✨ プレミアム演出設定 (15項目)</span>
+        <div class="grid-2col">
+            <div class="item">
+                <label>1. 画風</label>
+                <select id="p1" onchange="toggleCustomInput(this)">
+                    <option value="light novel illustration style, high-quality anime art">現代ラノベ風</option>
+                    <option value="detailed digital painting, semi-realistic anime">厚塗りデジ絵風</option>
+                    <option value="watercolor sketch, soft edges">繊細な水彩画風</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p1_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>2. ライティング</label>
+                <select id="p2" onchange="toggleCustomInput(this)">
+                    <option value="cinematic lighting, dramatic backlighting">ドラマチックな逆光</option>
+                    <option value="soft dappled sunlight, forest light">柔らかな木漏れ日</option>
+                    <option value="magical neon glow, ethereal lighting">神秘的な魔法の光</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p2_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>3. アングル</label>
+                <select id="p3" onchange="toggleCustomInput(this)">
+                    <option value="low angle shot, looking up, majestic">迫力のローアングル</option>
+                    <option value="high angle, bird's eye view">俯瞰（上から）</option>
+                    <option value="eye-level, front view">正面（アイレベル）</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p3_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>4. 表情</label>
+                <select id="p4" onchange="toggleCustomInput(this)">
+                    <option value="shy smile, blushing face">照れ笑い</option>
+                    <option value="determined look, brave eyes">決意に満ちた表情</option>
+                    <option value="sadness, tears in eyes, heart-breaking">悲しみの表情</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p4_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>5. 背景の密度</label>
+                <select id="p5" onchange="toggleCustomInput(this)">
+                    <option value="highly detailed background, intricate scenery">緻密な背景描写</option>
+                    <option value="blurred background, bokeh, focus on character">背景ボケ（キャラ強調）</option>
+                    <option value="simple background, minimalist style">シンプル（装飾控えめ）</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p5_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>6. 肌・衣服の質感</label>
+                <select id="p6" onchange="toggleCustomInput(this)">
+                    <option value="soft skin texture, detailed fabric folds">柔らかな質感重視</option>
+                    <option value="metallic luster, shiny armor reflections">金属の光沢重視</option>
+                    <option value="matte texture, rough cloth">マットな質感（布・皮）</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p6_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>7. 視線</label>
+                <select id="p7" onchange="toggleCustomInput(this)">
+                    <option value="looking at viewer, eye contact">こちらを見つめる</option>
+                    <option value="looking away, profile view">視線を外す（横顔）</option>
+                    <option value="looking up at the sky">空を仰ぎ見る</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p7_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>8. 特殊エフェクト</label>
+                <select id="p8" onchange="toggleCustomInput(this)">
+                    <option value="glowing magical particles, sparkles">魔法の光の粒子</option>
+                    <option value="falling flower petals, wind blowing">舞い散る花びら</option>
+                    <option value="swirling embers and fire sparks">燃え上がる火の粉</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p8_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>9. 季節感</label>
+                <select id="p9" onchange="toggleCustomInput(this)">
+                    <option value="spring, blooming flowers">春（満開の花）</option>
+                    <option value="summer, intense heat haze, blue sky">夏（陽炎と青空）</option>
+                    <option value="winter, falling snow, frost">冬（降り積もる雪）</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p9_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>10. 構図</label>
+                <select id="p10" onchange="toggleCustomInput(this)">
+                    <option value="upper body shot, portrait">バストアップ</option>
+                    <option value="full body shot, standing pose">全身ショット</option>
+                    <option value="close-up on face">顔のアップ</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p10_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>11. レンズ効果</label>
+                <select id="p11" onchange="toggleCustomInput(this)">
+                    <option value="shallow depth of field, sharp focus">被写界深度（ボケ）</option>
+                    <option value="wide angle lens effect, vast scale">広角レンズ</option>
+                    <option value="fisheye lens effect">魚眼レンズ風</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p11_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>12. カラー調和</label>
+                <select id="p12" onchange="toggleCustomInput(this)">
+                    <option value="vibrant color palette, vivid">鮮やかな色彩</option>
+                    <option value="sepia tone, nostalgic, vintage">セピア（懐古的）</option>
+                    <option value="monochrome, black and white">モノクロ（白黒）</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p12_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>13. 時間帯</label>
+                <select id="p13" onchange="toggleCustomInput(this)">
+                    <option value="golden hour, sunset glow">夕暮れ</option>
+                    <option value="midnight, starry night, dark">深夜</option>
+                    <option value="early morning, dawn, blue hour">早朝</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p13_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>14. 小道具</label>
+                <select id="p14" onchange="toggleCustomInput(this)">
+                    <option value="holding a glowing magic sword">光る魔法の剣</option>
+                    <option value="wearing ornate jewelry, accessories">豪華な宝飾品</option>
+                    <option value="surrounded by ancient floating runes">浮遊する古代ルーン</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p14_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+
+            <div class="item">
+                <label>15. 最終仕上げ</label>
+                <select id="p15" onchange="toggleCustomInput(this)">
+                    <option value="masterpiece, best quality, 8k wallpaper">最高画質マスターピース</option>
+                    <option value="rough sketch style, artistic">ラフスケッチ風</option>
+                    <option value="unreal engine 5 render, cinematic 3d">3Dシネマティック風</option>
+                    <option value="custom">✨ 自由入力</option>
+                </select>
+                <input type="text" id="p15_custom" class="custom-input" placeholder="自由に入力...">
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <span class="section-title">✍️ カスタムこだわり指示</span>
+        <textarea id="p_custom" rows="3" placeholder="例：右手に青い炎を纏った聖剣を持つ"></textarea>
+    </div>
+
+    <div style="margin-top: auto; padding-top: 20px;">
+        <div style="text-align:center; font-weight:bold; margin-bottom:10px;">費用: 0.5 NVT</div>
+        <button id="genBtn" class="btn btn-generate" onclick="generateProcess()">✨ 0.5 NVT でプレミアム生成</button>
+        <button id="saveBtn" class="btn btn-save-img" onclick="confirmAndSave()">✅ このイラストを保存して戻る</button>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0"; 
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let lastGeneratedUrl = "";
+let currentNovelId = ""; // 変数名を一貫させる
+let charId, cIdx, eIdx, targetPage;
+let novelTags = "";
+let charDetail = "";
+
+function toggleCustomInput(selectElement) {
+    const customInput = selectElement.nextElementSibling;
+    if (selectElement.value === "custom") {
+        customInput.style.display = "block";
+        customInput.focus(); 
+    } else {
+        customInput.style.display = "none";
+        customInput.value = ""; 
+    }
+}
+
+async function generateProcess() {
+    const loader = document.getElementById('loader');
+    const loadStatus = document.getElementById('load-status');
+    const genBtn = document.getElementById('genBtn');
+    const previewContainer = document.getElementById('previewContainer');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: profile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', user.id).single();
+
+    if (!profile || profile.nvt_balance < 0.5) {
+        alert("NVT残高が不足しています。");
+        return;
+    }
+
+    loader.style.display = 'flex';
+    genBtn.disabled = true;
+    loadStatus.innerText = "0.5 NVT を決済中...";
+
+    try {
+        await supabaseClient.from('profiles').update({ nvt_balance: profile.nvt_balance - 0.5 }).eq('id', user.id);
+
+        let premiumPrompts = [];
+        for (let i = 1; i <= 15; i++) {
+            const select = document.getElementById(`p${i}`);
+            const custom = document.getElementById(`p${i}_custom`);
+            const val = (select.value === "custom") ? custom.value.trim() : select.value;
+            if (val && val !== "なし" && val !== "無し") premiumPrompts.push(val);
+        }
+
+        const customInputText = document.getElementById('p_custom').value.trim();
+        let customPromptInstruction = "";
+        if (customInputText && customInputText !== "なし" && customInputText !== "無し") {
+            customPromptInstruction = `【最重要・絶対反映事項】: ${customInputText}\n※この要素を最優先とし、画像生成用英語プロンプトの「一番最初」に配置して最も強く強調してください。\n`;
+        }
+
+        const rawPrompt = `
+${customPromptInstruction}
+【キャラクター設定】: ${charDetail}
+【作品タグ】: ${novelTags}
+【プレミアム演出】: ${premiumPrompts.join(", ")}
+        `;
+
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${SUPABASE_KEY}`
+            },
+            body: JSON.stringify({ mode: "character", prompt: rawPrompt })
+        });
+
+        if (!response.ok) throw new Error("画像生成エラー");
+
+        const data = await response.json();
+        lastGeneratedUrl = data.imageUrl; 
+
+        previewContainer.innerHTML = `
+            <div style="text-align:center;">
+                <p>✨ プレミアム画像 生成完了</p>
+                <img src="${lastGeneratedUrl}" style="width:100%; max-width:400px; border-radius:10px;">
+            </div>`;
+        
+        loader.style.display = 'none';
+        genBtn.style.display = 'none';
+        document.getElementById('saveBtn').style.display = 'block';
+
+    } catch (err) {
+        alert("エラー: " + err.message);
+        loader.style.display = 'none';
+        genBtn.disabled = false;
+    }
+}
+
+async function confirmAndSave() {
+    if (!lastGeneratedUrl) return alert("保存する画像がありません。");
+    if (!currentNovelId) return alert("作品IDが不正です。最初からやり直してください。");
+
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.innerText = "DBに永続保存中...";
+    saveBtn.disabled = true;
+
+    try {
+        // 1. 最新の作品データを取得（正しいID変数を使用）
+        const { data: novel, error: fetchErr } = await supabaseClient
+            .from('novels')
+            .select('content')
+            .eq('id', currentNovelId)
+            .single();
+
+        if (fetchErr) throw fetchErr;
+
+        let contentData = novel.content || [];
+        const c = parseInt(cIdx);
+        const e = parseInt(eIdx);
+        const p = parseInt(targetPage);
+
+        // 構造のチェックと自動生成
+        if (!contentData[c]) contentData[c] = { episodes: [] };
+        if (!contentData[c].episodes) contentData[c].episodes = [];
+        if (!contentData[c].episodes[e]) contentData[c].episodes[e] = { pageAssets: [] };
+        if (!contentData[c].episodes[e].pageAssets) contentData[c].episodes[e].pageAssets = [];
+
+        contentData[c].episodes[e].pageAssets[p] = lastGeneratedUrl;
+
+        // 2. DBを更新
+        const { error: updateErr } = await supabaseClient
+            .from('novels')
+            .update({ content: contentData })
+            .eq('id', currentNovelId);
+
+        if (updateErr) throw updateErr;
+
+        alert("DBへの保存が完了しました！");
+        location.href = `nft_prepare.html?novel_id=${currentNovelId}&cIdx=${cIdx}&eIdx=${eIdx}&page=${targetPage}`;
+
+    } catch (err) {
+        console.error("Save Error:", err);
+        alert("保存エラー: " + (err.message || "詳細不明なエラー"));
+        saveBtn.innerText = "✅ このイラストを保存して戻る";
+        saveBtn.disabled = false;
+    }
+}
+
+window.onload = async () => {
+    const params = new URLSearchParams(window.location.search);
+    // novel_id でも novelId でもどちらでも受け取れるように修正
+    currentNovelId = params.get('novel_id') || params.get('novelId');
+    charId = params.get('char_id');
+    cIdx = params.get('cIdx') || "0";
+    eIdx = params.get('eIdx') || "0";
+    targetPage = params.get('page') || "0";
+
+    const baseDisplay = document.getElementById('baseDisplay');
+    baseDisplay.innerHTML = "データを読み込み中...";
+
+    try {
+        const { data: novel } = await supabaseClient
+            .from('novels')
+            .select('title, tag, characters')
+            .eq('id', currentNovelId)
+            .single();
+
+        const character = novel.characters.find(c => c.id === charId);
+
+        if (character) {
+            novelTags = novel.tag || "";
+            charDetail = character.detail || "";
+            const formattedDetail = character.detail ? character.detail.replace(/\n/g, '<br>') : '詳細設定なし';
+
+            baseDisplay.innerHTML = `
+                <div style="margin-bottom: 5px;"><strong>📖 作品名:</strong> ${novel.title}</div>
+                <div style="margin-bottom: 10px;"><strong>📍 世界観タグ:</strong> ${novel.tag || '未設定'}</div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+                <div style="margin-bottom: 5px;"><strong>👤 キャラクタ名:</strong> ${character.name}</div>
+                <div style="line-height: 1.6; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #f0f0f0;">
+                    <strong>📝 キャラクター設定詳細:</strong><br>
+                    <span style="font-size: 11px; color: #444;">${formattedDetail}</span>
+                </div>
+            `;
+        } else {
+            baseDisplay.innerHTML = "キャラクター情報の取得に失敗しました。";
+        }
+    } catch (err) {
+        console.error("Load Error:", err);
+        baseDisplay.innerHTML = "基本データの読み込みに失敗しました。";
+    }
+};
+
+function goBack() {
+    location.href = `nft_prepare.html?novel_id=${currentNovelId}&cIdx=${cIdx}&eIdx=${eIdx}&page=${targetPage}`;
+}
+</script>
+</body>
+</html>

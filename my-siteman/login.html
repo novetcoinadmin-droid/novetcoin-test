@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログイン | ノベットコイン.com</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: sans-serif; background-color: #f5f5f5; }
+    .container { max-width: 500px; margin: 60px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; margin-bottom: 30px; }
+    label { display: block; margin-top: 15px; margin-bottom: 5px; }
+    input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+    button { width: 100%; margin-top: 25px; padding: 12px; font-size: 16px; background-color: #6a0dad; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #5800a8; }
+    .back-link { display: inline-block; margin-bottom: 15px; color: #6a0dad; text-decoration: none; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    .forgot-link { display: block; text-align: center; margin-top: 20px; color: #6a0dad; font-size: 13px; text-decoration: none; }
+    .forgot-link:hover { text-decoration: underline; }
+    .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 40px; }
+    .footer a { color: white; margin: 0 10px; text-decoration: none; font-size: 14px; }
+    .footer a:hover { text-decoration: underline; }
+    .footer .copy { margin-top: 10px; font-size: 12px; color: #ccc; }
+  </style>
+<style>body { background: #2c2e33 !important; }</style></head>
+
+<body>
+
+<div class="container">
+  <a href="index.html" class="back-link">← トップへ戻る</a>
+  <h1>ログイン</h1>
+
+  <form id="loginForm">
+    <label>メールアドレス</label>
+    <input type="email" id="email" placeholder="メールアドレス">
+
+    <label>パスワード</label>
+    <input type="password" id="password" placeholder="パスワード">
+
+    <button type="submit">ログイン</button>
+  </form>
+
+  <a href="#" id="resetPasswordLink" class="forgot-link">パスワードを忘れた方はこちら</a>
+</div>
+
+<div class="footer">
+  <div>
+    <a href="#">サイトマップ</a>
+    <a href="#">プライバシーポリシー</a>
+    <a href="#">問い合わせ</a>
+  </div>
+  <div class="copy">ODAcorp</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 通常のログイン処理
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) return alert("メールアドレスとパスワードを入力してください");
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.user) {
+      alert("ログインに成功しました！");
+      window.location.href = "index.html";
+    }
+  } catch (error) {
+    alert("ログインエラー: " + error.message);
+  }
+});
+
+// 🌟 パスワードリセットメールの送信処理
+document.getElementById("resetPasswordLink").addEventListener("click", async function(e) {
+  e.preventDefault();
+  
+  const email = document.getElementById("email").value;
+  if (!email) {
+    alert("上の入力欄に登録しているメールアドレスを入力してから、このリンクを押してください。");
+    return;
+  }
+
+  try {
+    // メール内のリンクを踏んだ時に飛ぶページ（これから作る update_password.html）を指定
+    const redirectUrl = window.location.origin + window.location.pathname.replace('login.html', 'update_password.html');
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) throw error;
+    alert("パスワード再設定用のメールを送信しました。\nメール内のリンクからパスワードを再設定してください。");
+  } catch (error) {
+    alert("エラー: " + error.message);
+  }
+});
+</script>
+
+</body>
+</html>

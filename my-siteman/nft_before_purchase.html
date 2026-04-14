@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作品詳細・購入確認 | Novet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
+        .container { max-width: 900px; margin: 40px auto; display: flex; gap: 40px; background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .cover-area { flex: 1; }
+        .info-area { flex: 1.2; display: flex; flex-direction: column; }
+        .cover-img { width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .price-tag { font-size: 28px; font-weight: bold; color: #6a0dad; margin: 20px 0; display: flex; align-items: center; gap: 10px; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .meta-table th, .meta-table td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+        .meta-table th { color: #999; width: 120px; }
+        .btn-buy { background: #6a0dad; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-buy:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-buy:hover:not(:disabled) { background: #5a0a9d; transform: translateY(-2px); }
+        .nav-back { text-decoration: none; color: #666; font-size: 14px; margin-bottom: 20px; display: inline-block; }
+    </style>
+<style>body { background: #2c2e33 !important; }</style></head>
+<body>
+
+<div class="container">
+    <div class="cover-area">
+        <a href="market.html" class="nav-back">← マーケットへ戻る</a>
+        <img id="nftCover" src="" class="cover-img" alt="作品表紙">
+    </div>
+
+    <div class="info-area">
+        <h1 id="nftTitle" style="margin: 0 0 10px 0; font-size: 24px;">読み込み中...</h1>
+        <div id="creatorName" style="color: #6a0dad;">@-------</div>>
+
+        <table class="meta-table">
+            <tr><th>イラスト</th><td id="nftIllust">---</td></tr>
+            <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
+            <tr><th>ミント日</th><td id="nftDate">---</td></tr>
+        </table>
+
+        <div class="price-tag">
+            <span>💎</span>
+            <span id="nftPrice">--</span>
+            <span style="font-size: 16px; color: #999;">NVT</span>
+        </div>
+
+        <div id="balanceCheck" style="font-size: 12px; margin-bottom: 10px; color: #666;">
+            あなたの残高: <span id="myNvt">--</span> NVT
+        </div>
+
+        <button id="buyButton" onclick="processPurchase()" class="btn-buy" disabled>
+            読み込み中...
+        </button>
+        
+        <p style="font-size: 11px; color: #999; margin-top: 15px; line-height: 1.5;">
+            ※購入すると所有権があなたに移転し、ライブラリの「購入品」タブから閲覧・管理できるようになります。
+        </p>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let targetNft = null;
+
+async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const nftId = urlParams.get('id');
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    currentUser = session?.user;
+
+    if (!nftId) {
+        alert("作品が見つかりません");
+        window.location.href = "market.html";
+        return;
+    }
+
+    // 作品データの取得
+    const { data: nft, error } = await supabaseClient
+        .from('nft_metadata')
+        .select('*')
+        .eq('id', nftId)
+        .single();
+
+    if (error || !nft) return alert("作品データの取得に失敗しました");
+    targetNft = nft;
+
+    // 🌟 追加：作者（クリエイター）のプロフィール（名前）を取得
+    let creatorName = "名無し作家";
+    if (targetNft.owner_id) {
+        const { data: authorProfile } = await supabaseClient
+            .from('profiles')
+            .select('username')
+            .eq('id', targetNft.owner_id)
+            .single();
+        if (authorProfile && authorProfile.username) {
+            creatorName = authorProfile.username;
+        }
+    }
+
+    // 残高の取得
+    let myNvt = 0;
+    if (currentUser) {
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('nvt_balance')
+            .eq('id', currentUser.id)
+            .single();
+        myNvt = profile?.nvt_balance || 0;
+    }
+
+    // 🌟 creatorName も一緒に画面描画へ渡す
+    renderDetails(myNvt, creatorName);
+    await checkIfPurchased();
+}
+
+// 🌟 creatorName を受け取るように修正
+function renderDetails(myNvt, creatorName) {
+    document.getElementById("nftTitle").innerText = targetNft.title_at_mint;
+    document.getElementById("nftCover").src = targetNft.cover_image_url;
+    document.getElementById("nftPrice").innerText = targetNft.price_nvt;
+    document.getElementById("nftIllust").innerText = targetNft.illustrator_name || "不明";
+    document.getElementById("nftCharCount").innerText = targetNft.char_count?.toLocaleString() || "---";
+    document.getElementById("nftDate").innerText = new Date(targetNft.minted_at).toLocaleDateString();
+    
+    // 🌟 先ほどHTMLにつけたIDに、作者名を入れる（@をつけて表示）
+    const creatorElement = document.getElementById("creatorName");
+    if (creatorElement) {
+        creatorElement.innerText = "@" + creatorName;
+    }
+
+    if (document.getElementById("myNvt")) {
+        document.getElementById("myNvt").innerText = myNvt.toLocaleString();
+    }
+
+    const btn = document.getElementById("buyButton");
+    if (!currentUser) {
+        btn.innerText = "ログインが必要です";
+    } else if (targetNft.owner_id === currentUser.id) {
+        btn.innerText = "自分の作品です";
+        btn.disabled = true;
+    } else if (myNvt < targetNft.price_nvt) {
+        btn.innerText = "NVT残高が足りません";
+        btn.disabled = true;
+    } else {
+        btn.innerText = "この作品を購入する";
+        btn.disabled = false;
+    }
+}
+
+// 🌟 新しく追加した関数（購入済みかチェックする）
+async function checkIfPurchased() {
+    if (!currentUser || !targetNft) return;
+
+    // 自分の作品なら何もしない
+    if (currentUser.id === targetNft.owner_id) return; 
+
+    // sales_logs テーブルから、自分の購入履歴を探す
+    const { data: logs, error } = await supabaseClient
+        .from('sales_logs')
+        .select('id')
+        .eq('buyer_id', currentUser.id)
+        .eq('nft_id', targetNft.id);
+
+    // 履歴が見つかった場合（すでに購入済み）
+    if (logs && logs.length > 0) {
+        const btn = document.getElementById("buyButton");
+        btn.innerText = "🎉 購入済み（本編を読む）";
+        btn.style.background = "#4CAF50"; // 緑色に変更
+        btn.style.color = "white";
+        btn.disabled = false; // 残高不足などでdisabledになっていても解除する
+        
+        // クリック時の処理を「決済」から「閲覧」に上書きする
+        btn.onclick = () => {
+            alert("本編ビューワーへ移動します");
+            window.location.href = `nft_view.html?id=${targetNft.id}`;
+        };
+    }
+}
+
+async function processPurchase() {
+    // 運営（管理者）のUUID
+    const ADMIN_UUID = "fd7be995-23bb-443d-89af-f7c67c59334f"; 
+
+    if (!confirm(`${targetNft.price_nvt} NVTでこの作品を購入しますか？`)) return;
+
+    const btn = document.getElementById("buyButton");
+    btn.disabled = true;
+    btn.innerText = "決済処理中...";
+
+    try {
+        // 1. 最新の残高を再チェック
+        const { data: profile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', currentUser.id).single();
+        if (profile.nvt_balance < targetNft.price_nvt) {
+            throw new Error("NVT残高が不足しています。");
+        }
+
+        const price = targetNft.price_nvt;
+        const fee = price * 0.05; // 5%手数料
+        const creatorGain = price - fee;      // 作者受取額（95%）
+
+        // --- 決済処理開始 ---
+
+        // A. 購入者の残高を減らす
+        const { error: buyerError } = await supabaseClient
+            .from('profiles')
+            .update({ nvt_balance: profile.nvt_balance - price })
+            .eq('id', currentUser.id);
+        if (buyerError) throw buyerError;
+
+        // B. 作者（クリエイター）に残高を加算
+        const { data: creatorProfile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', targetNft.owner_id).single();
+        const { error: creatorError } = await supabaseClient
+            .from('profiles')
+            .update({ nvt_balance: (creatorProfile.nvt_balance || 0) + creatorGain })
+            .eq('id', targetNft.owner_id);
+        if (creatorError) throw creatorError;
+
+        // C. 運営（管理者）に残高を加算
+        const { data: adminProfile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', ADMIN_UUID).single();
+        const { error: adminError } = await supabaseClient
+            .from('profiles')
+            .update({ nvt_balance: (adminProfile.nvt_balance || 0) + fee })
+            .eq('id', ADMIN_UUID);
+        if (adminError) throw adminError;
+
+        // D. 売上カウントを増やす
+        const { error: countError } = await supabaseClient
+            .from('nft_metadata')
+            .update({ sales_count: (targetNft.sales_count || 0) + 1 })
+            .eq('id', targetNft.id);
+        if (countError) throw countError;
+
+        // E. 購入履歴（閲覧権）の記録
+        const { error: logError } = await supabaseClient
+            .from('sales_logs')
+            .insert([{
+                buyer_id: currentUser.id,
+                nft_id: targetNft.id,
+                price_nvt: price
+            }]);
+        if (logError) throw logError;
+        
+        // --- 決済処理終了 ---
+
+        alert("購入が完了しました！ライブラリで作品をお楽しみください。");
+        // 購入後、画面を再読み込みして「購入済み」ボタンに切り替える
+        window.location.reload();
+
+    } catch (err) {
+        console.error("Purchase Error:", err);
+        alert("決済に失敗しました: " + err.message);
+        btn.disabled = false;
+        btn.innerText = "この作品を購入する";
+    }
+}
+
+init();
+</script>
+</body>
+</html>

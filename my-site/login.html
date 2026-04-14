@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログイン | ノベットコイン.com</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  
+<script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background-color: #f5f5f5; }
+    .container { max-width: 500px; margin: 60px auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; margin-bottom: 30px; }
+    label { display: block; margin-top: 15px; margin-bottom: 5px; }
+    input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+    button { width: 100%; margin-top: 25px; padding: 12px; font-size: 16px; background-color: #6a0dad; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #5800a8; }
+    
+    /* 🌟 追加：Googleログインボタン用スタイル */
+    .google-btn { background-color: #4285F4; margin-top: 10px; }
+    .google-btn:hover { background-color: #357ae8; }
+    .divider { text-align: center; margin: 20px 0; color: #888; font-size: 14px; position: relative; }
+    .divider::before, .divider::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background-color: #ddd; }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
+
+    .back-link { display: inline-block; margin-bottom: 15px; color: #6a0dad; text-decoration: none; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    .forgot-link { display: block; text-align: center; margin-top: 20px; color: #6a0dad; font-size: 13px; text-decoration: none; }
+    .forgot-link:hover { text-decoration: underline; }
+    .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 40px; }
+    .footer a { color: white; margin: 0 10px; text-decoration: none; font-size: 14px; }
+    .footer a:hover { text-decoration: underline; }
+    .footer .copy { margin-top: 10px; font-size: 12px; color: #ccc; }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <a href="index.html" class="back-link">← トップへ戻る</a>
+  <h1>ログイン</h1>
+
+  <form id="loginForm">
+    <label>メールアドレス</label>
+    <input type="email" id="email" placeholder="メールアドレス">
+
+    <label>パスワード</label>
+    <input type="password" id="password" placeholder="パスワード">
+
+    <button type="submit">ログイン</button>
+  </form>
+
+  <div class="divider">または</div>
+
+  <button type="button" id="googleLoginBtn" class="google-btn">Googleでログイン (ウォレット作成)</button>
+
+  <a href="#" id="resetPasswordLink" class="forgot-link">パスワードを忘れた方はこちら</a>
+</div>
+
+<div class="footer">
+  <div>
+    <a href="#">サイトマップ</a>
+    <a href="#">プライバシーポリシー</a>
+    <a href="#">問い合わせ</a>
+  </div>
+  <div class="copy">ODAcorp</div>
+</div>
+
+<script>
+// --- Supabase 初期化 ---
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- 🌟 Web3Auth 初期化設定 ---
+let web3auth = null;
+
+async function initWeb3Auth() {
+  try {
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; // ★もう一度書き換えてください
+
+    const chainConfig = {
+      chainNamespace: "eip155",
+      chainId: "0x89", 
+      rpcTarget: "https://polygon-rpc.com", // ★もう一度公式のRPCに戻します
+      displayName: "Polygon Mainnet",
+      blockExplorerUrl: "https://polygonscan.com/",
+      ticker: "MATIC",
+      tickerName: "Matic",
+    };
+
+    // ★追加：最新版で必須になった Provider の設定
+    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+      config: { chainConfig: chainConfig }
+    });
+
+    web3auth = new window.Modal.Web3Auth({
+      clientId: clientId,
+      web3AuthNetwork: "sapphire_devnet", 
+      privateKeyProvider: privateKeyProvider, // ★これを渡す必要があります
+    });
+
+    await web3auth.initModal();
+    console.log("Web3Auth initialized");
+  } catch (error) {
+    console.error("Web3Authの初期化エラー:", error);
+  }
+}
+// ページ読み込み時にWeb3Authを準備
+window.addEventListener("load", initWeb3Auth);
+
+// --- 🌟 Googleログインボタンの処理 ---
+document.getElementById("googleLoginBtn").addEventListener("click", async function() {
+  if (!web3auth) {
+    alert("Web3Authの準備がまだ完了していません。数秒待ってから再度お試しください。");
+    return;
+  }
+  
+  try {
+    // Web3Authのモーダル（ログイン画面）を呼び出す
+    const web3authProvider = await web3auth.connect();
+    
+    // ログイン成功後、ウォレットアドレスを取得してみるテスト
+    const user = await web3auth.getUserInfo();
+    console.log("ログイン成功！ユーザー情報:", user);
+    
+    alert(`Googleログイン成功！\nようこそ、${user.name}さん\n(F12キーでConsoleを開くと詳細が見れます)`);
+    
+    // ※今回はテストなので、ここまで確認できたらOKです
+  } catch (error) {
+    console.error("Googleログインエラー:", error);
+  }
+});
+
+
+// --- 既存の処理（通常ログイン・パスワードリセット） ---
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  if (!email || !password) return alert("メールアドレスとパスワードを入力してください");
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.user) {
+      alert("ログインに成功しました！");
+      window.location.href = "index.html";
+    }
+  } catch (error) {
+    alert("ログインエラー: " + error.message);
+  }
+});
+
+document.getElementById("resetPasswordLink").addEventListener("click", async function(e) {
+  e.preventDefault();
+  const email = document.getElementById("email").value;
+  if (!email) {
+    alert("上の入力欄に登録しているメールアドレスを入力してから、このリンクを押してください。");
+    return;
+  }
+  try {
+    const redirectUrl = window.location.origin + window.location.pathname.replace('login.html', 'update_password.html');
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    if (error) throw error;
+    alert("パスワード再設定用のメールを送信しました。\nメール内のリンクからパスワードを再設定してください。");
+  } catch (error) {
+    alert("エラー: " + error.message);
+  }
+});
+</script>
+
+</body>
+</html>

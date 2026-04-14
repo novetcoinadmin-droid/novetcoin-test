@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <script src="/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>アカウント管理 | ノベットコイン.com</title>
+  <style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background: #f0f2f5; color: #333; padding: 20px; line-height: 1.6; }
+  .container { max-width: 640px; margin: 0 auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  
+  h1 { text-align: center; margin-bottom: 25px; color: #6a0dad; font-size: 24px; }
+  h2 { font-size: 18px; color: #333; margin-bottom: 15px; border-left: 4px solid #6a0dad; padding-left: 10px; }
+  h3 { font-size: 16px; margin-bottom: 12px; }
+
+  .section { padding: 20px 0; border-bottom: 1px solid #eee; margin-bottom: 10px; }
+  .side-box { background: #fdfbff; padding: 15px; border-radius: 10px; border: 1px solid #eaddff; margin-bottom: 15px; }
+
+  /* 作家リスト：1行1作家でスッキリ */
+  .author-item { background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 12px; transition: transform 0.2s; }
+  .author-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  .author-info { font-weight: bold; font-size: 16px; margin-bottom: 10px; display: block; }
+  
+  /* ボタン類 */
+  .btn-group { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-group button { padding: 6px 12px; cursor: pointer; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; font-weight: bold; }
+  .go-btn { background: #6a0dad; color: white; border: none !important; }
+
+  /* 入力エリア */
+  .create-area { margin-top: 15px; }
+  .create-area label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; color: #555; }
+  .create-area input, .create-area select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; margin-bottom: 15px; }
+  
+  .add-btn { width: 100%; padding: 14px; background: #6a0dad; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(106,13,173,0.25); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>アカウント管理 (ポータル)</h1>
+  
+  <div style="margin: 20px 0; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #ddd;">
+    <label style="font-weight: bold; display: block; margin-bottom: 10px;">
+    ユーザー名設定（現在の名前：<span id="currentDisplayName" style="color: #6a0dad;">読み込み中...</span>）
+    </label>
+    <input type="text" id="newUsername" placeholder="新しい名前を入力" style="padding: 8px; width: 200px; border: 1px solid #ccc; border-radius: 4px;">
+    <button onclick="updateUsername()">更新</button>
+  </div>
+
+  <div class="side-box">
+    <h3>運営からのメッセージ (DM)</h3>
+    <div id="messageList">読み込み中...</div>
+  </div>
+  <div class="side-box" style="margin-top: 20px; border-top: 2px solid #6a0dad; padding-top: 20px;">
+    <h3>💎 報酬確定待ち (Pending)</h3>
+    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+      ※ボット対策のため、投稿から3日間の確認期間を設けています。
+    </p>
+    <div id="pendingRewardList">読み込み中...</div>
+  </div>
+
+  <div id="userEmail" style="margin-bottom: 20px;">メール: ---</div>
+
+  <div style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 30px;">
+    <h3 style="font-size: 16px; color: #333; margin-bottom: 15px; display: flex; align-items: center;">
+      <span style="margin-right: 8px;">💳</span> お財布 / 資産管理
+    </h3>
+    
+    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+      <div style="flex: 1; background: #f8f0ff; padding: 15px; border-radius: 10px; text-align: center;">
+        <div style="font-size: 11px; color: #6a0dad; font-weight: bold; margin-bottom: 5px;">NVT 残高</div>
+        <div style="font-size: 20px; font-weight: bold; color: #6a0dad;"><span id="nvtBalance">0</span> <small style="font-size: 12px;">NVT</small></div>
+      </div>
+      <div style="flex: 1; background: #fff8f0; padding: 15px; border-radius: 10px; text-align: center;">
+        <div style="font-size: 11px; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">NP 残高</div>
+        <div style="font-size: 20px; font-weight: bold; color: #ff8c00;"><span id="npBalance">0</span> <small style="font-size: 12px;">NP</small></div>
+      </div>
+    </div>
+
+    <button onclick="location.href='/portal/wallet.html'" style="width:100%; padding:15px; background:#6a0dad; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px; box-shadow: 0 4px 10px rgba(106,13,173,0.3);">
+        💳 ウォレットを開く
+    </button>
+    <p style="text-align:center; font-size:11px; color:#999; margin-top:10px;">※NVTの管理・変換・送金はこちら</p>
+    <p style="font-size: 10px; color: #aaa; margin-top: 12px; text-align: center;">※オンチェーン(Web3)連携機能は開発中です</p>
+  </div>
+
+  <div class="section">
+    <h2>所属作家一覧</h2>
+    <div id="authorList" style="margin-bottom: 20px;"></div>
+
+    <div class="create-area" style="background: #ffffff; padding: 20px; border-radius: 15px; border: 2px solid #f0e6ff; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+      <h3 style="color: #6a0dad; display: flex; align-items: center; gap: 8px;">
+        <span>🖋️</span> 新しい作家アカウントを作成
+      </h3>
+
+      <label for="newAuthorName">ペンネーム</label>
+      <input type="text" id="newAuthorName" placeholder="（例）シュヴァルツ・ノベル">
+
+      <label for="authorZone">活動ゾーン（あとで変更できません）</label>
+      <select id="authorZone">
+        <option value="main">🟢 全年齢ゾーン（一般向け作品）</option>
+        <option value="mens">⚫ 男性向けゾーン（R18/成人向け）</option>
+        <option value="womens">💖 女性向けゾーン（R18/成人向け）</option>
+      </select>
+
+      <div style="background: #fff5f5; padding: 15px; border-radius: 10px; border: 1px solid #ffdada; margin-bottom: 20px;">
+        <label style="font-size: 13px; color: #c62828; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; margin-bottom: 0;">
+          <input type="checkbox" id="tosAgreement" style="margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0;">
+          <span>
+            <strong>【重要：属性の固定について】</strong><br>
+            一度作成した作家の属性（ゾーン）は、後から変更できません。これは、例えば「男性向け作品」が誤って「全年齢ゾーン」に表示され、<strong>規約違反であなたのアカウントが即時停止されるリスクを防ぐため</strong>の保護措置です。この仕様を理解し、正しい属性で活動することに同意します。
+          </span>
+        </label>
+      </div>
+
+      <button class="add-btn" onclick="createAuthor()">作家を新規登録する</button>
+      <p style="text-align: center; font-size: 12px; color: #888; margin-top: 12px; font-weight: bold;">
+        ※1つのアカウントで最大3名まで活動可能です
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// --- 1. Supabaseの接続設定 ---
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+// ※注意: APIキーは本来公開しないのがベストですが、現状のまま残しています。
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+
+// --- ① ユーザー名表示と更新 ---
+async function updateUsername() {
+  const newName = document.getElementById("newUsername").value.trim();
+  if (!newName) return alert("名前を入力してください");
+  
+  const { error } = await supabaseClient
+    .from('profiles')
+    .update({ username: newName })
+    .eq('id', currentUser.id);
+
+  if (error) alert("更新失敗: " + error.message);
+  else {
+    alert("ユーザー名を更新しました！");
+    location.reload();
+  }
+}
+
+// --- 作家一覧の表示を更新 ---
+function renderAuthors(authors) {
+  const list = document.getElementById("authorList");
+  list.innerHTML = "";
+  
+  authors.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "author-item";
+    
+    // ゾーンに応じたラベルの色分けとボタンの文字
+    const zoneLabels = { 
+      'main': { text: '全年齢', color: '#4caf50', btnText: '全年齢向けトップへ' },
+      'mens': { text: '男性向け', color: '#333', btnText: '男性向けトップへ' },
+      'womens': { text: '女性向け', color: '#e91e63', btnText: '女性向けトップへ' }
+    };
+    const label = zoneLabels[a.zone] || { text: '不明', color: '#999', btnText: 'トップへ' };
+
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
+        <div>
+          <span style="font-size:10px; background:${label.color}; color:white; padding:2px 6px; border-radius:10px; margin-right:8px;">${label.text}</span>
+          <strong class="author-info">${a.author_name}</strong>
+        </div>
+        <div class="btn-group">
+          <button onclick="editAuthor('${a.id}', '${a.author_name}')" style="background: #ffa500; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size:12px;">名前変更</button>
+          <button class="go-btn" onclick="goToZoneIndex('${a.id}', '${a.zone}')" style="background: #6a0dad; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size:12px;">${label.btnText}</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// --- 新しい作家を作成 ---
+async function createAuthor() {
+  const nameInput = document.getElementById("newAuthorName");
+  const zoneInput = document.getElementById("authorZone");
+  const tosInput = document.getElementById("tosAgreement");
+  
+  const name = nameInput.value.trim();
+  const zone = zoneInput.value;
+
+  if (!name) return alert("作家名を入力してください");
+  if (!tosInput.checked) return alert("ゾーン規約への同意チェックが必要です");
+
+  // 現在の人数チェック（3名まで）
+  const { data: currentAuthors } = await supabaseClient.from("authors").select("id").eq("user_id", currentUser.id);
+  if (currentAuthors && currentAuthors.length >= 3) {
+    return alert("登録できる作家は最大3名までです。");
+  }
+
+  const { error } = await supabaseClient.from("authors").insert([
+    { user_id: currentUser.id, author_name: name, zone: zone }
+  ]);
+
+  if (error) {
+    alert("作成失敗: " + error.message);
+  } else {
+    alert("作家を作成しました！");
+    nameInput.value = "";
+    tosInput.checked = false;
+    init();
+  }
+}
+
+// --- 各属性のトップページ（index.html）へ移動 ---
+function goToZoneIndex(id, zone) {
+  localStorage.setItem("authorId", id);
+  localStorage.setItem("authorZone", zone); 
+  
+  if (zone === 'mens') {
+    location.href = "/my-siteman/index.html";
+  } else if (zone === 'womens') {
+    location.href = "/my-sitewomens/index.html";
+  } else {
+    location.href = "/my-site/index.html"; // 全年齢
+  }
+}
+
+// --- 名前変更 ---
+async function editAuthor(authorId, currentName) {
+  const newName = prompt("新しい作家名を入力してください", currentName);
+  if (!newName || newName.trim() === "" || newName === currentName) return;
+  const { error } = await supabaseClient.from('authors').update({ author_name: newName.trim() }).eq('id', authorId);
+  if (!error) init();
+}
+
+// --- ② ③ 運営からのDMと特典受取 ---
+async function fetchMessages() {
+  try {
+    const { data: messages } = await supabaseClient.from('messages').select('*').eq('recipient_id', currentUser.id);
+    const list = document.getElementById("messageList");
+    list.innerHTML = "";
+    const activeMessages = messages?.filter(m => !m.is_claimed) || [];
+
+    if (activeMessages.length === 0) {
+      list.innerHTML = "<p style='font-size:12px; color:#999;'>現在、新着メッセージはありません。</p>";
+      return;
+    }
+
+    activeMessages.forEach(msg => {
+      const div = document.createElement("div");
+      div.style = "background: #fff9f0; border: 1px solid #ffe0b2; border-radius: 8px; padding: 15px; margin-bottom: 10px; font-size: 14px;";
+      
+      const rewardBtn = (msg.reward_amount > 0) 
+        ? `<button onclick="claimReward(event, '${msg.id}')" style="background:#ff9800; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; margin-top:10px; font-weight:bold;">🎁 ${msg.reward_amount} NVTを受け取る</button>`
+        : "";
+
+      div.innerHTML = `
+        <strong style="color:#e65100;">${msg.title}</strong>
+        <p style="white-space: pre-wrap; color: #5d4037; margin-top:8px; line-height:1.5;">${msg.body}</p>
+        ${rewardBtn}
+      `;
+      list.appendChild(div);
+    });
+  } catch (err) { console.error(err); }
+}
+
+async function claimReward(event, messageId) {
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerText = "処理中...";
+
+  try {
+    const { error } = await supabaseClient.rpc('claim_message_reward', { target_msg_id: messageId, target_user_id: currentUser.id });
+    if (error) throw error;
+    alert("特典を受け取りました！");
+    location.reload(); 
+  } catch (err) {
+    alert("受取失敗: " + err.message);
+    btn.disabled = false;
+    btn.innerText = "受け取る";
+  }
+}
+
+// --- ④ ⑤ 報酬エリア表示 ---
+async function fetchPendingRewards() {
+  try {
+    await supabaseClient.rpc('automate_claim_rewards');
+    await initProfilesOnly();
+
+    const { data: rewards } = await supabaseClient.from('rewards_pending').select('*').eq('user_id', currentUser.id).eq('status', 'pending').order('claimable_at', { ascending: true });
+    const list = document.getElementById("pendingRewardList");
+    list.innerHTML = "";
+    const now = new Date();
+
+    if (!rewards || rewards.length === 0) {
+      list.innerHTML = "<p style='font-size:12px; color:#999;'>現在、確定待ちの報酬はありません。</p>";
+      return;
+    }
+
+    rewards.forEach(r => {
+      const diffMs = new Date(r.claimable_at) - now;
+      if (diffMs > 0) {
+        const h = Math.floor(diffMs / 3600000);
+        const m = Math.floor((diffMs % 3600000) / 60000);
+        const div = document.createElement("div");
+        div.style = "background: #f0f0f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;";
+        div.innerHTML = `<span><strong>${r.amount} NVT</strong> 獲得予定</span><span style="color:#666; font-weight:bold;">あと ${h}時間 ${m}分</span>`;
+        list.appendChild(div);
+      }
+    });
+  } catch (err) { console.error(err); }
+}
+
+// --- 起動と統合 ---
+async function init() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  // ★修正: ログイン画面へのパスを絶対パスに変更
+  if (!user) { location.href = "/my-site/login.html"; return; }
+  currentUser = user;
+  await initProfilesOnly();
+  const { data: authors } = await supabaseClient.from("authors").select("*").eq("user_id", user.id);
+  renderAuthors(authors || []);
+}
+
+async function initProfilesOnly() {
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  if (profile) {
+    document.getElementById("currentDisplayName").innerText = profile.username || "未設定";
+    document.getElementById("nvtBalance").innerText = (profile.nvt_balance || 0).toLocaleString();
+    document.getElementById("npBalance").innerText = (profile.np_balance || 0).toLocaleString();
+    document.getElementById("userEmail").innerText = currentUser.email;
+    
+    // ★修正: penalty.html へのパスを絶対パスに変更
+    if (profile.is_frozen && !window.location.href.includes('penalty.html')) location.href = '/my-site/penalty.html';
+  }
+}
+
+async function startApp() {
+  await init();
+  await fetchMessages();
+  await fetchPendingRewards();
+}
+
+startApp();
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ウォレット | ノベットコイン.com</title>
+    <script src="/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --gold: #ffd700; --bg-gray: #f5f5f5; }
+        body { font-family: sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
+        .wallet-container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        h1 { font-size: 22px; color: var(--main-purple); border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        .back-link { font-size: 14px; color: #666; text-decoration: none; font-weight: normal; }
+        
+        /* 残高カード */
+        .balance-card { display: flex; gap: 15px; margin-top: 20px; }
+        .bal-box { flex: 1; padding: 20px; border-radius: 10px; text-align: center; }
+        .bal-nvt { background: #fdfaf6; border: 1px solid #f9e5c3; }
+        .bal-np { background: #f4f0fa; border: 1px solid #e1d4f2; }
+        .bal-title { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 10px; }
+        .bal-amount { font-size: 28px; font-weight: bold; }
+        
+        /* 変換セクション */
+        .convert-section { margin-top: 30px; padding: 20px; background: #fffdf5; border: 1px solid #ffe082; border-radius: 10px; }
+        .convert-section h3 { font-size: 15px; margin-top: 0; color: #d4ac0d; }
+        .input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .input-group input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; text-align: right; }
+        .btn-convert { width: 100%; padding: 15px; background: linear-gradient(135deg, #f1c40f, #d4ac0d); color: #000; font-weight: bold; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-convert:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+
+        /* Web3 送金 */
+        .web3-section { margin-top: 20px; padding: 20px; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
+        .btn-send { width: 100%; padding: 12px; background: #333; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: not-allowed; opacity: 0.7; }
+        
+        /* 履歴テーブル */
+        .history-section { margin-top: 30px; }
+        .history-section h3 { font-size: 16px; border-bottom: 2px solid var(--main-purple); padding-bottom: 5px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .history-table th, .history-table td { padding: 12px 8px; border-bottom: 1px solid #eee; text-align: left; }
+        .history-table th { color: #888; font-weight: normal; }
+        .amt-plus { color: #2ecc71; font-weight: bold; }
+        .amt-minus { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="wallet-container">
+    <h1>💳 ウォレット <a href="/portal/account.html" class="back-link">← 戻る</a></h1>
+    <p style="font-size: 12px; color: #888; text-align: right;" id="walletUserId">ID: --</p>
+
+    <div class="balance-card">
+        <div class="bal-box bal-nvt">
+            <div class="bal-title">NVT 残高 (暗号資産)</div>
+            <div class="bal-amount" style="color: #d4ac0d;"><span id="nvtBal">0.00</span></div>
+        </div>
+        <div class="bal-box bal-np">
+            <div class="bal-title">NP 残高 (ポイント)</div>
+            <div class="bal-amount" style="color: var(--main-purple);"><span id="npBal">0</span></div>
+        </div>
+    </div>
+
+    <div class="convert-section">
+        <h3>🔄 NVT を NP に変換する</h3>
+        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">現在のレート: <strong>1 NVT = 150 NP</strong></p>
+        
+        <div class="input-group">
+            <input type="number" id="convertInput" placeholder="0.00" step="0.01" min="0.01" oninput="calcConvert()">
+            <span style="font-weight: bold; color: #666;">NVT</span>
+        </div>
+        <div style="text-align: center; margin-bottom: 15px; font-size: 20px; color: #ccc;">⬇</div>
+        <div class="input-group">
+            <input type="number" id="receiveInput" placeholder="0" disabled style="background: #fff; color: var(--main-purple); font-weight: bold;">
+            <span style="font-weight: bold; color: #666;">NP</span>
+        </div>
+        
+        <button id="convertBtn" class="btn-convert" onclick="executeConvert()" disabled>NPに変換する</button>
+    </div>
+    <div class="purchase-section" style="margin-top: 30px; padding: 20px; background: #fdfaf6; border: 1px solid #e1d4f2; border-radius: 10px;">
+        <h3 style="font-size: 15px; margin-top: 0; color: var(--main-purple);">💳 NPを購入する（チャージ）</h3>
+        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">クレジットカードやGoogle PayでNPをチャージできます。<br>（1 NP = 1円）</p>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('500円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
+                500 NP<br><small style="color:#999; font-weight:normal;">¥500</small>
+            </button>
+            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('1,000円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
+                1000 NP<br><small style="color:#999; font-weight:normal;">¥1,000</small>
+            </button>
+            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('5,000円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
+                5000 NP<br><small style="color:#999; font-weight:normal;">¥5,000</small>
+            </button>
+        </div>
+
+        <button onclick="alert('ここにStripe/Google Payの決済システムが組み込まれます。')" style="width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            Google Pay / クレジットカード決済 (準備中)
+        </button>
+    </div>
+
+    <div class="web3-section">
+        <h3 style="font-size: 14px; margin-top: 0;">🦊 外部ウォレットへ送金</h3>
+        <button class="btn-send" disabled>メタマスク(MetaMask)に送金（開発中）</button>
+    </div>
+
+    <div class="history-section">
+        <h3>📊 取引履歴 (Transaction)</h3>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>日付</th>
+                    <th>内容</th>
+                    <th style="text-align: right;">NVT増減</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込み中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+const RATE = 150; // 1 NVT = 150 NP
+
+async function initWallet() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) { location.href = "/my-site/login.html"; return; }
+    currentUser = user;
+
+    // ユーザーIDの一部を匿名IDとして表示
+    document.getElementById("walletUserId").innerText = `ID: ${user.id.substring(0, 8)}...`;
+
+    await fetchBalances();
+    await fetchHistory();
+}
+
+async function fetchBalances() {
+    const { data: profile } = await supabaseClient.from('profiles').select('nvt_balance, np_balance').eq('id', currentUser.id).single();
+    if (profile) {
+        currentProfile = profile;
+        // 小数点第2位まで表示
+        document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
+        document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
+    }
+}
+
+// 変換の計算とボタンの有効化
+function calcConvert() {
+    const inputVal = parseFloat(document.getElementById("convertInput").value);
+    const btn = document.getElementById("convertBtn");
+    const receiveInput = document.getElementById("receiveInput");
+
+    if (isNaN(inputVal) || inputVal <= 0) {
+        receiveInput.value = "";
+        btn.disabled = true;
+        return;
+    }
+
+    const npAmount = Math.floor(inputVal * RATE);
+    receiveInput.value = npAmount;
+
+    // 残高チェック
+    if (currentProfile && inputVal <= currentProfile.nvt_balance) {
+        btn.disabled = false;
+        btn.innerText = "NPに変換する";
+    } else {
+        btn.disabled = true;
+        btn.innerText = "NVT残高が不足しています";
+    }
+}
+
+// 変換実行 (修正版)
+async function executeConvert() {
+    const inputVal = parseFloat(document.getElementById("convertInput").value);
+    const npAmount = Math.floor(inputVal * RATE);
+
+    if (!confirm(`${inputVal} NVT を ${npAmount} NP に変換しますか？`)) return;
+
+    const btn = document.getElementById("convertBtn");
+    btn.disabled = true;
+    btn.innerText = "処理中...";
+
+    try {
+        // --- 修正箇所：直接DBをUpdateせず、Edge Functionを叩く ---
+        const { data, error } = await supabaseClient.functions.invoke('convert-nvt-to-np', {
+            body: { amount_nvt: inputVal }
+        });
+
+        if (error) throw error;
+
+        alert("変換が完了しました！（サーバー側で安全に処理されました）");
+        document.getElementById("convertInput").value = "";
+        document.getElementById("receiveInput").value = "";
+        
+        await fetchBalances(); // 残高更新
+        await fetchHistory();  // 履歴更新
+
+    } catch (err) {
+        alert("エラーが発生しました: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "NPに変換する";
+    }
+}
+
+// 履歴の取得
+async function fetchHistory() {
+    const tbody = document.getElementById("historyBody");
+    
+    try {
+        const { data: logs, error } = await supabaseClient
+            .from('transactions')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error || !logs || logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴がありません</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = logs.map(log => {
+            const date = new Date(log.created_at).toLocaleDateString();
+            const amtClass = log.amount_nvt > 0 ? 'amt-plus' : 'amt-minus';
+            const amtSign = log.amount_nvt > 0 ? '+' : '';
+            return `
+                <tr>
+                    <td>${date}</td>
+                    <td>${log.product_name || '-'}</td>
+                    <td style="text-align: right;" class="${amtClass}">${amtSign}${parseFloat(log.amount_nvt).toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした（テーブル未作成）</td></tr>`;
+    }
+}
+
+initWallet();
+</script>
+
+</body>
+</html>
