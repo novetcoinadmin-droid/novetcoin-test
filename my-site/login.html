@@ -79,19 +79,18 @@ let web3auth = null;
 
 async function initWeb3Auth() {
   try {
-    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; // ★もう一度書き換えてください
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
 
     const chainConfig = {
       chainNamespace: "eip155",
       chainId: "0x89", 
-      rpcTarget: "https://polygon-rpc.com", // ★もう一度公式のRPCに戻します
+      rpcTarget: "https://polygon.drpc.org", // ★対策1: CORSに強い別の無料パブリックRPCに変更
       displayName: "Polygon Mainnet",
       blockExplorerUrl: "https://polygonscan.com/",
       ticker: "MATIC",
       tickerName: "Matic",
     };
 
-    // ★追加：最新版で必須になった Provider の設定
     const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
       config: { chainConfig: chainConfig }
     });
@@ -99,11 +98,26 @@ async function initWeb3Auth() {
     web3auth = new window.Modal.Web3Auth({
       clientId: clientId,
       web3AuthNetwork: "sapphire_devnet", 
-      privateKeyProvider: privateKeyProvider, // ★これを渡す必要があります
+      privateKeyProvider: privateKeyProvider,
+      // ★対策2: ポップアップを禁止し、リダイレクトモードに強制する
+      uiConfig: {
+        uxMode: "redirect", 
+        appName: "Novetcoin",
+        theme: "light",
+      }
     });
 
     await web3auth.initModal();
-    console.log("Web3Auth initialized");
+    console.log("Web3Auth initialized in redirect mode");
+
+    // ★対策3: リダイレクトで戻ってきた時の処理
+    // 画面遷移から戻ってきたとき、ログインに成功していれば connected が true になります
+    if (web3auth.connected) {
+      const user = await web3auth.getUserInfo();
+      console.log("リダイレクトからのログイン復元成功！ユーザー情報:", user);
+      alert(`Googleログイン成功！\nようこそ、${user.name}さん\n(F12キーでConsoleを開くと詳細が見れます)`);
+    }
+
   } catch (error) {
     console.error("Web3Authの初期化エラー:", error);
   }
@@ -119,18 +133,11 @@ document.getElementById("googleLoginBtn").addEventListener("click", async functi
   }
   
   try {
-    // Web3Authのモーダル（ログイン画面）を呼び出す
-    const web3authProvider = await web3auth.connect();
-    
-    // ログイン成功後、ウォレットアドレスを取得してみるテスト
-    const user = await web3auth.getUserInfo();
-    console.log("ログイン成功！ユーザー情報:", user);
-    
-    alert(`Googleログイン成功！\nようこそ、${user.name}さん\n(F12キーでConsoleを開くと詳細が見れます)`);
-    
-    // ※今回はテストなので、ここまで確認できたらOKです
+    // リダイレクトモードの場合、connect()を呼ぶとすぐに別画面へ遷移します。
+    // そのため、この下の行（alert等）は遷移前には実行されません。結果はリロード後の initWeb3Auth 内で受け取ります。
+    await web3auth.connect();
   } catch (error) {
-    console.error("Googleログインエラー:", error);
+    console.error("Googleログイン連携エラー:", error);
   }
 });
 
@@ -157,21 +164,4 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
 
 document.getElementById("resetPasswordLink").addEventListener("click", async function(e) {
   e.preventDefault();
-  const email = document.getElementById("email").value;
-  if (!email) {
-    alert("上の入力欄に登録しているメールアドレスを入力してから、このリンクを押してください。");
-    return;
-  }
-  try {
-    const redirectUrl = window.location.origin + window.location.pathname.replace('login.html', 'update_password.html');
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
-    if (error) throw error;
-    alert("パスワード再設定用のメールを送信しました。\nメール内のリンクからパスワードを再設定してください。");
-  } catch (error) {
-    alert("エラー: " + error.message);
-  }
-});
-</script>
-
-</body>
-</html>
+  const email = document.getElementById("email
