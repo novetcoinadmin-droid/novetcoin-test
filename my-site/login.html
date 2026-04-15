@@ -140,6 +140,20 @@ document.getElementById("googleLoginBtn").addEventListener("click", async functi
     console.error("ログインエラー:", error);
   }
 });
+// login.html の修正箇所イメージ
+
+if (web3auth.connected) {
+  const user = await web3auth.getUserInfo();
+  
+  // ★ ここでブラウザのメモ帳にメールアドレスを保存！
+  localStorage.setItem('userEmail', user.email);
+  console.log("メモ帳にログイン情報を保存しました:", user.email);
+
+  // ...（その後のSupabaseへの保存処理などはそのまま）...
+
+  alert(`ログイン成功！\nウォレットとDBの連携が完了しました。`);
+  window.location.href = "index.html"; 
+}
 </script>
 
 </body>
