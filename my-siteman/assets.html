@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>イラスト保管庫 | Novet NFT Studio</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --bg-gray: #f4f7f6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: var(--bg-gray); color: #333; }
+        
+        /* 🌟 Novet NFT Studio 共通上部メニュー */
+        nav { background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000; }
+        .nav-link { text-decoration: none; color: #666; font-size: 14px; padding-bottom: 5px; }
+        .nav-link:hover { color: var(--main-purple); }
+        .nav-active { color: var(--main-purple); font-weight: bold; border-bottom: 2px solid var(--main-purple); }
+        
+        /* 2カラムレイアウト */
+        .layout { display: flex; max-width: 1200px; margin: 30px auto; gap: 20px; padding: 0 20px; }
+        
+        /* 左側（メインコンテンツ） */
+        .main-content { flex: 1; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .main-content h1 { font-size: 20px; color: var(--main-purple); border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        /* アップロードエリア */
+        .upload-area { background: #fdfaf6; border: 2px dashed #d4ac0d; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 30px; }
+        .upload-btn { background: #fff; border: 1px solid #d4ac0d; color: #d4ac0d; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .upload-btn:hover { background: #fffdf5; }
+        
+        /* ギャラリー（グリッド表示） */
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .asset-card { background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .asset-img-wrapper { width: 100%; height: 150px; background: #333; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .asset-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        .asset-info { padding: 10px; }
+        .asset-info input { width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; }
+        .asset-actions { display: flex; gap: 5px; }
+        .btn-save { flex: 1; background: var(--main-purple); color: white; border: none; padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .btn-delete { background: #ff4d4f; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+        /* 右側（アカウント情報） */
+        .right-panel { width: 250px; }
+        .side-box { background: white; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
+        .side-box h3 { font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; color: #666; }
+    </style>
+<style>body { background: #2c2e33 !important; }</style></head>
+<body>
+
+<nav>
+  <div style="font-weight: bold; color: #6a0dad; display: flex; align-items: center; gap: 8px; font-size: 20px;">
+    💎 Novet NFT Studio
+  </div>
+  <div style="display: flex; gap: 30px; align-items: center;">
+    <a href="nft_mint.html" class="nav-link">作成トップ</a>
+    <a href="market.html" class="nav-link">マーケット</a>
+    <a href="library.html" class="nav-link">ライブラリ</a>
+    <a href="assets.html" class="nav-link nav-active">イラスト保管庫</a>
+    <a href="purchased.html" class="nav-link">購入済み一覧</a>
+  </div>
+  <div><a href="index.html" style="font-size: 13px; color: #999; text-decoration: none;">← 一般サイトへ</a></div>
+</nav>
+
+<div class="layout">
+    <div class="main-content">
+        <h1>🎨 イラスト保管庫</h1>
+        
+        <div class="upload-area">
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                小説の表紙や挿絵、または将来NFT化したいイラストをアップロードします。<br>
+                ※画像は自動的に最適化（WebP変換）されて安全に保存されます。
+            </p>
+            <input type="file" id="imageUpload" accept="image/png, image/jpeg" multiple style="display: none;" onchange="handleUpload(event)">
+            <button class="upload-btn" onclick="document.getElementById('imageUpload').click()" id="uploadBtnText">
+                ＋ 新しい画像をアップロード（複数選択可）
+            </button>
+        </div>
+
+        <div class="gallery-grid" id="galleryGrid">
+            <p style="color: #999; font-size: 13px;">読み込み中...</p>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="side-box" id="accountInfoBox">
+            <h3>👤 アカウント情報</h3>
+            <p style="font-size:12px; color:#999; margin-bottom:5px;">表示名</p>
+            <p style="font-weight:bold; font-size:16px; margin-bottom:15px;" id="dispName">--</p>
+            
+            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
+                <p style="font-size:11px; color:#666;">NVT 残高 (暗号資産)</p>
+                <p style="font-weight:bold; color:#d4ac0d; font-size:18px;" id="dispNvt">0.00</p>
+            </div>
+            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:15px;">
+                <p style="font-size:11px; color:#666;">NP 残高 (ポイント)</p>
+                <p style="font-weight:bold; color:var(--main-purple); font-size:18px;" id="dispNp">0</p>
+            </div>
+            
+            <button onclick=location.href="../my-site/wallet.html" style="width:100%; padding:10px; background:var(--main-purple); color:white; border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:bold;">
+                💳 ウォレットを開く
+            </button>
+            <button onclick="location.href='account.html'" style="width:100%; padding:10px; background:#fff; border:1px solid #ccc; border-radius:5px; font-size:13px; cursor:pointer; margin-top:10px;">
+                ⚙️ 設定・マイページ
+            </button>
+        </div>
+        
+        <div class="side-box">
+            <h3 style="color: var(--main-purple);">✨ 今後のアップデート</h3>
+            <p style="font-size: 12px; color: #666; line-height: 1.5;">
+                ここで管理しているイラストは、後ほどエディタ画面（作成・編集）から自由に呼び出して挿絵として使うことができます。また、将来的に**イラスト単体でのNNFT化**も可能になる予定です。
+            </p>
+        </div>
+    </div>
+</div>
+
+<script src="auth-check.js"></script>
+<script>
+// Supabase設定は auth-check.js で共通読み込み済み
+
+let currentUser = null;
+
+async function init() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) { location.href = "login.html"; return; }
+    currentUser = user;
+
+    await fetchAccountInfo();
+    await fetchAssets();
+}
+
+async function fetchAccountInfo() {
+    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (profile) {
+        document.getElementById("dispName").innerText = profile.username || "未設定";
+        document.getElementById("dispNvt").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
+        document.getElementById("dispNp").innerText = Math.floor(profile.np_balance || 0);
+    }
+}
+
+async function handleUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const btn = document.getElementById('uploadBtnText');
+    btn.innerText = "⏳ 変換＆アップロード中...";
+    btn.disabled = true;
+
+    try {
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
+            
+            const img = new Image();
+            const objectUrl = URL.createObjectURL(file);
+            await new Promise((resolve, reject) => {
+                img.onload = resolve; img.onerror = reject; img.src = objectUrl;
+            });
+
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            
+            const webpBlob = await new Promise(resolve => {
+                canvas.toBlob(resolve, "image/webp", 0.8);
+            });
+
+            const fileName = `asset_${currentUser.id}_${Date.now()}_${i}.webp`;
+            const { error: uploadErr } = await supabaseClient.storage
+                .from('illustrations')
+                .upload(fileName, webpBlob, { contentType: 'image/webp' });
+
+            if (uploadErr) throw uploadErr;
+
+            const { data: publicUrlData } = supabaseClient.storage.from('illustrations').getPublicUrl(fileName);
+            const finalUrl = publicUrlData.publicUrl;
+
+            const originalName = file.name.split('.')[0]; 
+            await supabaseClient.from('user_assets').insert({
+                user_id: currentUser.id,
+                file_url: finalUrl,
+                file_name: originalName
+            });
+        }
+        
+        alert("アップロードが完了しました！");
+        await fetchAssets(); 
+
+    } catch (err) {
+        alert("アップロード失敗: " + err.message);
+    } finally {
+        btn.innerText = "＋ 新しい画像をアップロード（複数選択可）";
+        btn.disabled = false;
+        event.target.value = "";
+    }
+}
+
+async function fetchAssets() {
+    const grid = document.getElementById('galleryGrid');
+    
+    const { data: assets, error } = await supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (error) { grid.innerHTML = `<p>エラーが発生しました</p>`; return; }
+
+    if (assets && assets.length > 0) {
+        grid.innerHTML = assets.map(asset => `
+            <div class="asset-card" id="card_${asset.id}">
+                <div class="asset-img-wrapper">
+                    <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
+                </div>
+                <div class="asset-info">
+                    <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
+                    <div class="asset-actions">
+                        <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
+                        <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        grid.innerHTML = `<p style="color:#999; font-size:13px; grid-column: 1 / -1; text-align:center; padding: 40px 0;">まだ素材がありません。上のボタンからアップロードしてください。</p>`;
+    }
+}
+
+async function updateAssetName(id) {
+    const newName = document.getElementById(`name_${id}`).value;
+    const { error } = await supabaseClient.from('user_assets').update({ file_name: newName }).eq('id', id);
+    
+    if (error) alert("保存エラー");
+    else alert("ファイル名を保存しました！");
+}
+
+async function deleteAsset(id, url) {
+    if (!confirm("この素材を削除しますか？\n※すでに挿絵として使っている作品からは画像が消えてしまうのでご注意ください。")) return;
+
+    try {
+        await supabaseClient.from('user_assets').delete().eq('id', id);
+        
+        const fileName = url.split('/').pop(); 
+        await supabaseClient.storage.from('illustrations').remove([fileName]);
+
+        document.getElementById(`card_${id}`).remove();
+    } catch (err) {
+        alert("削除に失敗しました");
+    }
+}
+
+init();
+</script>
+
+</body>
+</html>
