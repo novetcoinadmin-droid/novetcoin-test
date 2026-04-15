@@ -92,8 +92,15 @@
     let currentFilter = 'main';
 
     async function init() {
-        
-        
+        // 🌟 ここを追加：現在のログインユーザーを取得する
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("セッションが切れました。ログインし直してください。");
+            location.href = "login.html";
+            return;
+        }
+
         currentUser = user;
         
         fetchUserStatus();
