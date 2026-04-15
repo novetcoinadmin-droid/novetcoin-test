@@ -109,7 +109,7 @@
 
     async function fetchUserStatus() {
         const statusArea = document.getElementById("userStatusArea");
-        const { data: profile, error } = await supabaseClient
+        const { data: profile, error } = await window.supabaseClient
             .from('profiles')
             .select('username, nvt_balance, np_balance')
             .eq('id', currentUser.id)
@@ -155,7 +155,7 @@
 
         try {
             // 🌟 1. sales_logs テーブルから、自分が買った「チケット」をすべて探す
-            const { data: logs, error: logError } = await supabaseClient
+            const { data: logs, error: logError } = await window.supabaseClient
                 .from('sales_logs')
                 .select('nft_id')
                 .eq('buyer_id', currentUser.id);
@@ -172,7 +172,7 @@
             const nftIds = logs.map(log => log.nft_id);
 
             // 🌟 3. nft_metadata テーブルから、リストにあるIDの作品を一気に持ってくる
-            let query = supabaseClient
+            let query = window.supabaseClient
                 .from('nft_metadata')
                 .select('*')
                 .in('id', nftIds); // in() を使うと、リストにあるIDを全部探してくれます
