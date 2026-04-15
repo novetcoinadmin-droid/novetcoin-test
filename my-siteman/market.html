@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Marketplace | Novet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
+        
+        /* 棚レイアウト用 */
+        .shelf-container { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .shelf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-left: 5px solid #6a0dad; padding-left: 15px; }
+        .shelf-header h3 { margin: 0; font-size: 1.1rem; }
+        .shelf-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+        
+        /* NFTカード（マーケット版） */
+        .nft-card-sm { background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #eee; transition: 0.2s; cursor: pointer; }
+        .nft-card-sm:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .nft-img-sm { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: #eee; }
+        .nft-info-sm { padding: 8px; font-size: 11px; }
+        .nft-title-sm { font-weight: bold; height: 2.8em; overflow: hidden; margin-bottom: 4px; line-height: 1.4; }
+        .nft-price-sm { color: #6a0dad; font-weight: bold; }
+
+        /* サブメニュー */
+        .sub-nav { display: flex; align-items: center; gap: 20px; padding: 10px 40px; background: #fff; border-bottom: 1px solid #eee; font-size: 14px; }
+        .sub-nav a { text-decoration: none; color: #666; font-weight: bold; }
+        .sub-nav a:hover { color: #6a0dad; }
+        
+        .nav-link { text-decoration: none; color: #666; padding: 5px 0; }
+        .nav-active { color: #6a0dad !important; font-weight: bold; border-bottom: 2px solid #6a0dad; }
+        /* 順位バッジの基本スタイル */
+.nft-card-sm { position: relative; } /* 親要素を基準にする */
+
+.rank-badge {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* 順位ごとの色分け */
+.rank-1 { background: linear-gradient(45deg, #ffd700, #ffa500); color: #000; border: 1px solid #fff; } /* 金 */
+.rank-2 { background: linear-gradient(45deg, #c0c0c0, #a9a9a9); } /* 銀 */
+.rank-3 { background: linear-gradient(45deg, #cd7f32, #8b4513); } /* 銅 */
+.rank-normal { background: rgba(106, 13, 173, 0.8); } /* その他（紫） */
+</style>
+<style>body { background: #2c2e33 !important; }</style></head>
+<body>
+
+<nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
+  <div style="font-weight: bold; color: #6a0dad; display: flex; align-items: center; gap: 8px; font-size: 20px;">
+    💎 Novet NFT Studio
+  </div>
+  <div style="display: flex; gap: 30px;">
+    <a href="nft_mint.html" class="nav-link">作成トップ</a>
+    <a href="market.html" class="nav-link nav-active">マーケット</a>
+    <a href="library.html" class="nav-link">ライブラリ</a>
+    <a href="assets.html" class="nav-link">イラスト保管庫</a>
+    <a href="purchased.html" class="nav-link">購入済み一覧</a>
+  </div>
+  <div><a href="index.html" style="font-size: 13px; color: #999; text-decoration: none;">← 一般サイトへ</a></div>
+</nav>
+
+<div class="sub-nav">
+    <a href="#" onclick="loadShelves('hot')">🔥 Hot</a>
+    <a href="#" onclick="loadShelves('new')">🆕 新着</a>
+    <a href="#" onclick="loadShelves('popular')">👑 人気</a>
+    <a href="#" onclick="loadShelves('circle')">🏘️ サークル</a>
+    <select id="categorySelect" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 12px;">
+        <option value="all">全てのカテゴリ</option>
+        <option value="fantasy">ファンタジー</option>
+        <option value="romance">恋愛</option>
+        <option value="sf">SF</option>
+    </select>
+</div>
+
+<div style="display: flex; max-width: 1400px; margin: 20px auto; padding: 0 20px; gap: 30px; align-items: flex-start;">
+    
+    <div style="flex: 1;">
+        <section class="shelf-container">
+            <div class="shelf-header">
+                <h3>🔥 Hot（ブースト枠）</h3>
+                <a href="#" style="font-size: 12px; color: #6a0dad; text-decoration: none;">すべてへ →</a>
+            </div>
+            <div id="shelf-hot" class="shelf-grid">
+                </div>
+        </section>
+
+        <section class="shelf-container">
+            <div class="shelf-header">
+                <h3>👑 人気順</h3>
+                <a href="#" style="font-size: 12px; color: #6a0dad; text-decoration: none;">すべてへ →</a>
+            </div>
+            <div id="shelf-popular" class="shelf-grid"></div>
+        </section>
+
+        <section class="shelf-container">
+            <div class="shelf-header">
+                <h3>🆕 新着作品</h3>
+                <a href="#" style="font-size: 12px; color: #6a0dad; text-decoration: none;">すべてへ →</a>
+            </div>
+            <div id="shelf-new" class="shelf-grid"></div>
+        </section>
+
+        <section class="shelf-container">
+            <div class="shelf-header">
+                <h3>🏘️ サークルおすすめ</h3>
+                <a href="#" style="font-size: 12px; color: #6a0dad; text-decoration: none;">すべてへ →</a>
+            </div>
+            <div id="shelf-circle" class="shelf-grid"></div>
+        </section>
+    </div>
+
+    <div style="width: 280px; position: sticky; top: 100px;">
+        <div style="margin-bottom: 20px;">
+            <input type="text" id="searchInput" placeholder="作品を検索..." style="width: 100%; padding: 12px; border: 2px solid #6a0dad; border-radius: 25px; box-sizing: border-box; outline: none;">
+        </div>
+
+        <div id="userStatusArea"></div>
+        
+        <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
+            <p><strong>マーケット情報</strong></p>
+            <p style="font-size: 11px; line-height: 1.4;">お気に入りのNFTを購入すると、その作品の公式な「オーナー」として認められます。購入にはNVTが必要です。</p>
+        </div>
+    </div>
+</div>
+
+<script src="auth-check.js"></script>
+<script>
+// Supabase設定は auth-check.js で共通読み込み済み
+
+async function init() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        renderUserStatus(session.user);
+    }
+    loadShelves();
+}
+
+// 棚のデータを読み込む
+async function loadShelves() {
+    // 1. 出品中の全NFTを取得
+    const { data: allNfts, error } = await supabaseClient
+        .from('nft_metadata')
+        .select('*')
+        .eq('is_listing', true)
+        .eq('novels.authors.zone', 'mens');
+
+    if (error) return console.error(error);
+
+    // 2. 各棚の条件に合わせてフィルタリングと並び替え
+    
+    // 【Hot枠】ブーストがONの作品のみを抽出し、さらに新着順(minted_at)で並び替える
+    const hotNfts = allNfts
+        .filter(n => n.is_boosted === true)
+        .sort((a, b) => new Date(b.minted_at) - new Date(a.minted_at))
+        .slice(0, 7);
+
+    // 【新着順】全ての作品を新着順で並び替える
+    const newNfts = [...allNfts]
+        .sort((a, b) => new Date(b.minted_at) - new Date(a.minted_at))
+        .slice(0, 7);
+
+    const popularNfts = [...allNfts]
+    .sort((a, b) => {
+        // まず売上数で比較
+        if (b.sales_count !== a.sales_count) {
+            return (b.sales_count || 0) - (a.sales_count || 0);
+        }
+        // 売上が同じなら、新しい順（minted_at）で比較
+        return new Date(b.minted_at) - new Date(a.minted_at);
+    })
+    .slice(0, 7); 
+
+    // 【修正】サークル枠は空にする
+    const circleNfts = [];
+
+    // 3. 各棚に描画（HTMLのIDに対応）
+    renderShelf("shelf-hot", hotNfts);
+    renderShelf("shelf-popular", popularNfts);
+    renderShelf("shelf-new", newNfts);
+    renderShelf("shelf-circle", circleNfts, true); // 第3引数にtrueを渡して「予定」表示にする
+}
+// ランキング
+function renderShelf(elementId, nfts, isUpdatePlanned = false) {
+    const container = document.getElementById(elementId);
+    container.innerHTML = "";
+    
+    if (isUpdatePlanned) {
+        container.style.display = "block";
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 40px; text-align: center; background: #f9f9f9; border-radius: 12px; border: 1px dashed #ccc; color: #999;">
+                <span style="font-size: 24px; display: block; margin-bottom: 10px;">🏘️</span>
+                <strong>サークル機能：アップデートで実装予定</strong><br>
+                <small>お気に入りのコミュニティやサークルの特設棚がここに登場します。お楽しみに！</small>
+            </div>
+        `;
+        return;
+    }
+
+    nfts.forEach((nft, index) => {
+        const card = document.createElement("div");
+        card.className = "nft-card-sm";
+        card.style.position = "relative"; // バッジを乗せるための基準
+        card.onclick = () => window.location.href = `nft_before_purchase.html?id=${nft.id}`;
+        
+        let rankBadge = "";
+        if (elementId === "shelf-popular") {
+            const rank = index + 1;
+            let icon = "⭐";
+            let bg = "rgba(106, 13, 173, 0.9)"; // 通常（紫）
+            let color = "#fff";
+            
+            if (rank === 1) { icon = "👑"; bg = "linear-gradient(45deg, #ffd700, #ffa500)"; color = "#000"; }
+            else if (rank === 2) { icon = "🥈"; bg = "linear-gradient(45deg, #c0c0c0, #a9a9a9)"; color = "#000"; }
+            else if (rank === 3) { icon = "🥉"; bg = "linear-gradient(45deg, #cd7f32, #8b4513)"; color = "#fff"; }
+
+            // 🌟 white-space: nowrap; を追加して文字の縦割れを防止
+            rankBadge = `
+                <div style="position: absolute; top: 4px; left: 4px; background: ${bg}; 
+                            color: ${color}; padding: 3px 8px; border-radius: 6px; 
+                            font-size: 11px; font-weight: bold; z-index: 10; 
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                            white-space: nowrap; display: flex; align-items: center; gap: 3px;">
+                    ${icon} ${rank}位
+                </div>`;
+        }
+
+        card.innerHTML = `
+            ${rankBadge}
+            <img src="${nft.cover_image_url}" class="nft-img-sm">
+            <div class="nft-info-sm">
+                <div class="nft-title-sm">${nft.title_at_mint}</div>
+                <div class="nft-price-sm">💎 ${nft.price_nvt} NVT</div>
+                ${elementId === "shelf-popular" ? `<div style="font-size: 9px; color: #999; margin-top: 2px;">売上: ${nft.sales_count || 0}</div>` : ""}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // 🌟 悪さをしていた aspect-ratio を削除し、元の綺麗な状態に戻しました
+    for (let i = nfts.length; i < 7; i++) {
+        const empty = document.createElement("div");
+        empty.style.background = "#fafafa";
+        empty.style.borderRadius = "8px";
+        empty.style.border = "1px dashed #ddd";
+        container.appendChild(empty);
+    }
+}
+
+// 共通のユーザーステータス描画
+async function renderUserStatus(user) {
+    const statusArea = document.getElementById("userStatusArea");
+    const { data: profile } = await supabaseClient.from('profiles').select('username, nvt_balance, np_balance').eq('id', user.id).single();
+    
+    const nvt = profile?.nvt_balance || 0;
+    const np = profile?.np_balance || 0;
+
+    statusArea.innerHTML = `
+        <div style="background: #fff; border: 2px solid #6a0dad; padding: 20px; border-radius: 16px; font-size: 14px; box-shadow: 0 4px 12px rgba(106, 13, 173, 0.08);">
+            <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+      
+      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
+      
+      <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+          <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
+            <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
+            <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
+          </div>
+        </div>
+      </a>
+      <div style="font-size:12px; color:#444; border-top:1px solid #eee; pt:10px;">
+            <a href="../my-site/account.html" style="display:block; text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">← アカウント管理へ</a>
+        </div>
+    `;
+}
+
+init();
+</script>
+</body>
+</html>
