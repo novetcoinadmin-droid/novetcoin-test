@@ -6,34 +6,6 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // 全ページで使い回せるように、window（グローバル）に定義する
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 🚀 【魔法のコード：影武者】
-// 各ページにある古い `getUser()` が呼ばれたら、これが代わりに返事をする
-window.supabaseClient.auth.getUser = async () => {
-    const savedEmail = localStorage.getItem('userEmail'); // メモ帳を見る
-    
-    if (!savedEmail) {
-        // メモがない（未ログイン）なら、古いコードに「いないよ」と伝える
-        return { data: { user: null } }; 
-    }
-
-    // メモがあるなら、Supabaseからプロフィールを引く
-    const { data: profile } = await window.supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('email', savedEmail)
-        .maybeSingle();
-
-    if (profile) {
-        // 古いコードが user.id を使っていてもエラーにならないように、ダミーのユーザー情報を渡す
-        return { 
-            data: { 
-                user: { id: profile.id, email: profile.email } 
-            } 
-        };
-    }
-    return { data: { user: null } };
-};
-
 // --- ここから下は右パネル（マイステータス）の表示処理 ---
 window.addEventListener("load", async () => {
     const savedEmail = localStorage.getItem('userEmail');
