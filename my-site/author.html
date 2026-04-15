@@ -171,6 +171,15 @@ let currentUser = null;
 
 // --- 2. データの取得 ---
 async function fetchNovels() {
+  const authorId = localStorage.getItem("authorId");
+  
+  // IDがない場合は、不正なリクエストを投げる前にマイページへ戻す
+  if (!authorId || authorId === "null") {
+    console.warn("authorIdが見つかりません。account.htmlに戻ります。");
+    location.href = "account.html"; 
+    return;
+  }
+  
   try {
     // window.supabaseClient を使用
     const { data: { user } } = await window.supabaseClient.auth.getUser();
