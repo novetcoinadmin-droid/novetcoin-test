@@ -6,7 +6,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // 全ページで使い回せるように、window（グローバル）に定義する
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- ここから下は右パネル（マイステータス）の表示処理 ---
+// --- 1. 右パネル（マイステータス）の表示処理 ---
 window.addEventListener("load", async () => {
     const savedEmail = localStorage.getItem('userEmail');
     const panel = document.getElementById("rightPanel");
@@ -44,23 +44,19 @@ window.addEventListener("load", async () => {
     }
 });
 
-f// auth-check.js 内の handleLogout を以下に差し替え
+// --- 2. ログアウト処理 ---
 async function handleLogout() {
     try {
-        // 1. Supabaseから正式にサインアウト（証明書を破棄）
         if (window.supabaseClient) {
             await window.supabaseClient.auth.signOut();
         }
     } catch (err) {
         console.error("サインアウト中にエラー:", err);
     } finally {
-        // 2. ブラウザのメモ帳をクリア
         localStorage.removeItem('userEmail');
-        // 他の不要な一時データもあればここで消す
         localStorage.removeItem('authorId');
         localStorage.removeItem('authorZone');
-
-        // 3. トップページへ強制移動
+        // トップページへリダイレクト
         window.location.href = "index.html";
     }
 }
