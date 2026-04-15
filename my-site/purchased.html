@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>購入済み作品一覧 | Novet</title>
     <style>
@@ -88,10 +87,6 @@
 
 <script src="auth-check.js"></script>
 <script>
-    // 提示されたコードから抽出した接続情報
-    const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     let currentUser = null;
     let currentFilter = 'main';
