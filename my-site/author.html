@@ -175,7 +175,7 @@ async function fetchNovels() {
   // IDがない場合は、不正なリクエストを投げる前にマイページへ戻す
   if (!authorId || authorId === "null") {
     console.warn("authorIdが見つかりません。account.htmlに戻ります。");
-    location.href = "account.html"; 
+    location.href = "../portal/account.html"; 
     return;
   }
   
