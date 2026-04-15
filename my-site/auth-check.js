@@ -44,7 +44,23 @@ window.addEventListener("load", async () => {
     }
 });
 
-function handleLogout() {
-    localStorage.removeItem('userEmail');
-    location.href = "index.html";
+f// auth-check.js 内の handleLogout を以下に差し替え
+async function handleLogout() {
+    try {
+        // 1. Supabaseから正式にサインアウト（証明書を破棄）
+        if (window.supabaseClient) {
+            await window.supabaseClient.auth.signOut();
+        }
+    } catch (err) {
+        console.error("サインアウト中にエラー:", err);
+    } finally {
+        // 2. ブラウザのメモ帳をクリア
+        localStorage.removeItem('userEmail');
+        // 他の不要な一時データもあればここで消す
+        localStorage.removeItem('authorId');
+        localStorage.removeItem('authorZone');
+
+        // 3. トップページへ強制移動
+        window.location.href = "index.html";
+    }
 }
