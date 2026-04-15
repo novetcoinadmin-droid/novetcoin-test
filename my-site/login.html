@@ -44,9 +44,6 @@
 
 <script src="auth-check.js"></script>
 <script>
-// --- Supabase 初期化 ---
-// Supabase設定は auth-check.js で共通読み込み済み
-
 // --- Web3Auth 初期化設定 ---
 let web3auth = null;
 
@@ -85,6 +82,10 @@ async function initWeb3Auth() {
     if (web3auth.connected) {
       const user = await web3auth.getUserInfo();
       
+      // ★ ここでブラウザのメモ帳にメールアドレスを保存！（統合済み）
+      localStorage.setItem('userEmail', user.email);
+      console.log("メモ帳にログイン情報を保存しました:", user.email);
+      
       // ウォレットアドレスを取得
       const accounts = await web3auth.provider.request({ method: "eth_accounts" });
       const walletAddress = accounts[0];
@@ -92,7 +93,7 @@ async function initWeb3Auth() {
       console.log("DB連携スタート:", user.email, walletAddress);
 
       // 1. メールアドレスで既存ユーザーか確認
-      const { data: existingProfile } = await supabaseClient
+      const { data: existingProfile } = await window.supabaseClient
         .from('profiles')
         .select('id')
         .eq('email', user.email)
@@ -100,13 +101,13 @@ async function initWeb3Auth() {
 
       if (existingProfile) {
         // 2-A. 既存ならウォレットアドレスを更新
-        await supabaseClient
+        await window.supabaseClient
           .from('profiles')
           .update({ wallet_address: walletAddress, updated_at: new Date() })
           .eq('id', existingProfile.id);
       } else {
         // 2-B. 新規なら行を作成 (IDを自動生成して挿入)
-        await supabaseClient
+        await window.supabaseClient
           .from('profiles')
           .insert([{
             id: crypto.randomUUID(), 
@@ -139,20 +140,6 @@ document.getElementById("googleLoginBtn").addEventListener("click", async functi
     console.error("ログインエラー:", error);
   }
 });
-// login.html の修正箇所イメージ
-
-if (web3auth.connected) {
-  const user = await web3auth.getUserInfo();
-  
-  // ★ ここでブラウザのメモ帳にメールアドレスを保存！
-  localStorage.setItem('userEmail', user.email);
-  console.log("メモ帳にログイン情報を保存しました:", user.email);
-
-  // ...（その後のSupabaseへの保存処理などはそのまま）...
-
-  alert(`ログイン成功！\nウォレットとDBの連携が完了しました。`);
-  window.location.href = "index.html"; 
-}
 </script>
 
 </body>
