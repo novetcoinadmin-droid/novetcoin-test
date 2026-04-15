@@ -136,12 +136,13 @@ async function init() {
             `;
         }
 
-        // NFTリストの取得
+        // --- NFTリストの取得（修正版：ミント済みのものだけを表示） ---
         const { data: nfts, error: nError } = await supabaseClient
-            .from('nft_metadata')
-            .select('*')
-            .eq('owner_id', session.user.id)
-            .order('minted_at', { ascending: false });
+        .from('nft_metadata')
+        .select('*')
+        .eq('owner_id', session.user.id)
+        .not('minted_at', 'is', null) // ★発行日時が null ではない（＝発行済み）ものだけに絞り込む
+        .order('minted_at', { ascending: false });
 
         const listArea = document.getElementById("nftListArea");
         listArea.innerHTML = "";
