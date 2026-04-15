@@ -82,17 +82,42 @@ async function initWeb3Auth() {
     if (web3auth.connected) {
       const user = await web3auth.getUserInfo();
       
-      // ★ ここでブラウザのメモ帳にメールアドレスを保存！（統合済み）
-      localStorage.setItem('userEmail', user.email);
-      console.log("メモ帳にログイン情報を保存しました:", user.email);
-      
       // ウォレットアドレスを取得
       const accounts = await web3auth.provider.request({ method: "eth_accounts" });
       const walletAddress = accounts[0];
 
       console.log("DB連携スタート:", user.email, walletAddress);
 
-      // 1. メールアドレスで既存ユーザーか確認
+      // 🌟 【本番仕様】Supabase側にも正式にログインして「本物の証明書」を取得する
+      // Web3Authの固有IDを利用して、裏側でSupabaseアカウントと同期させます
+      const syncPassword = "Nvt!" + user.verifierId + "2026"; 
+      
+      let authResult = await window.supabaseClient.auth.signInWithPassword({ 
+          email: user.email, 
+          password: syncPassword 
+      });
+
+      // 初回ログイン（Supabase側にまだアカウントがない）場合、自動でサインアップ
+      if (authResult.error && authResult.error.message.includes("Invalid login")) {
+          authResult = await window.supabaseClient.auth.signUp({ 
+              email: user.email, 
+              password: syncPassword 
+          });
+      }
+
+      if (authResult.error) {
+          console.error("Supabase連携エラー:", authResult.error);
+          alert("データベースの連携に失敗しました。詳細: " + authResult.error.message);
+          return;
+      }
+
+      // 🌟 これがSupabaseが発行した「本物のユーザーID」です
+      const realUid = authResult.data.user.id;
+      
+      // 右パネル表示用にメールアドレスを保存
+      localStorage.setItem('userEmail', user.email);
+
+      // 1. データベースのプロフィール確認
       const { data: existingProfile } = await window.supabaseClient
         .from('profiles')
         .select('id')
@@ -106,11 +131,11 @@ async function initWeb3Auth() {
           .update({ wallet_address: walletAddress, updated_at: new Date() })
           .eq('id', existingProfile.id);
       } else {
-        // 2-B. 新規なら行を作成 (IDを自動生成して挿入)
+        // 2-B. 新規なら行を作成 (★ランダムなIDではなく、Supabaseが発行した本物のIDを使う)
         await window.supabaseClient
           .from('profiles')
           .insert([{
-            id: crypto.randomUUID(), 
+            id: realUid, 
             email: user.email,
             username: user.name || "名称未設定",
             wallet_address: walletAddress,
@@ -118,7 +143,7 @@ async function initWeb3Auth() {
           }]);
       }
 
-      alert(`ログイン成功！\nようこそ、${user.name}さん\nウォレットとDBの連携が完了しました。`);
+      alert(`ログイン成功！\nようこそ、${user.name}さん\nセキュリティ同期が完了しました。`);
       
       // 成功したら自動的にトップページへ移動
       window.location.href = "index.html"; 
