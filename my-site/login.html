@@ -5,24 +5,20 @@
   <title>ログイン | ノベットコイン.com</title>
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
   
-<script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
   <style>
     body { font-family: sans-serif; background-color: #f5f5f5; }
     .container { max-width: 400px; margin: 100px auto; background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     h1 { text-align: center; margin-bottom: 30px; }
     button { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s; }
     
-    /* Googleログインボタン用スタイル */
     .google-btn { background-color: #4285F4; color: #fff; font-weight: bold; }
     .google-btn:hover { background-color: #357ae8; }
-
     .back-link { display: inline-block; margin-bottom: 20px; color: #6a0dad; text-decoration: none; font-size: 14px; }
     .back-link:hover { text-decoration: underline; }
-    
     .info-text { text-align: center; margin-top: 20px; font-size: 13px; color: #666; line-height: 1.6; }
-    
     .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 60px; }
     .footer .copy { font-size: 12px; color: #ccc; }
   </style>
@@ -86,12 +82,46 @@ async function initWeb3Auth() {
 
     await web3auth.initModal();
 
-    // ログイン済みでリダイレクトから戻ってきた時の処理
+    // 🌟 ログイン済みで戻ってきた時の処理（データベース連携）
     if (web3auth.connected) {
       const user = await web3auth.getUserInfo();
-      console.log("ログイン中:", user);
-      alert(`ログイン成功！\nようこそ、${user.name}さん`);
-      // 必要に応じてここで index.html に飛ばすなどの処理を追加できます
+      
+      // ウォレットアドレスを取得
+      const accounts = await web3auth.provider.request({ method: "eth_accounts" });
+      const walletAddress = accounts[0];
+
+      console.log("DB連携スタート:", user.email, walletAddress);
+
+      // 1. メールアドレスで既存ユーザーか確認
+      const { data: existingProfile } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // 2-A. 既存ならウォレットアドレスを更新
+        await supabaseClient
+          .from('profiles')
+          .update({ wallet_address: walletAddress, updated_at: new Date() })
+          .eq('id', existingProfile.id);
+      } else {
+        // 2-B. 新規なら行を作成 (IDを自動生成して挿入)
+        await supabaseClient
+          .from('profiles')
+          .insert([{
+            id: crypto.randomUUID(), 
+            email: user.email,
+            username: user.name || "名称未設定",
+            wallet_address: walletAddress,
+            updated_at: new Date()
+          }]);
+      }
+
+      alert(`ログイン成功！\nようこそ、${user.name}さん\nウォレットとDBの連携が完了しました。`);
+      
+      // 成功したら自動的にトップページへ移動
+      window.location.href = "index.html"; 
     }
 
   } catch (error) {
