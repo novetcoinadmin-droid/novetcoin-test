@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novet Reader | 本編ビューワー</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --book-cream: #f8f4e6; }
+        body { background: #444; margin: 0; display: flex; height: 100vh; overflow: hidden; font-family: 'Noto Serif JP', serif; }
+
+        /* 左側：作品表示エリア */
+        .work-display-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 60px; background: #555; box-shadow: inset 0 0 100px rgba(0,0,0,0.3); position: relative; overflow-y: auto; }
+        .page-spread { display: flex; width: 900px; height: 600px; background: var(--book-cream); box-shadow: 0 40px 80px rgba(0,0,0,0.6); border-radius: 4px 15px 15px 4px; overflow: hidden; position: relative; }
+        .page-spread::after { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 100%; background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.18) 50%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0) 100%); pointer-events: none; z-index: 20; }
+
+        .text-half, .illust-half { flex: 1; max-width: 50%; box-sizing: border-box; position: relative; }
+        .text-half { padding: 60px 60px 60px 40px; writing-mode: vertical-rl; font-size: 17px; line-height: 2.4; letter-spacing: 0.05em; color: #333; z-index: 5; }
+        .illust-half { background: #eee; display: flex; align-items: center; justify-content: center; z-index: 5; overflow: hidden; }
+        .illust-half img { width: 100%; height: 100%; object-fit: cover; }
+
+        .page-controls { margin-top: 30px; display: flex; align-items: center; gap: 30px; padding-bottom: 40px; }
+        .page-btn { background: none; border: 1px solid #fff; color: #fff; cursor: pointer; padding: 8px 20px; border-radius: 20px; font-size: 14px; }
+        .page-btn:disabled { opacity: 0.3; }
+        .page-counter { color: #fff; font-size: 16px; font-family: sans-serif; }
+
+        /* 右側：コントロールパネル */
+        .control-panel { width: 320px; background: #fff; padding: 20px; display: flex; flex-direction: column; border-left: 1px solid #333; overflow-y: auto; z-index: 50; }
+        .panel-title { font-size: 14px; font-weight: bold; color: var(--main-purple); border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin: 20px 0 10px; }
+        .back-btn { background: #f0f0f0; color: #333; text-decoration: none; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
+
+        /* 目次リスト */
+        .toc-list { list-style: none; padding: 0; margin: 0; }
+        .toc-item { padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; transition: 0.2s; }
+        .toc-item:hover { background: #faf5ff; color: var(--main-purple); }
+        .toc-item.active { background: #f3ebff; color: var(--main-purple); font-weight: bold; }
+
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #222; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h3 style="color: #fff;">閲覧権限を確認中...</h3>
+        <p id="overlayMsg" style="color: #aaa; font-size: 12px;"></p>
+    </div>
+
+    <div class="work-display-area">
+        <div class="page-spread" id="mainSpread">
+            <div class="text-half" id="viewContent"></div>
+            <div class="illust-half" id="illustContent"></div>
+        </div>
+
+        <div class="page-controls">
+            <button class="page-btn" onclick="changePage(-1)">前へ</button>
+            <span class="page-counter" id="pageCounter">-- / --</span>
+            <button class="page-btn" onclick="changePage(1)">次へ</button>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <a href="purchased.html" class="back-btn">← 本棚に戻る</a>
+        
+        <div class="panel-title">📖 目次 (エピソード)</div>
+        <ul class="toc-list" id="tocList">
+            </ul>
+
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #eee;">
+            <div id="viewTitle" style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">タイトル</div>
+            <div id="viewAuthor" style="color: #888; font-size: 11px;">作者</div>
+        </div>
+    </div>
+
+<script src="auth-check.js"></script>
+<script>
+// Supabase設定は auth-check.js で共通読み込み済み
+
+let nftData = null;
+let episodes = [];
+let currentEpIdx = -1; // -1 は「表紙」の状態
+let currentPageIdx = 0;
+
+async function initViewer() {
+    const params = new URLSearchParams(window.location.search);
+    const nftId = params.get('id');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!nftId || !session) {
+        window.location.href = "market.html";
+        return;
+    }
+
+    try {
+        const { data: nft } = await supabaseClient.from('nft_metadata').select('*').eq('id', nftId).single();
+        if (!nft) throw new Error("作品が見つかりません");
+        nftData = nft;
+        
+        // 🌟 魔法の翻訳機：どんなデータ形式でもエラーを出さずに目次配列にする
+        let rawContent = nft.nft_content || {};
+        episodes = [];
+
+        if (Array.isArray(rawContent.episodes)) {
+            // パターン1: 新しいミントデータ (配列)
+            episodes = rawContent.episodes;
+        } else if (rawContent.episodes && typeof rawContent.episodes === 'object') {
+            // パターン2: エディタからの下書きデータ (オブジェクト)
+            const keys = Object.keys(rawContent.episodes).sort();
+            keys.forEach((key, index) => {
+                const draft = rawContent.episodes[key];
+                episodes.push({
+                    episode_number: index + 1,
+                    title: draft.title || `第${index + 1}話`,
+                    pages: draft.pages || [],
+                    assets: draft.assets || {}
+                });
+            });
+        } else if (rawContent.pages && Array.isArray(rawContent.pages)) {
+            // パターン3: 古い作品 (pagesとassetsが直下にある)
+            episodes.push({
+                episode_number: 1,
+                title: "本編",
+                pages: rawContent.pages,
+                assets: rawContent.assets || {}
+            });
+        }
+
+        // 万が一データが空の場合の安全策
+        if (episodes.length === 0) {
+            episodes.push({ episode_number: 1, title: "データなし", pages: ["（本文データがありません）"], assets: {} });
+        }
+
+        // 作者名の取得
+        const { data: profile } = await supabaseClient.from('profiles').select('username').eq('id', nft.owner_id).single();
+        document.getElementById("viewTitle").innerText = nft.title_at_mint;
+        document.getElementById("viewAuthor").innerText = "@" + (profile?.username || "不明");
+
+        // 初期表示の実行
+        renderTOC();
+        renderScreen();
+
+        document.getElementById("overlay").style.display = "none";
+    } catch (err) {
+        document.getElementById("overlayMsg").innerText = err.message;
+    }
+}
+
+function renderTOC() {
+    const list = document.getElementById("tocList");
+    list.innerHTML = `<li class="toc-item ${currentEpIdx === -1 ? 'active' : ''}" onclick="jumpTo(-1, 0)">📔 表紙</li>`;
+    
+    episodes.forEach((ep, idx) => {
+        const li = document.createElement("li");
+        li.className = `toc-item ${currentEpIdx === idx ? 'active' : ''}`;
+        li.innerText = `${ep.episode_number}. ${ep.title}`;
+        li.onclick = () => jumpTo(idx, 0);
+        list.appendChild(li);
+    });
+}
+
+function renderScreen() {
+    const textArea = document.getElementById("viewContent");
+    const illustArea = document.getElementById("illustContent");
+    const counter = document.getElementById("pageCounter");
+
+    if (currentEpIdx === -1) {
+        // 🌟 表紙表示（横書きにして綺麗に中央に配置する）
+        textArea.style.writingMode = "horizontal-tb";
+        textArea.style.padding = "0"; 
+        textArea.innerHTML = `
+            <div style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
+                <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
+                <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
+                <p style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
+            </div>
+        `;
+        const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
+        if (coverImg) {
+            illustArea.innerHTML = `<img src="${coverImg}">`;
+        } else {
+            illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
+        }
+        counter.innerText = "Cover";
+    } else {
+        // 🌟 本文表示（縦書きと余白を元に戻す）
+        textArea.style.writingMode = "vertical-rl";
+        textArea.style.padding = "60px 60px 60px 40px";
+        
+        const ep = episodes[currentEpIdx];
+        textArea.innerText = ep.pages[currentPageIdx] || "";
+        
+        const asset = ep.assets ? ep.assets[currentPageIdx] : null;
+        if (asset) {
+            illustArea.innerHTML = `<img src="${asset}">`;
+        } else {
+            illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
+        }
+        counter.innerText = `Ep.${ep.episode_number} - P.${currentPageIdx + 1}/${ep.pages.length}`;
+    }
+    renderTOC();
+}
+
+function changePage(delta) {
+    if (currentEpIdx === -1) {
+        if (delta > 0) { currentEpIdx = 0; currentPageIdx = 0; }
+    } else {
+        currentPageIdx += delta;
+        // ページ範囲外の処理
+        if (currentPageIdx < 0) {
+            if (currentEpIdx > 0) {
+                currentEpIdx--;
+                currentPageIdx = episodes[currentEpIdx].pages.length - 1;
+            } else {
+                currentEpIdx = -1; // 表紙へ戻る
+            }
+        } else if (currentPageIdx >= episodes[currentEpIdx].pages.length) {
+            if (currentEpIdx < episodes.length - 1) {
+                currentEpIdx++;
+                currentPageIdx = 0;
+            } else {
+                currentPageIdx = episodes[currentEpIdx].pages.length - 1; // 終端
+            }
+        }
+    }
+    renderScreen();
+}
+
+function jumpTo(epIdx, pIdx) {
+    currentEpIdx = epIdx;
+    currentPageIdx = pIdx;
+    renderScreen();
+}
+
+initViewer();
+</script>
+</body>
+</html>
