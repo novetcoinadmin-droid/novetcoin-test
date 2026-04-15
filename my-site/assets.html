@@ -114,19 +114,34 @@
 
 <script src="auth-check.js"></script>
 <script>
-// Supabase設定は auth-check.js で共通読み込み済み
+// Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 
 let currentUser = null;
 
 async function init() {
-    
+    // 🌟 Step 1: ユーザー情報を取得（ここが抜けていたのがエラーの原因です）
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
 
+    if (!user) {
+        console.error("ログインユーザーが見つかりません。");
+        return;
+    }
+
+    currentUser = user; // グローバル変数にセット
+
+    // 🌟 Step 2: ユーザー情報を元に各データを取得
     await fetchAccountInfo();
     await fetchAssets();
 }
 
 async function fetchAccountInfo() {
-    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+    // window.supabaseClient を使用
+    const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
     if (profile) {
         document.getElementById("dispName").innerText = profile.username || "未設定";
         document.getElementById("dispNvt").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
@@ -162,18 +177,23 @@ async function handleUpload(event) {
                 canvas.toBlob(resolve, "image/webp", 0.8);
             });
 
+            // ファイル名の生成
             const fileName = `asset_${currentUser.id}_${Date.now()}_${i}.webp`;
-            const { error: uploadErr } = await supabaseClient.storage
+            
+            // 🌟 Storage へのアップロード (window.supabaseClient)
+            const { error: uploadErr } = await window.supabaseClient.storage
                 .from('illustrations')
                 .upload(fileName, webpBlob, { contentType: 'image/webp' });
 
             if (uploadErr) throw uploadErr;
 
-            const { data: publicUrlData } = supabaseClient.storage.from('illustrations').getPublicUrl(fileName);
+            const { data: publicUrlData } = window.supabaseClient.storage.from('illustrations').getPublicUrl(fileName);
             const finalUrl = publicUrlData.publicUrl;
 
             const originalName = file.name.split('.')[0]; 
-            await supabaseClient.from('user_assets').insert({
+            
+            // 🌟 DBへのインサート (window.supabaseClient)
+            await window.supabaseClient.from('user_assets').insert({
                 user_id: currentUser.id,
                 file_url: finalUrl,
                 file_name: originalName
@@ -184,6 +204,7 @@ async function handleUpload(event) {
         await fetchAssets(); 
 
     } catch (err) {
+        console.error(err);
         alert("アップロード失敗: " + err.message);
     } finally {
         btn.innerText = "＋ 新しい画像をアップロード（複数選択可）";
@@ -195,13 +216,17 @@ async function handleUpload(event) {
 async function fetchAssets() {
     const grid = document.getElementById('galleryGrid');
     
-    const { data: assets, error } = await supabaseClient
+    // 🌟 DBからの取得 (window.supabaseClient)
+    const { data: assets, error } = await window.supabaseClient
         .from('user_assets')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
-    if (error) { grid.innerHTML = `<p>エラーが発生しました</p>`; return; }
+    if (error) { 
+        grid.innerHTML = `<p>エラーが発生しました</p>`; 
+        return; 
+    }
 
     if (assets && assets.length > 0) {
         grid.innerHTML = assets.map(asset => `
@@ -225,22 +250,28 @@ async function fetchAssets() {
 
 async function updateAssetName(id) {
     const newName = document.getElementById(`name_${id}`).value;
-    const { error } = await supabaseClient.from('user_assets').update({ file_name: newName }).eq('id', id);
+    const { error } = await window.supabaseClient
+        .from('user_assets')
+        .update({ file_name: newName })
+        .eq('id', id);
     
     if (error) alert("保存エラー");
     else alert("ファイル名を保存しました！");
 }
 
 async function deleteAsset(id, url) {
-    if (!confirm("この素材を削除しますか？\n※すでに挿絵として使っている作品からは画像が消えてしまうのでご注意ください。")) return;
+    if (!confirm("この素材を削除しますか？\n※挿絵として使用中の場合、画像が表示されなくなります。")) return;
 
     try {
-        await supabaseClient.from('user_assets').delete().eq('id', id);
+        // DBから削除
+        await window.supabaseClient.from('user_assets').delete().eq('id', id);
         
+        // Storageから削除
         const fileName = url.split('/').pop(); 
-        await supabaseClient.storage.from('illustrations').remove([fileName]);
+        await window.supabaseClient.storage.from('illustrations').remove([fileName]);
 
-        document.getElementById(`card_${id}`).remove();
+        const el = document.getElementById(`card_${id}`);
+        if (el) el.remove();
     } catch (err) {
         alert("削除に失敗しました");
     }
