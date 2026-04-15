@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/config.jp"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>購入済み作品一覧 | Novet</title>
+    <style>
+        /* 1. 基本スタイル */
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
+        
+        /* 2. 上部ナビゲーション */
+        .nav-link { text-decoration: none; color: #666; padding: 5px 0; transition: 0.2s; font-size: 16px; }
+        .nav-link:hover { color: #6a0dad; }
+        .nav-active { color: #6a0dad !important; font-weight: bold; border-bottom: 2px solid #6a0dad; }
+
+        /* 3. サブメニュー（タブ） */
+        .sub-menu { background: #fff; border-bottom: 1px solid #ddd; display: flex; justify-content: center; gap: 40px; padding: 15px 0; }
+        .tab { cursor: pointer; padding: 5px 20px; font-weight: bold; color: #666; border-bottom: 3px solid transparent; transition: 0.2s; }
+        .tab:hover { color: #6a0dad; }
+        .tab.active { color: #6a0dad; border-bottom: 3px solid #6a0dad; }
+
+        /* 4. メインレイアウト（左：コンテンツ、右：サイドバー） */
+        .main-layout { display: flex; max-width: 1200px; margin: 30px auto; padding: 0 20px; gap: 40px; align-items: flex-start; }
+        .content-area { flex: 1; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+        .sidebar { width: 280px; position: sticky; top: 100px; }
+
+        /* 5. NFTカードグリッド表示 */
+        .nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; margin-top: 20px; }
+        .nft-card { background: white; border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: 0.2s; cursor: pointer; }
+        .nft-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #6a0dad; }
+        .nft-img { width: 100%; height: 140px; object-fit: cover; background: #f9f9f9; }
+        .nft-info { padding: 12px; }
+        .nft-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .nft-author { font-size: 11px; color: #999; }
+    </style>
+<style>body { background: #fdeff2 !important; }</style></head>
+<body>
+
+<nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
+  <div style="font-weight: bold; color: #6a0dad; display: flex; align-items: center; gap: 8px; font-size: 20px;">
+    💎 Novet NFT Studio
+  </div>
+  <div style="display: flex; gap: 30px;">
+    <a href="nft_mint.html" class="nav-link">作成トップ</a>
+    <a href="market.html" class="nav-link">マーケット</a>
+    <a href="library.html" class="nav-link">ライブラリ</a>
+    <a href="assets.html" class="nav-link">イラスト保管庫</a>
+    <a href="purchased.html" class="nav-link nav-active">購入済み一覧</a>
+  </div>
+  <div><a href="index.html" style="font-size: 13px; color: #999; text-decoration: none;">← 一般サイトへ</a></div>
+</nav>
+
+<div class="sub-menu">
+    <div class="tab active" onclick="filterType('main')">メインNFT</div>
+    <div class="tab" onclick="filterType('illust')">イラストNFT</div>
+    <div class="tab" onclick="filterType('sound')">サウンドNFT</div>
+</div>
+
+<div class="main-layout">
+    
+    <div class="content-area">
+        <h2 id="viewTitle" style="font-size: 1.3rem; border-left: 5px solid #6a0dad; padding-left: 15px; margin: 0;">
+            購入済みのメインNFT
+        </h2>
+        <div id="nftGrid" class="nft-grid">
+            </div>
+    </div>
+
+    <div class="sidebar">
+        <div id="userStatusArea">
+            <div style="background: white; padding: 25px; border-radius: 16px; border: 1px solid #f0f0f0; text-align: center;">
+                <p style="font-size: 12px; color: #888;">読み込み中...</p>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
+            <p style="margin: 0 0 10px 0;"><strong>エコシステム情報</strong></p>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>現在レート:</span>
+                <span style="color: #333; font-weight: bold;">1 NVT = 150 NP</span>
+            </div>
+            <p style="font-size: 10px; color: #bbb; margin: 5px 0 0 0;">※銀行の在庫状況により変動します</p>
+        </div>
+    </div>
+</div>
+
+<script src="auth-check.js"></script>
+<script>
+    // 提示されたコードから抽出した接続情報
+    const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    let currentUser = null;
+    let currentFilter = 'main';
+
+    async function init() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+            location.href = "login.html";
+            return;
+        }
+        currentUser = user;
+        
+        fetchUserStatus();
+        fetchPurchasedNFTs();
+    }
+
+    async function fetchUserStatus() {
+        const statusArea = document.getElementById("userStatusArea");
+        const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('username, nvt_balance, np_balance')
+            .eq('id', currentUser.id)
+            .single();
+
+        if (error || !profile) {
+            statusArea.innerHTML = `<div style="padding:20px; background:white; border-radius:16px; border:1px solid #f0f0f0; font-size:12px; color:red;">データ取得失敗</div>`;
+            return;
+        }
+
+        statusArea.innerHTML = `
+            <div style="background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">👤</div>
+                    <div style="text-align: left;">
+                        <div style="font-size: 14px; font-weight: bold; color: #333;">${profile.username || '名無し作家'}</div>
+                        <div style="font-size: 11px; color: #999;">認証済みクリエイター</div>
+                    </div>
+                </div>
+                <div style="border-top: 1px solid #f8f8f8; padding-top: 15px; text-align: left;">
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 11px; color: #888;">NVT Balance</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #6a0dad;">${Number(profile.nvt_balance).toLocaleString()} <span style="font-size: 12px;">NVT</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; color: #888;">NP Balance</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #333;">${Number(profile.np_balance).toLocaleString()} <span style="font-size: 12px;">NP</span></div>
+                    </div>
+                </div>
+                <button onclick="location.href='/portal/account.html'" style="width:100%; margin-top:20px; padding:10px; background:#fdfbff; border:1px solid #eee; border-radius:8px; font-size:12px; color:#666; cursor:pointer;">アカウント管理 ⚙️</button>
+            </div>
+        `;
+    }
+
+    async function fetchPurchasedNFTs() {
+        const grid = document.getElementById("nftGrid");
+        grid.innerHTML = "<p style='font-size:12px; color:#888;'>読み込み中...</p>";
+
+        if (currentFilter === 'sound') {
+            grid.innerHTML = "<p style='font-size:12px; color:#888;'>サウンドNFT機能は現在準備中です。</p>";
+            return; 
+        }
+
+        try {
+            // 🌟 1. sales_logs テーブルから、自分が買った「チケット」をすべて探す
+            const { data: logs, error: logError } = await supabaseClient
+                .from('sales_logs')
+                .select('nft_id')
+                .eq('buyer_id', currentUser.id);
+
+            if (logError) throw logError;
+
+            // チケットが1枚もなかった場合
+            if (!logs || logs.length === 0) {
+                grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません。</p>";
+                return;
+            }
+
+            // 🌟 2. チケットに書かれている「作品ID」だけを取り出してリストにする
+            const nftIds = logs.map(log => log.nft_id);
+
+            // 🌟 3. nft_metadata テーブルから、リストにあるIDの作品を一気に持ってくる
+            let query = supabaseClient
+                .from('nft_metadata')
+                .select('*')
+                .in('id', nftIds); // in() を使うと、リストにあるIDを全部探してくれます
+
+            // --- フィルター機能（メイン/イラストの切り替え） ---
+            // ※もしここが原因で何も表示されなくなる場合は、一旦このif文を消してください
+            if (currentFilter === 'main') {
+                query = query.not('novel_id', 'is', null);
+            } else if (currentFilter === 'illust') {
+                query = query.is('novel_id', null);
+            }
+            // ---------------------------------------------------
+
+            const { data: nfts, error: nftError } = await query;
+            if (nftError) throw nftError;
+
+            if (!nfts || nfts.length === 0) {
+                grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません（またはカテゴリが違います）。</p>";
+                return;
+            }
+
+            // 🌟 4. 画面にカードとして表示する
+            grid.innerHTML = nfts.map(nft => `
+                <div class="nft-card" onclick="window.location.href='nft_view.html?id=${nft.id}'">
+                    <img src="${nft.cover_image_url || 'placeholder.webp'}" class="nft-img">
+                    <div class="nft-info">
+                        <div class="nft-title">${nft.title_at_mint}</div>
+                        <div class="nft-author">作者: ${nft.illustrator_name || '不明'}</div>
+                    </div>
+                </div>
+                `).join("");
+
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            grid.innerHTML = "<p style='font-size:12px; color:red;'>データの取得に失敗しました。</p>";
+        }
+    }
+
+    function filterType(type) {
+        currentFilter = type;
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById("viewTitle").innerText = `購入済みの${type.toUpperCase()} NFT`;
+        fetchPurchasedNFTs();
+    }
+
+    init();
+</script>
+</body>
+</html>
