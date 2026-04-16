@@ -313,7 +313,40 @@ function goBackSafe() {
   // ★リンク修正：安全な全年齢トップへ戻す
   location.href = "../my-site/index.html"; 
 }
+// --- 6. ブックマークからの直接アクセス対応（女性向け作家の自動セット） ---
+async function autoLoginWomensAuthor() {
+  if (!currentUser) {
+    alert("ログインしてください。");
+    return;
+  }
 
+  try {
+    // データベースから「自分の」「女性向け(womens)」の作家を探す
+    const { data: authors, error } = await window.supabaseClient
+      .from('authors')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .eq('zone', 'womens');
+
+    if (error) throw error;
+
+    if (authors && authors.length > 0) {
+      // 女性向けの作家が見つかった場合、ブラウザに記憶させてから作家ページへ
+      // ※もし複数いる場合は、最初の1人目を自動選択します
+      localStorage.setItem("authorId", authors[0].id);
+      localStorage.setItem("authorZone", "womens");
+      location.href = "author.html";
+    } else {
+      // 女性向けの作家が1人もいない場合
+      alert("女性向けゾーンの作家登録がありません。\nアカウント管理画面から新しい作家を作成してください。");
+      location.href = "../portal/account.html";
+    }
+  } catch (err) {
+    console.error("作家自動検索エラー:", err);
+    alert("エラーが発生しました。アカウント管理画面から進んでください。");
+    location.href = "../portal/account.html";
+  }
+}
 // ページ読み込み完了時に全てをスタート
 window.addEventListener("load", initApp);
 </script>
