@@ -179,7 +179,6 @@ function renderAuthors(authors) {
 }
 
 // --- 新しい作家を作成 ---
-// --- 新しい作家を作成 ---
 async function createAuthor() {
   const nameInput = document.getElementById("newAuthorName");
   const zoneInput = document.getElementById("authorZone");
@@ -225,6 +224,21 @@ async function createAuthor() {
     tosInput.checked = false;
     zoneInput.value = "main"; // プルダウンを初期値に戻す
     init();
+  }
+}
+
+// --- 各属性のトップページ（index.html）へ移動 ---
+function goToZoneIndex(id, zone) {
+  localStorage.setItem("authorId", id);
+  localStorage.setItem("authorZone", zone); 
+  
+  // ★修正: すべて相対パスに変更
+  if (zone === 'mens') {
+    location.href = "../my-siteman/index.html";
+  } else if (zone === 'womens') {
+    location.href = "../my-sitewomens/index.html";
+  } else {
+    location.href = "../my-site/index.html"; // 全年齢
   }
 }
 
