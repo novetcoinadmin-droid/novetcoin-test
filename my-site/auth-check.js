@@ -8,6 +8,10 @@ window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- 1. 右パネル（マイステータス）の表示処理 ---
 window.addEventListener("load", async () => {
+    // ★ index.html の場合は専用の描画スクリプトがあるため、ここでは何もしない（競合防止）
+    const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/my-site/');
+    if (isIndexPage) return;
+
     const savedEmail = localStorage.getItem('userEmail');
     const panel = document.getElementById("rightPanel");
 
@@ -44,19 +48,23 @@ window.addEventListener("load", async () => {
     }
 });
 
-// --- 2. ログアウト処理 ---
+// --- 2. ログアウト処理（完全版） ---
 async function handleLogout() {
     try {
+        // 1. Supabase からサインアウト
         if (window.supabaseClient) {
             await window.supabaseClient.auth.signOut();
+        }
+        // 2. Web3Auth がつながっていればログアウト
+        if (window.web3auth && window.web3auth.connected) {
+            await window.web3auth.logout();
         }
     } catch (err) {
         console.error("サインアウト中にエラー:", err);
     } finally {
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('authorId');
-        localStorage.removeItem('authorZone');
-        // トップページへリダイレクト
+        // 3. ブラウザの記憶を完全に消去
+        localStorage.clear();
+        // 4. トップページへリダイレクト
         window.location.href = "index.html";
     }
 }

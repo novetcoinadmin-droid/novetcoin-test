@@ -122,11 +122,8 @@
 
 <script src="auth-check.js"></script>
 <script>
-// --- Supabaseの初期設定 ---
-// Supabase設定は auth-check.js で共通読み込み済み
-
-// ★ Web3Authとユーザー情報用の変数
-let web3auth = null;
+// ★ Web3Authとユーザー情報用の変数 (window にアタッチして auth-check.js からも触れるようにします)
+window.web3auth = null;
 let currentProfile = null; 
 
 // --- アプリの初期化とログイン状態の確認 ---
@@ -147,23 +144,23 @@ async function initApp() {
       config: { chainConfig: chainConfig }
     });
 
-    web3auth = new window.Modal.Web3Auth({
+    window.web3auth = new window.Modal.Web3Auth({
       clientId: clientId,
       web3AuthNetwork: "sapphire_devnet", 
       privateKeyProvider: privateKeyProvider,
       uiConfig: { uxMode: "redirect", appName: "Novetcoin", theme: "light" }
     });
 
-    await web3auth.initModal();
+    await window.web3auth.initModal();
 
-    // ★ Web3Authでログイン済みなら、プロフィールを取得する
-    if (web3auth.connected) {
-      const userInfo = await web3auth.getUserInfo();
-      
-      const { data: profile } = await supabaseClient
+    // ★ ログイン判定を Supabase (auth-check.jsと同じ基準) に合わせる
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await window.supabaseClient
         .from('profiles')
         .select('*')
-        .eq('email', userInfo.email)
+        .eq('id', user.id)
         .maybeSingle();
 
       if (profile) {
@@ -172,7 +169,7 @@ async function initApp() {
         // アカウント凍結チェック
         if (currentProfile.is_frozen) {
           window.location.replace('penalty.html');
-          return; // 凍結中なら描画をストップ
+          return;
         }
       }
     }
@@ -204,7 +201,7 @@ async function renderRightPanel() {
 
   // ログインしている場合（ユーザー情報表示）
   try {
-    const { data: myNovels } = await supabaseClient
+    const { data: myNovels } = await window.supabaseClient
       .from('novels')
       .select('char_count')
       .eq('user_id', currentProfile.id)
@@ -246,18 +243,10 @@ async function renderRightPanel() {
   }
 }
 
-// --- ログアウト処理 ---
-async function handleLogout() {
-  if (web3auth && web3auth.connected) {
-    await web3auth.logout();
-    location.reload(); // ログアウト後に画面をリロードしてゲスト表示に戻す
-  }
-}
-
 // --- ランキング表示 ---
 async function renderRanking() {
   const list = document.getElementById("viewRanking");
-  const { data: novels, error } = await supabaseClient
+  const { data: novels, error } = await window.supabaseClient
     .from('novels')
     .select('id, title, author_id, views, review_status, authors!inner(zone)')
     .eq('published', true)
@@ -280,7 +269,7 @@ async function renderRanking() {
 // --- 最新の投稿表示 ---
 async function renderNewArrivals() {
   const list = document.getElementById("newArrivals");
-  const { data: novels, error } = await supabaseClient
+  const { data: novels, error } = await window.supabaseClient
     .from('novels')
     .select('id, title, author_id, review_status, authors!inner(zone)')
     .eq('published', true)
@@ -304,7 +293,6 @@ async function renderNewArrivals() {
 
 // ページ読み込み時にアプリを起動
 window.addEventListener("load", initApp);
-
 </script>
 
 </body>
