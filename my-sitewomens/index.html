@@ -158,108 +158,76 @@
 
 <script src="auth-check.js"></script>
 <script>
-// ★ Web3Authとユーザー情報用の変数 (window にアタッチして auth-check.js からも触れるようにします)
-window.web3auth = null;
-let currentProfile = null; 
+let currentUser = null;
 
-// --- アプリの初期化とログイン状態の確認 ---
+// --- 1. アプリの初期化と一括制御 ---
 async function initApp() {
-  try {
-    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
-    const chainConfig = {
-      chainNamespace: "eip155",
-      chainId: "0x89", 
-      rpcTarget: "https://polygon.drpc.org", 
-      displayName: "Polygon Mainnet",
-      blockExplorerUrl: "https://polygonscan.com/",
-      ticker: "MATIC",
-      tickerName: "Matic",
-    };
-
-    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
-      config: { chainConfig: chainConfig }
-    });
-
-    window.web3auth = new window.Modal.Web3Auth({
-      clientId: clientId,
-      web3AuthNetwork: "sapphire_devnet", 
-      privateKeyProvider: privateKeyProvider,
-      uiConfig: { uxMode: "redirect", appName: "Novetcoin", theme: "light" }
-    });
-
-    await window.web3auth.initModal();
-
-    // ★ ログイン判定を Supabase (auth-check.jsと同じ基準) に合わせる
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
-
-    if (user) {
-      const { data: profile } = await window.supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profile) {
-        currentProfile = profile;
-        
-        // アカウント凍結チェック
-        if (currentProfile.is_frozen) {
-          window.location.replace('penalty.html');
-          return;
-        }
-      }
-    }
-
-    // 画面の描画を実行
-    renderRightPanel();
-    renderNewArrivals();
-    renderRanking();
-
-  } catch (error) {
-    console.error("初期化エラー:", error);
-    renderRightPanel(); // エラー時はゲストとして描画
+  // ① 年齢確認ポップアップの制御
+  const overlay = document.getElementById("ageVerificationOverlay");
+  if (sessionStorage.getItem("adult_agreed") === "true") {
+    if (overlay) overlay.style.display = "none";
   }
-}
-// --- 右パネルの描画 ---
-async function renderRightPanel() {
-  const panel = document.getElementById("rightPanel");
 
-  // ログインしていない場合（ゲスト）
-  if (!currentProfile) {
+  // ② ユーザー情報の取得と凍結チェック
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
+  currentUser = user;
+
+  if (user) {
+    const { data: profile } = await window.supabaseClient
+      .from('profiles')
+      .select('is_frozen')
+      .eq('id', user.id)
+      .single();
+
+    if (profile && profile.is_frozen) {
+      window.location.replace('penalty.html');
+      return; // 凍結中なら以下の描画処理はストップ
+    }
+  }
+
+  // ③ 各パーツの描画を実行
+  renderIndexRightPanel();
+  renderNewArrivals();
+  renderRanking();
+}
+
+// --- 2. 右パネルの描画（index.html専用） ---
+async function renderIndexRightPanel() {
+  const panel = document.getElementById("indexRightPanel");
+  
+  // ゲストの場合
+  if (!currentUser) {
     panel.innerHTML = `
       <h3>ゲストさん</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:15px;">Googleアカウントでログインすると執筆や報酬の受け取りが可能です。</p>
-      <a href="login.html" class="right-btn" style="background:#4285F4; margin-top:10px;">Googleでログイン</a>
+      <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
+      <a href="register.html" class="right-btn">新規登録</a>
+      <a href="login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
     `;
     return;
   }
 
-  // ログインしている場合（ユーザー情報表示）
+  // ログイン済みの場合
   try {
-    const { data: myNovels } = await window.supabaseClient
-      .from('novels')
-      .select('char_count')
-      .eq('user_id', currentProfile.id)
-      .eq('published', true);
+    const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+    const { data: myNovels } = await window.supabaseClient.from('novels').select('char_count').eq('user_id', currentUser.id).eq('published', true);
 
     const wCount = myNovels ? myNovels.length : 0;
     const tChars = myNovels ? myNovels.reduce((sum, n) => sum + (n.char_count || 0), 0) : 0;
 
     panel.innerHTML = `
-       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
-      
-      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${currentProfile.username || "名称未設定"}</p>
+      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
       
       <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
         <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
           <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
           <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
             <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-            <span style="font-size:13px; font-weight:bold;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-            <span style="font-size:13px; font-weight:bold;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
           </div>
         </div>
       </a>
@@ -278,30 +246,7 @@ async function renderRightPanel() {
   }
 }
 
-// --- ランキング表示 ---
-async function renderRanking() {
-  const list = document.getElementById("viewRanking");
-  const { data: novels, error } = await window.supabaseClient
-    .from('novels')
-    .select('id, title, author_id, views, review_status, authors!inner(zone)')
-    .eq('published', true)
-    .neq('review_status', 'suspended')
-    .eq('authors.zone', 'womens')
-    .order('views', { ascending: false })
-    .limit(3);
-
-  if (novels && novels.length > 0) {
-    list.innerHTML = "";
-    novels.forEach((n, index) => {
-      const li = document.createElement("li");
-      li.className = "list-item";
-      li.innerHTML = `<a href="detail.html?authorId=${n.author_id}&id=${n.id}"><span style="color:#6a0dad; font-weight:bold; display:inline;">第${index+1}位</span> ${n.title}</a><span>👁 ${n.views || 0} views</span>`;
-      list.appendChild(li);
-    });
-  }
-}
-
-// --- 最新の投稿表示 ---
+// --- 3. 最新投稿の描画（女性向け） ---
 async function renderNewArrivals() {
   const list = document.getElementById("newArrivals");
   const { data: novels, error } = await window.supabaseClient
@@ -312,6 +257,8 @@ async function renderNewArrivals() {
     .eq('authors.zone', 'womens')
     .order('id', { ascending: false })
     .limit(3);
+
+  if (error) return console.error("最新投稿エラー:", error);
 
   if (novels && novels.length > 0) {
     list.innerHTML = "";
@@ -326,29 +273,49 @@ async function renderNewArrivals() {
   }
 }
 
-// ページ読み込み時にアプリを起動
-window.addEventListener("load", initApp);
+// --- 4. ランキングの描画（女性向け） ---
+async function renderRanking() {
+  const list = document.getElementById("viewRanking");
+  const { data: novels, error } = await window.supabaseClient
+    .from('novels')
+    .select('id, title, author_id, views, review_status, authors!inner(zone)')
+    .eq('published', true)
+    .neq('review_status', 'suspended')
+    .eq('authors.zone', 'womens')
+    .order('views', { ascending: false })
+    .limit(3);
 
-// 🌟 年齢確認ポップアップの制御
-document.addEventListener("DOMContentLoaded", () => {
-  const overlay = document.getElementById("ageVerificationOverlay");
-  // 1回同意していれば（セッションに記録があれば）隠す
-  if (sessionStorage.getItem("adult_agreed") === "true") {
-    overlay.style.display = "none";
+  if (error) return console.error("ランキングエラー:", error);
+
+  if (novels && novels.length > 0) {
+    list.innerHTML = "";
+    novels.forEach((n, index) => {
+      const li = document.createElement("li");
+      li.className = "list-item";
+      li.innerHTML = `
+        <a href="detail.html?authorId=${n.author_id}&id=${n.id}">
+          <span style="color:#6a0dad; font-weight:bold; display:inline;">第${index+1}位</span> ${n.title}
+        </a>
+        <span>👁 ${n.views || 0} views</span>
+      `;
+      list.appendChild(li);
+    });
   }
-});
+}
 
+// --- 5. 年齢確認ボタンの処理 ---
 function agreeAndEnter() {
-  // 同意したことを記録してポップアップを消す
   sessionStorage.setItem("adult_agreed", "true");
   document.getElementById("ageVerificationOverlay").style.display = "none";
 }
 
 function goBackSafe() {
-  // 戻るボタンで安全な一般サイトのトップへ逃がす
-  location.href = href="index.html";
+  // ★リンク修正：安全な全年齢トップへ戻す
+  location.href = "../my-site/index.html"; 
 }
-</script>
 
+// ページ読み込み完了時に全てをスタート
+window.addEventListener("load", initApp);
+</script>
 </body>
 </html>
