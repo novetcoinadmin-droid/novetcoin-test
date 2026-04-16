@@ -39,12 +39,11 @@ body {
   width: 800px;
   margin: 20px auto 0;
   font-size: 14px;
-  color: #fff; /* ★ 矢印（←）を白にする */
 }
 
 .back-link a {
   text-decoration: none;
-  color: #fff; /* ★ リンクの文字を白にする */
+  color: #333;
 }
 
 /* メイン中央 */
@@ -133,15 +132,13 @@ h1 {
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 </style>
-<style>body { background: #2c2e33 !important; }</style>
-</head>
+<style>body { background: #fdeff2 !important; }</style></head>
 
 <body>
 
 <div class="menu">
   <a href="index.html">トップ</a>
   <a href="works.html">本棚</a>
-  <a href="nft_mint.html">NNFTへ</a>
 </div>
 
 <div class="back-link">
@@ -196,7 +193,6 @@ async function fetchNovels() {
 
     if (authorError) throw authorError;
 
-    // DBの列名が name だった場合の修正例
     document.getElementById("displayAuthorName").innerText =
       author?.author_name || "不明な作家";
 
@@ -311,7 +307,7 @@ async function togglePublish(id, currentPublishedStatus) {
         // ★ エラー内容を画面に出して、何が起きているか特定する
         alert("報酬判定でエラーが発生しました: " + rewardError.message);
       } else if (rewardData && rewardData.status === 'success') {
-        alert(`【${config.REWARD_THRESHOLD}文字達成報酬】\n報酬として ${rewardData.new_grants} NVT を付与しました。`);
+        alert(`【${CONFIG.REWARD_THRESHOLD}文字達成報酬】\n報酬として ${rewardData.new_grants} NVT を付与しました。`);
       } else if (rewardData && rewardData.status === 'already_granted') {
         // ★ もし「既に付与済み」と判定されているなら、ここが動きます
         console.log("この作品は既にこの目標文字数で報酬を受け取り済みです。");
