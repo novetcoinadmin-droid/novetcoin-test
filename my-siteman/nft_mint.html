@@ -31,19 +31,6 @@
   <div><a href="index.html" style="font-size: 13px; color: #999; text-decoration: none;">← 一般サイトへ</a></div>
 </nav>
 
-<div id="authOverlay" style="max-width: 400px; margin: 80px auto; padding: 40px; background: white; border-radius: 24px; box-shadow: 0 15px 35px rgba(106, 13, 173, 0.1); text-align: center; border: 1px solid #f0f0f0;">
-    <div style="font-size: 40px; margin-bottom: 10px;">🔐</div>
-    <h2 style="color: #6a0dad; margin-bottom: 10px;">Studio Authentication</h2>
-    <p style="font-size: 13px; color: #888; margin-bottom: 30px;">資産発行エリアのため、再度パスワード認証が必要です。</p>
-    
-    <input type="email" id="authEmail" placeholder="メールアドレス" style="width: 100%; padding: 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box;">
-    <input type="password" id="authPassword" placeholder="パスワード" style="width: 100%; padding: 14px; margin-bottom: 25px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box;">
-    
-    <button onclick="handleStudioAuth()" style="width: 100%; background: linear-gradient(135deg, #6a0dad 0%, #4a0880 100%); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(106, 13, 173, 0.2);">
-      認証して入室
-    </button>
-</div>
-
 <div id="mainStudioArea" style="display: none;">
     <div style="display: flex; max-width: 1200px; margin: 30px auto; padding: 0 20px; gap: 40px; align-items: flex-start;">
       
@@ -83,63 +70,31 @@
 
 <script src="auth-check.js"></script>
 <script>
-// Supabase設定は auth-check.js で共通読み込み済み
+// Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 
-// --- スタジオ専用認証ロジック ---
-async function handleStudioAuth() {
-    const email = document.getElementById("authEmail").value;
-    const password = document.getElementById("authPassword").value;
-
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
-
-    if (error) {
-        alert("認証失敗: " + error.message);
-        return;
-    }
-
-    // 成功時：表示を切り替え
-    document.getElementById("authOverlay").style.display = "none";
-    document.getElementById("mainStudioArea").style.display = "block";
-    
-    renderUserStatus(data.user);
-    loadEligibleWorks(data.user);
-}
-
-// ページ読み込み時の初期化
-// ページ読み込み時の初期化
+// --- 🌟 ② ページ読み込み時の初期化（未ログイン時は弾く） ---
 async function init() {
-    // 1. すでに有効なセッション（ログイン状態）があるか確認
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
     
     if (session && session.user) {
-        // すでにログイン中なら、認証画面を隠してメイン画面を表示
-        document.getElementById("authOverlay").style.display = "none";
+        // ログイン中ならメイン画面を表示
         document.getElementById("mainStudioArea").style.display = "block";
         
-        // 既存の関数を使って描画（データはまだ仮のままです）
         renderUserStatus(session.user);
         loadEligibleWorks(session.user);
     } else {
-        // 未ログインの場合のみ、認証画面を表示
-        document.getElementById("authOverlay").style.display = "block";
-        document.getElementById("mainStudioArea").style.display = "none";
-        
-        // 前回のメールアドレスがあれば補完
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (user) document.getElementById("authEmail").value = user.email;
+        // 未ログインの場合は警告を出して一般サイトのトップへ戻す
+        alert("ログインが必要です。");
+        window.location.href = "index.html";
     }
 }
 
-// --- 【修正版】プロフィール情報を取得して描画する関数 ---
+// --- プロフィール情報を取得して描画する関数 ---
 async function renderUserStatus(user) {
     const statusArea = document.getElementById("userStatusArea");
     if (!statusArea) return;
 
-    // 1. スキーマに合わせて正しい列名（nvt_balance, np_balance）を取得
-    const { data: profile, error } = await supabaseClient
+    const { data: profile, error } = await window.supabaseClient
         .from('profiles')
         .select('username, nvt_balance, np_balance')
         .eq('id', user.id)
@@ -149,58 +104,58 @@ async function renderUserStatus(user) {
         console.error("プロフィール取得エラー:", error);
     }
 
-    // 2. 正しい変数名から値を抽出
-    const displayName = profile?.username || user.email.split('@')[0];
-    const nvtBalance = profile?.nvt_balance || 0; // ここを修正
-    const npBalance = profile?.np_balance || 0;   // ここを修正
-
     statusArea.innerHTML = `
         <div style="background: #fff; border: 2px solid #6a0dad; padding: 20px; border-radius: 16px; font-size: 14px; box-shadow: 0 4px 12px rgba(106, 13, 173, 0.08);">
             <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
-      
-      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
-      
-      <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
-        <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
-          <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
-          <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-            <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-            <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
-          </div>
-        </div>
-      </a>
-      <div style="font-size:12px; color:#444; border-top:1px solid #eee; pt:10px;">
+            <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
             
-            <div style="border-top: 1px solid #f0f0f0; padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-                <a href="account.html" style="text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">
-                    ← アカウント管理へ戻る
-                </a>
-                <button onclick="handleLogout()" style="width: 100%; font-size: 11px; cursor: pointer; border: none; background: #f5f5f5; color: #999; padding: 8px; border-radius: 8px;">
-                    ログアウト
-                </button>
+            <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
+                <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+                    <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
+                        <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
+                        <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
+                    </div>
+                </div>
+            </a>
+            <div style="font-size:12px; color:#444; border-top:1px solid #eee; padding-top:10px;">
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                    <a href="../portal/account.html" style="text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">
+                        ← アカウント管理へ戻る
+                    </a>
+                    <button onclick="handleLogout()" style="width: 100%; font-size: 11px; cursor: pointer; border: none; background: #f5f5f5; color: #999; padding: 8px; border-radius: 8px;">
+                        ログアウト
+                    </button>
+                </div>
             </div>
         </div>
     `;
 }
 
+// --- 🌟 ① NFT化対象の作品一覧を読み込む（全年齢属性のみに絞り込み） ---
 async function loadEligibleWorks(user) {
     const list = document.getElementById("eligibleList");
     list.innerHTML = "読み込み中...";
 
-    // 1. ユーザーの作家IDを取得
-    const { data: myAuthors } = await supabaseClient.from('authors').select('id').eq('user_id', user.id).eq('zone', 'mens');
+    // 1. ユーザーの作家IDを取得（★ここで 'main' ゾーンの作家だけに絞り込む）
+    const { data: myAuthors } = await window.supabaseClient
+        .from('authors')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('zone', 'mens'); 
+
     if (!myAuthors || myAuthors.length === 0) {
-        list.innerHTML = "<p>作家登録が必要です。</p>";
+        list.innerHTML = "<p style='color:#666;'>全年齢向けの作家・作品がありません。</p>";
         return;
     }
     const authorIds = myAuthors.map(a => a.id);
 
-    // 2. 自分の作品一覧を取得
-    const { data: novels, error } = await supabaseClient
+    // 2. 絞り込んだ作家IDに紐づく作品一覧を取得
+    const { data: novels, error } = await window.supabaseClient
         .from('novels')
         .select('*')
         .in('author_id', authorIds)
@@ -213,14 +168,12 @@ async function loadEligibleWorks(user) {
 
     list.innerHTML = ""; // クリア
 
-    for (const n of novels) {
-        // すでにNFTデータ（下書きや発行済み）があるか確認
-        const { data: nftMeta } = await supabaseClient
-            .from('nft_metadata')
-            .select('id, is_listing')
-            .eq('novel_id', n.id)
-            .maybeSingle(); // データがなくてもエラーにならず、nullを返してくれる
+    if (novels.length === 0) {
+        list.innerHTML = "<p style='color:#666;'>まだ作品がありません。</p>";
+        return;
+    }
 
+    for (const n of novels) {
         const card = document.createElement("div");
         card.className = "work-card";
         card.style.border = "2px solid #eee";
@@ -233,12 +186,12 @@ async function loadEligibleWorks(user) {
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <strong style="font-size: 1.1rem;">${n.title}</strong><br>
-                    <small style="color:#666;">${n.char_count.toLocaleString()} 文字 / ${n.tag}</small>
+                    <small style="color:#666;">${n.char_count.toLocaleString()} 文字 / ${n.tag || "タグなし"}</small>
                 </div>
                 <div>
                     ${isReadyForMint ? 
                         `<button onclick="event.stopPropagation(); goToPayment('${n.id}')" style="background: linear-gradient(135deg, #6a0dad, #e0115f); color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:bold; cursor:pointer;">NFT発行・支払いへ</button>` 
-                        : `<small style="color:#999;">あと ${4000 - n.char_count}文字で発行可能</small>`
+                        : `<small style="color:#999;">あと ${4000 - (n.char_count || 0)}文字で発行可能</small>`
                     }
                 </div>
             </div>
@@ -298,98 +251,13 @@ function renderEpisodeTree(novelId, content) {
 
 // エピソード詳細ページへ飛ばさず、最新の編集状態を考慮して確認画面へ飛ばす
 function goToPayment(novelId) {
-    // 🌟 強制的に 第0章(cIdx=0)・第0話(eIdx=0)・第0ページ(page=0) を指定して飛ばす
     window.location.href = `nft_confirm.html?novel_id=${novelId}&cIdx=0&eIdx=0&page=0`;
 }
 
-// 画面中央にある「この内容でNFTを鋳造する」ボタン用
-function startMinting() {
-    const metaTitle = document.getElementById("metaTitle");
-    const novelId = metaTitle.getAttribute("data-novel-id");
-    if (!novelId) return alert("作品を選択してください");
-    
-    // こちらも同様に最初のページを強制指定
-    window.location.href = `nft_confirm.html?novel_id=${novelId}&cIdx=0&eIdx=0&page=0`;
-}
-
+// 実行開始
 init();
 
-// ==========================================
-// 🌟 素材ボックス（WebP変換＆Storage保存）システム
-// ==========================================
-
-// 画像アップロード処理（複数枚対応）
-async function handleAssetUpload(event) {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return alert("ログインセッションが切れました。");
-
-    const btn = document.getElementById('uploadAssetBtn');
-    btn.innerText = "⏳ 変換＆アップロード中...";
-    btn.disabled = true;
-
-    try {
-        // 選ばれたファイルを1枚ずつ順番に処理する
-        for (let i = 0; i < files.length; i++) {
-            let file = files[i];
-            
-            // 1. 画像をブラウザ上で読み込む
-            const img = new Image();
-            const objectUrl = URL.createObjectURL(file);
-            await new Promise((resolve, reject) => {
-                img.onload = resolve; img.onerror = reject; img.src = objectUrl;
-            });
-
-            // 2. Canvasを使ってWebPに変換
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-            
-            const webpBlob = await new Promise(resolve => {
-                canvas.toBlob(resolve, "image/webp", 0.8); // 80%の画質で圧縮
-            });
-
-            // 3. Storageに保存
-            // novelId が取得できている前提（nft_mint.htmlのグローバル変数を使用）
-            const fileName = `asset_${novelId}_${Date.now()}_${i}.webp`;
-            
-            const { error: uploadErr } = await supabaseClient.storage
-                .from('illustrations')
-                .upload(fileName, webpBlob, { contentType: 'image/webp' });
-
-            if (uploadErr) throw uploadErr;
-
-            // 4. URLを取得
-            const { data: publicUrlData } = supabaseClient.storage
-                .from('illustrations')
-                .getPublicUrl(fileName);
-            const finalUrl = publicUrlData.publicUrl;
-
-            // 5. 🌟 先ほど作った user_assets テーブルに記録！
-            await supabaseClient.from('user_assets').insert({
-                user_id: user.id,
-                novel_id: novelId,
-                file_url: finalUrl
-            });
-        }
-
-        // 全部の処理が終わったら、ギャラリーを最新状態に更新する
-        await fetchUserAssets();
-
-    } catch (err) {
-        console.error("Asset Upload Error:", err);
-        alert("一部の画像のアップロードに失敗しました: " + err.message);
-    } finally {
-        btn.innerText = "＋ 挿絵・素材を追加する（複数選択OK）";
-        btn.disabled = false;
-        event.target.value = ""; // リセット
-    }
-}
-
+// ※③ イラストアップロード機能（handleAssetUpload）は削除しました。
 </script>
 </body>
 </html>
