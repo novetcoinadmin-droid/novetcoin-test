@@ -652,6 +652,8 @@ async function generateImage(type) {
             };
         }
 
+        requestPayload.debug = true;
+
         // サーバー通信：全年齢用の関数（Leonardo）を直接叩く
         const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-safe`, {
             method: "POST",
