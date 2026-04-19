@@ -145,11 +145,12 @@ async function init() {
 
 // 棚のデータを読み込む
 async function loadShelves() {
-    // 1. 出品中の全NFTを取得
     const { data: allNfts, error } = await supabaseClient
-        .from('nft_metadata')
-        .select('*')
-        .eq('is_listing', true);
+    .from('nft_metadata')
+    .select('*, authors!inner(zone)')
+    .eq('is_listing', true)
+    .eq('authors.zone', 'main');
+
 
     if (error) return console.error(error);
 
