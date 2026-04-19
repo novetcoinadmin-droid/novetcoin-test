@@ -301,7 +301,6 @@ async function claimReward(event, messageId) {
 // --- ④ ⑤ 報酬エリア表示 ---
 async function fetchPendingRewards() {
   try {
-    await window.supabaseClient.rpc('automate_claim_rewards');
     await initProfilesOnly();
 
     const { data: rewards } = await window.supabaseClient.from('rewards_pending').select('*').eq('user_id', currentUser.id).eq('status', 'pending').order('claimable_at', { ascending: true });
