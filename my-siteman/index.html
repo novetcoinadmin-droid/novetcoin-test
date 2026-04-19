@@ -224,16 +224,16 @@ async function renderRightPanel() {
           <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
           <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
             <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-            <span style="font-size:13px; font-weight:bold;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold; color:#333;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-            <span style="font-size:13px; font-weight:bold;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold; color:#333;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
           </div>
         </div>
       </a>
 
-      <div style="font-size:12px; color:#444; border-top:1px solid #eee; padding-top:10px;">
+      <div style="font-size:12px; color:#eee; border-top:1px solid #555; padding-top:10px;">
         <p><b>作品数：</b>${wCount} 作品</p>
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
