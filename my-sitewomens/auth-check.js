@@ -6,8 +6,12 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // 全ページで使い回せるように、window（グローバル）に定義する
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- ここから下は右パネル（マイステータス）の表示処理 ---
+// --- 1. 右パネル（マイステータス）の表示処理 ---
 window.addEventListener("load", async () => {
+    // ★ index.html の場合は専用の描画スクリプトがあるため、ここでは何もしない（競合防止）
+    const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/my-site/');
+    if (isIndexPage) return;
+
     const savedEmail = localStorage.getItem('userEmail');
     const panel = document.getElementById("rightPanel");
 
@@ -44,7 +48,25 @@ window.addEventListener("load", async () => {
     }
 });
 
-function handleLogout() {
-    localStorage.removeItem('userEmail');
-    location.href = "index.html";
+// --- 2. ログアウト処理（完全版） ---
+async function handleLogout() {
+    try {
+        // 1. Supabase からサインアウト
+        if (window.supabaseClient) {
+            await window.supabaseClient.auth.signOut();
+        }
+        // 2. Web3Auth がつながっていればログアウト
+        if (window.web3auth && window.web3auth.connected) {
+            await window.web3auth.logout();
+        }
+    } catch (err) {
+        console.error("サインアウト中にエラー:", err);
+    } finally {
+        // 3. ブラウザの記憶を完全に消去
+        localStorage.clear();
+        // 4. トップページへリダイレクト
+        window.location.href = window.location.pathname.includes("my-siteman")
+          ? "../my-site/index.html"
+          : "index.html";
+        }
 }

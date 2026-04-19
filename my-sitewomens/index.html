@@ -162,46 +162,46 @@ let currentUser = null;
 
 // --- 1. アプリの初期化と一括制御 ---
 async function initApp() {
-  // ① 年齢確認ポップアップの制御
   const overlay = document.getElementById("ageVerificationOverlay");
   if (sessionStorage.getItem("adult_agreed") === "true") {
     if (overlay) overlay.style.display = "none";
   }
 
-  // ② ユーザー情報の取得と凍結チェック
   const { data: { user } } = await window.supabaseClient.auth.getUser();
   currentUser = user;
 
   if (user) {
     const { data: profile } = await window.supabaseClient
       .from('profiles')
-      .select('is_frozen')
+      .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profile && profile.is_frozen) {
       window.location.replace('penalty.html');
-      return; // 凍結中なら以下の描画処理はストップ
+      return;
     }
+
+    currentProfile = profile || null;
+  } else {
+    currentProfile = null;
   }
 
-  // ③ 各パーツの描画を実行
-  renderIndexRightPanel();
+  renderRightPanel();
   renderNewArrivals();
   renderRanking();
 }
 
 // --- 2. 右パネルの描画（index.html専用） ---
-async function renderIndexRightPanel() {
+async function renderRightPanel() {
   const panel = document.getElementById("indexRightPanel");
-  
-  // ゲストの場合
-  if (!currentUser) {
+  if (!panel) return;
+
+  if (!currentProfile) {
     panel.innerHTML = `
       <h3>ゲストさん</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
-      <a href="register.html" class="right-btn">新規登録</a>
-      <a href="login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
+      <p style="font-size:12px; color:#666; margin-bottom:15px;">Googleアカウントでログインすると執筆や報酬の受け取りが可能です。</p>
+      <a href="../my-site/login.html" class="right-btn" style="background:#4285F4; margin-top:10px;">Googleでログイン</a>
     `;
     return;
   }
