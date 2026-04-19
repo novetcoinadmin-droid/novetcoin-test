@@ -130,13 +130,13 @@ async function init() {
             return;
         }
         
-        // アカウント情報の取得
-        const { data: profile, error: pError } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .eq('authors.zone', 'main')
-            .single();
+        const { data: nfts, error: nError } = await supabaseClient
+    .from('nft_metadata')
+    .select('*, authors!inner(zone)')
+    .eq('owner_id', session.user.id)
+    .eq('authors.zone', 'mens')
+    .not('minted_at', 'is', null)
+    .order('minted_at', { ascending: false });
 
         if (profile) {
     document.getElementById("userStatusArea").innerHTML = `
@@ -171,13 +171,6 @@ async function init() {
     `;
 }
 
-        // --- NFTリストの取得（修正版：ミント済みのものだけを表示） ---
-        const { data: nfts, error: nError } = await supabaseClient
-        .from('nft_metadata')
-        .select('*')
-        .eq('owner_id', session.user.id)
-        .not('minted_at', 'is', null) // ★発行日時が null ではない（＝発行済み）ものだけに絞り込む
-        .order('minted_at', { ascending: false });
 
         const listArea = document.getElementById("nftListArea");
         listArea.innerHTML = "";
