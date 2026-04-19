@@ -188,43 +188,46 @@ async function initApp() {
   renderRanking();
 }
 
-// --- 2. 右パネルの描画（index.html専用） ---
-async function renderIndexRightPanel() {
-  const panel = document.getElementById("indexRightPanel");
-  
-  // ゲストの場合
-  if (!currentUser) {
+// --- 右パネルの描画 ---
+async function renderRightPanel() {
+  const panel = document.getElementById("rightPanel");
+
+  // ログインしていない場合（ゲスト）
+  if (!currentProfile) {
     panel.innerHTML = `
       <h3>ゲストさん</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
-      <a href="register.html" class="right-btn">新規登録</a>
-      <a href="login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
+      <p style="font-size:12px; color:#666; margin-bottom:15px;">Googleアカウントでログインすると執筆や報酬の受け取りが可能です。</p>
+      <a href="login.html" class="right-btn" style="background:#4285F4; margin-top:10px;">Googleでログイン</a>
     `;
     return;
   }
 
-  // ログイン済みの場合
+  // ログインしている場合（ユーザー情報表示）
   try {
-    const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-    const { data: myNovels } = await window.supabaseClient.from('novels').select('char_count').eq('user_id', currentUser.id).eq('published', true);
+    const { data: myNovels } = await window.supabaseClient
+      .from('novels')
+      .select('char_count')
+      .eq('user_id', currentProfile.id)
+      .eq('published', true);
 
     const wCount = myNovels ? myNovels.length : 0;
     const tChars = myNovels ? myNovels.reduce((sum, n) => sum + (n.char_count || 0), 0) : 0;
 
     panel.innerHTML = `
-      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
-      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
+       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+      
+      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${currentProfile.username || "名称未設定"}</p>
       
       <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
         <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
           <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
           <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
             <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-            <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-            <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
           </div>
         </div>
       </a>
