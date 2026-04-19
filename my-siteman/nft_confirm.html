@@ -241,18 +241,18 @@ async function generateCover() {
 
     try {
         // AI画像生成APIを呼び出す
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${SUPABASE_KEY}` 
-            },
-            body: JSON.stringify({ 
-                mode: "scenery", 
-                base_prompt: "High-quality professional book cover illustration, full color, no text, ",
-                raw_text: promptValue 
-            })
-        });
+        const response = await fetch(`${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image`, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${window.supabaseClient.supabaseKey}`
+    },
+    body: JSON.stringify({
+        mode: "scenery",
+        base_prompt: "High-quality professional book cover illustration, full color, no text, ",
+        raw_text: promptValue
+    })
+});
 
         const data = await response.json();
         
