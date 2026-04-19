@@ -241,7 +241,7 @@ async function generateCover() {
 
     try {
         // AI画像生成APIを呼び出す
-        const response = await fetch(`${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image`, {
+        const response = await fetch(`${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image-safe`, {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
