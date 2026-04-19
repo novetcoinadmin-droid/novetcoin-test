@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>N-Marketplace | Novet</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -50,7 +51,7 @@
 .rank-3 { background: linear-gradient(45deg, #cd7f32, #8b4513); } /* 銅 */
 .rank-normal { background: rgba(106, 13, 173, 0.8); } /* その他（紫） */
 </style>
-</head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
 <nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
@@ -145,12 +146,11 @@ async function init() {
 
 // 棚のデータを読み込む
 async function loadShelves() {
-    const { data: allNfts, error } = await supabaseClient
+const { data: allNfts, error } = await supabaseClient
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('is_listing', true)
-    .eq('authors.zone', 'main');
-
+    .eq('authors.zone', 'mens');
 
     if (error) return console.error(error);
 
@@ -282,7 +282,7 @@ async function renderUserStatus(user) {
         </div>
       </a>
       <div style="font-size:12px; color:#444; border-top:1px solid #eee; pt:10px;">
-            <a href="../portal/account.html" style="display:block; text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">← アカウント管理へ</a>
+            <a href="../my-site/account.html" style="display:block; text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">← アカウント管理へ</a>
         </div>
     `;
 }
