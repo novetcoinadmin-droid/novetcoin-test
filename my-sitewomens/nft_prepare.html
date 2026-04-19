@@ -344,9 +344,6 @@ body {
 
 <script src="auth-check.js"></script>
 <script>
-const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0"; 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let novelData = null;
 let pages = []; 
@@ -601,7 +598,7 @@ async function generateImage(type) {
     const urlParams = new URLSearchParams(window.location.search);
     const loadingOverlay = document.getElementById("loadingOverlay");
 
-    // --- プレミアムの場合 ---
+    // --- プレミアムの場合（今まで通り別画面へ飛ばす） ---
     if (type === 'premium') {
         if (charId === "text") {
             alert("プレミアム生成にはキャラクターを選択してください。");
@@ -613,86 +610,118 @@ async function generateImage(type) {
 
     // --- スタンダードの場合 ---
     try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        const { data: profile } = await supabaseClient.from('profiles').select('np_balance').eq('id', user.id).single();
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const { data: profile } = await window.supabaseClient
+            .from('profiles')
+            .select('np_balance')
+            .eq('id', user.id)
+            .single();
 
         if (!profile || profile.np_balance < 10) {
             alert("NP残高が不足しています（必要: 10 NP）。");
             return;
         }
 
-        if (!confirm("スタンダード生成を実行しますか？ (費用: 10 NP / モノクロ固定)")) return;
+        if (!confirm("スタンダード生成を実行しますか？ (費用: 10 NP)")) return;
 
-        // 🌟 画面をロックしてローディング表示
         if (loadingOverlay) loadingOverlay.style.display = "flex";
 
-        // 決済処理
-        await supabaseClient.from('profiles').update({ np_balance: profile.np_balance - 10 }).eq('id', user.id);
-        document.getElementById("myNp").innerText = profile.np_balance - 10;
+        const isCharacterMode = (charId !== "text");
+        let charSetting = "";
 
-        // 🌟 ここから差し替え 🌟
-        // プロンプト作成と送信データの構築
-        // 🌟 ここから差し替え 🌟
-        // プロンプト作成と送信データの構築
-        let requestPayload = {};
-        const novelTags = novelData.tag || "";
-        
-        // ★ 成人向け（性的・暴力）を許可・促進するための専用タグ
-        const nsfwTags = "nsfw, explicit, adult content, extreme content, violence, blood, gore";
-
-        if (charId !== "text") {
-            // 【キャラクターモード】
+        if (isCharacterMode) {
             const charData = novelData.characters.find(c => c.id === charId);
-            const dynamicContent = charData ? charData.detail : "";
-            const finalPrompt = `(monochrome:1.3), (black and white:1.2), grayscale, sketch, ink drawing, ${nsfwTags}, ${novelTags}, ${dynamicContent}, masterpiece, high quality`;
-            
-            requestPayload = {
-                mode: "character",
-                prompt: finalPrompt,
-                allow_nsfw: true // バックエンドに規制解除を伝えるための念のためのフラグ
-            };
-        } else {
-            // 【本文（風景）モード】
-            const basePrompt = `(masterpiece, best quality:1.2), (monochrome, grayscale, line art, ink drawing:1.4), ${nsfwTags}, scenery, landscape, background only, empty place, ${novelTags}, `;
-            
-            requestPayload = {
-                mode: "scenery",
-                base_prompt: basePrompt,
-                raw_text: pages[currentPage], // 抽出元のテキスト
-                allow_nsfw: true // バックエンドに規制解除を伝えるための念のためのフラグ
-            };
+            charSetting = charData ? charData.detail : "";
         }
 
-        // サーバー通信
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${SUPABASE_KEY}` 
-            },
-            body: JSON.stringify(requestPayload) // 修正：プロンプトだけでなくPayload全体を送る
-        });
-        // 🌟 ここまで差し替え 🌟
+        const requestPayload = {
+            type: "std",
+            mode: isCharacterMode ? "character" : "scenery",
+            tags: novelData.tag || "",
+            character_setting: charSetting,
+            user_prompt: "",
+            detail_settings: "",
+            raw_text: pages[currentPage] || "",
+            allow_nsfw: true
+        };
 
-        if (!response.ok) throw new Error("サーバー通信エラー");
+        const primaryUrl = `${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image`;
+        const fallbackUrl = `${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image-fal`;
 
-        const data = await response.json();
-        const imageUrl = data.imageUrl;
+        const commonHeaders = {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${window.supabaseClient.supabaseKey}`
+        };
 
-        if (imageUrl) {
-            pageAssets[currentPage] = imageUrl;
-            isEdited = true; // ✨ 追加：画像を生成した時も「未保存」状態にする！
-            renderPage();
-            if (loadingOverlay) loadingOverlay.style.display = "none"; // ロック解除
-            alert("スタンダード生成が完了しました！内容を保存してください。");
-        } else {
-            throw new Error("画像URLの取得に失敗しました");
+        let response;
+        let data;
+        let imageUrl = null;
+
+        // ① まずメインAPI
+        try {
+            response = await fetch(primaryUrl, {
+                method: "POST",
+                headers: commonHeaders,
+                body: JSON.stringify(requestPayload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`primary_failed_${response.status}`);
+            }
+
+            data = await response.json();
+            imageUrl = data?.imageUrl || null;
+
+            if (!imageUrl) {
+                throw new Error("primary_no_image_url");
+            }
+        } catch (primaryErr) {
+            console.warn("Primary generate failed:", primaryErr);
+            alert("①APIに失敗しました。二つ目のAPIで作成を開始します。");
+
+            // ② フォールバックAPI
+            response = await fetch(fallbackUrl, {
+                method: "POST",
+                headers: commonHeaders,
+                body: JSON.stringify(requestPayload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`fallback_failed_${response.status}`);
+            }
+
+            data = await response.json();
+            imageUrl = data?.imageUrl || null;
+
+            if (!imageUrl) {
+                throw new Error("fallback_no_image_url");
+            }
         }
+
+        // 🌟 成功した時だけNPを消費
+        const newNp = profile.np_balance - 10;
+        const { error: npError } = await window.supabaseClient
+            .from('profiles')
+            .update({ np_balance: newNp })
+            .eq('id', user.id);
+
+        if (npError) {
+            throw new Error("画像生成は成功しましたが、NP消費の更新に失敗しました");
+        }
+
+        document.getElementById("myNp").innerText = newNp;
+
+        pageAssets[currentPage] = imageUrl;
+        isEdited = true;
+        renderPage();
+
+        alert("スタンダード生成が完了しました！内容を保存してください。");
 
     } catch (err) {
         console.error("Standard Generation Error:", err);
-        if (loadingOverlay) loadingOverlay.style.display = "none"; // エラー時もロック解除
         alert("エラー: " + err.message);
+    } finally {
+        if (loadingOverlay) loadingOverlay.style.display = "none";
     }
 }
 
