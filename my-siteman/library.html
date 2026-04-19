@@ -126,6 +126,7 @@ async function init() {
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
+            .eq('authors.zone', 'mens')
             .single();
 
         if (profile) {
