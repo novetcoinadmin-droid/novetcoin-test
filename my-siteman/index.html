@@ -155,37 +155,66 @@
 
 <script src="auth-check.js"></script>
 <script>
-let currentUser = null;
+window.web3auth = null;
+let currentProfile = null; 
 
-// --- 1. アプリの初期化と一括制御 ---
+// --- アプリの初期化とログイン状態の確認 ---
 async function initApp() {
-  // ① 年齢確認ポップアップの制御
-  const overlay = document.getElementById("ageVerificationOverlay");
-  if (sessionStorage.getItem("adult_agreed") === "true") {
-    if (overlay) overlay.style.display = "none";
-  }
+  try {
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
+    const chainConfig = {
+      chainNamespace: "eip155",
+      chainId: "0x89", 
+      rpcTarget: "https://polygon.drpc.org", 
+      displayName: "Polygon Mainnet",
+      blockExplorerUrl: "https://polygonscan.com/",
+      ticker: "MATIC",
+      tickerName: "Matic",
+    };
 
-  // ② ユーザー情報の取得と凍結チェック
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  currentUser = user;
+    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+      config: { chainConfig: chainConfig }
+    });
 
-  if (user) {
-    const { data: profile } = await window.supabaseClient
-      .from('profiles')
-      .select('is_frozen')
-      .eq('id', user.id)
-      .single();
+    window.web3auth = new window.Modal.Web3Auth({
+      clientId: clientId,
+      web3AuthNetwork: "sapphire_devnet", 
+      privateKeyProvider: privateKeyProvider,
+      uiConfig: { uxMode: "redirect", appName: "Novetcoin", theme: "light" }
+    });
 
-    if (profile && profile.is_frozen) {
-      window.location.replace('penalty.html');
-      return; // 凍結中なら以下の描画処理はストップ
+    await window.web3auth.initModal();
+
+    // ★ ログイン判定を Supabase (auth-check.jsと同じ基準) に合わせる
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        currentProfile = profile;
+        
+        // アカウント凍結チェック
+        if (currentProfile.is_frozen) {
+          window.location.replace('penalty.html');
+          return;
+        }
+      }
     }
-  }
 
-  // ③ 各パーツの描画を実行
-  renderIndexRightPanel();
-  renderNewArrivals();
-  renderRanking();
+    // 画面の描画を実行
+    renderRightPanel();
+    renderNewArrivals();
+    renderRanking();
+
+  } catch (error) {
+    console.error("初期化エラー:", error);
+    renderRightPanel(); // エラー時はゲストとして描画
+  }
 }
 
 // --- 右パネルの描画 ---
