@@ -72,9 +72,6 @@
 
 <script src="auth-check.js"></script>
 <script>
-const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0"; 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let novelId, currentCoverUrl = "";
 let novelTag = "";
@@ -92,34 +89,49 @@ if (lastGenDate !== today) {
 }
 
 async function init() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { location.href = "login.html"; return; }
-
     const params = new URLSearchParams(window.location.search);
     novelId = params.get('novel_id');
 
     try {
-        const { data: novel } = await supabaseClient.from('novels').select('*').eq('id', novelId).single();
-        novelData = novel; // 🌟 これを1行追加
+        // 1. 小説の基本情報を取得
+        const { data: novel } = await window.supabaseClient.from('novels').select('*').eq('id', novelId).single();
+        novelData = novel;
         document.getElementById('dispTitle').innerText = novel.title;
-        novelTag = novel.tag || "";
         
-        let epCount = 0, imgCount = 0;
-        novel.content?.forEach(c => c.episodes?.forEach(e => {
-            epCount++;
-            if (e.pageAssets) imgCount += Object.values(e.pageAssets).filter(url => url).length;
-        }));
-        
+        // 2. ★修正：挿絵の枚数を「下書き(nft_metadata)」から取得して数える
+        const { data: allDrafts } = await window.supabaseClient
+            .from('nft_metadata')
+            .select('nft_content')
+            .eq('novel_id', novelId);
+
+        let epCount = 0;
+        let imgCount = 0;
+
+        // 小説の構成（話数）をカウント
+        novel.content?.forEach(c => {
+            epCount += (c.episodes ? c.episodes.length : 0);
+        });
+
+        // 挿絵の枚数を集計
+        if (allDrafts && allDrafts.length > 0) {
+            allDrafts.forEach(d => {
+                const episodes = d.nft_content?.episodes || {};
+                for (let key in episodes) {
+                    const assets = episodes[key].assets || {};
+                    // URLが存在する（空でない）イラストをカウント
+                    imgCount += Object.values(assets).filter(url => url && url !== "").length;
+                }
+            });
+        }
+
         document.getElementById('dispEpisodes').innerText = epCount + " 話";
         document.getElementById('dispIllusts').innerText = imgCount + " 枚";
 
-        // 初期表示はサンプル画像
-        // 🌟 ここを書き換え：初期表示は画像タグを隠し、メッセージのみ表示する
+        // （以下、表紙表示などの既存処理...）
         const imgEl = document.getElementById('coverPreview');
         const noImgMsg = document.getElementById('noImgMsg');
-
-        imgEl.style.display = 'none'; // 最初はAI画像がないので非表示
-        noImgMsg.style.display = 'block'; // 「まだ表紙がありません」を表示
+        imgEl.style.display = 'none';
+        noImgMsg.style.display = 'block';
 
     } catch (err) { console.error(err); }
 }
@@ -229,18 +241,18 @@ async function generateCover() {
 
     try {
         // AI画像生成APIを呼び出す
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${SUPABASE_KEY}` 
-            },
-            body: JSON.stringify({ 
-                mode: "scenery", 
-                base_prompt: "High-quality professional book cover illustration, full color, no text, ",
-                raw_text: promptValue 
-            })
-        });
+        const response = await fetch(`${window.supabaseClient.supabaseUrl}/functions/v1/generate-nft-image-safe`, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${window.supabaseClient.supabaseKey}`
+    },
+    body: JSON.stringify({
+        mode: "scenery",
+        base_prompt: "High-quality professional book cover illustration, full color, no text, ",
+        raw_text: promptValue
+    })
+});
 
         const data = await response.json();
         
@@ -377,7 +389,7 @@ async function handleMint() {
             episodes: finalEpisodes
         };
 
-        btn.innerText = "NFT作成中...（ブロックチェーン書き込み中）";
+        btn.innerText = "NFT作成中...";
 
         const currentAuthorId = novelData.author_id || localStorage.getItem("authorId");
         if (!currentAuthorId) throw new Error("作家データが読み込めませんでした。一度前の画面に戻り直してください。");
