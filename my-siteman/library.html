@@ -116,13 +116,22 @@ let currentEditingNftId = null;
 async function init() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) {
-            window.location.href = "nft_mint.html";
-            return;
-        }
-        
-        // アカウント情報の取得
-        const { data: nfts, error: nError } = await supabaseClient
+if (!session) {
+    window.location.href = "nft_mint.html";
+    return;
+}
+
+const { data: profile, error: pError } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+
+if (pError) {
+    console.error("Profile Error:", pError);
+}
+
+const { data: nfts, error: nError } = await supabaseClient
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('owner_id', session.user.id)
@@ -130,7 +139,7 @@ async function init() {
     .not('minted_at', 'is', null)
     .order('minted_at', { ascending: false });
 
-        if (profile) {
+if (profile) {
     document.getElementById("userStatusArea").innerHTML = `
         <h3 style="border-bottom: 2px solid var(--main-purple); padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
         
