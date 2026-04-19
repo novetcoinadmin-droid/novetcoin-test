@@ -134,7 +134,7 @@ async function init() {
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('owner_id', session.user.id)
-    .eq('authors.zone', 'mens')
+    .eq('authors.zone', 'main')
     .not('minted_at', 'is', null)
     .order('minted_at', { ascending: false });
 
