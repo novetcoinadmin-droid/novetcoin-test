@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>出金申請 | ノベットコイン.com</title>
+  <script src="../config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../my-site/auth-check.js"></script>
+  <style>
+    :root {
+      --main-purple: #6a0dad;
+      --gold: #ffd700;
+      --bg-gray: #f5f5f5;
+      --danger: #e74c3c;
+      --ok: #2e7d32;
+      --warn: #d97706;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --text-sub: #666;
+    }
+
+    body {
+      font-family: sans-serif;
+      background: var(--bg-gray);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--card);
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    h1 {
+      font-size: 24px;
+      color: var(--main-purple);
+      margin: 0 0 8px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 12px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #666;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .desc {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+      background: #fff;
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+      color: var(--main-purple);
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #555;
+    }
+
+    input[type="number"],
+    input[type="text"],
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 15px;
+      margin-bottom: 14px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .balance-box {
+      background: #faf8ff;
+      border: 1px solid #e9ddfb;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 18px;
+    }
+
+    .balance-title {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .balance-value {
+      font-size: 28px;
+      color: var(--main-purple);
+      font-weight: bold;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-key {
+      color: #666;
+    }
+
+    .summary-val {
+      font-weight: bold;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .warn-box,
+    .ok-box,
+    .error-box {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-top: 10px;
+    }
+
+    .warn-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: var(--warn);
+    }
+
+    .ok-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: var(--ok);
+    }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--danger);
+    }
+
+    .agree-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 14px;
+      font-size: 14px;
+      color: #444;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6a0dad);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #333;
+    }
+
+    .btn-primary:disabled,
+    .btn-secondary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .msg {
+      margin-top: 18px;
+      min-height: 20px;
+      font-size: 14px;
+    }
+
+    .msg.error { color: var(--danger); }
+    .msg.ok { color: var(--ok); }
+
+    @media (max-width: 640px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="wallet.html" class="back-link">← ウォレットへ戻る</a>
+    <h1>出金申請</h1>
+    <div class="desc">
+      DB上のNVT残高から出金申請を作成します。<br>
+      手数料は <strong>3%</strong>、ただし最低手数料は <strong>0.05 POL 相当</strong> です。<br>
+      POLコストが高すぎる場合は申請できません。
+    </div>
+
+    <div class="balance-box">
+      <div class="balance-title">現在のNVT残高</div>
+      <div class="balance-value"><span id="nvtBalanceText">0.00</span> NVT</div>
+    </div>
+
+    <div class="card">
+      <h2>出金内容</h2>
+
+      <label class="label" for="destinationWallet">送信先ウォレットアドレス</label>
+      <input
+        type="text"
+        id="destinationWallet"
+        placeholder="0x..."
+        autocomplete="off"
+      />
+
+      <div class="grid-2">
+        <div>
+          <label class="label" for="requestAmount">出金申請額（NVT）</label>
+          <input
+            type="number"
+            id="requestAmount"
+            placeholder="例: 10"
+            min="0.000001"
+            step="0.000001"
+          />
+        </div>
+
+        <div>
+          <label class="label" for="tokenSymbol">トークン</label>
+          <input
+            type="text"
+            id="tokenSymbol"
+            value="NVT"
+            disabled
+          />
+        </div>
+      </div>
+
+      <label class="label" for="noteInput">メモ（任意）</label>
+      <textarea id="noteInput" placeholder="例: メタマスクへの出金"></textarea>
+
+      <div class="actions">
+        <button class="btn-secondary" id="calcBtn" type="button">手数料を計算する</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>出金見積もり</h2>
+
+      <div class="summary-row">
+        <div class="summary-key">出金申請額</div>
+        <div class="summary-val" id="summaryRequestAmount">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">手数料率</div>
+        <div class="summary-val" id="summaryFeeRate">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">最低手数料基準</div>
+        <div class="summary-val" id="summaryMinFeePol">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">NVT基準値</div>
+        <div class="summary-val" id="summaryNvtRate">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">POL基準値</div>
+        <div class="summary-val" id="summaryPolRate">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">最終手数料</div>
+        <div class="summary-val" id="summaryFinalFee">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">実出金予定額</div>
+        <div class="summary-val" id="summaryNetAmount">-</div>
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-key">想定POLコスト</div>
+        <div class="summary-val" id="summaryEstimatedPol">-</div>
+      </div>
+
+      <div id="warningArea"></div>
+
+      <label class="agree-row">
+        <input type="checkbox" id="agreeCheck" />
+        <span>上記の手数料と出金内容に同意します。</span>
+      </label>
+
+      <div class="actions">
+        <button class="btn-primary" id="submitBtn" type="button" disabled>出金申請を作成する</button>
+      </div>
+    </div>
+
+    <div class="msg" id="message"></div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let currentProfile = null;
+    let settingsRow = null;
+    let estimateResult = null;
+
+    const nvtBalanceText = document.getElementById("nvtBalanceText");
+    const destinationWalletEl = document.getElementById("destinationWallet");
+    const requestAmountEl = document.getElementById("requestAmount");
+    const noteInputEl = document.getElementById("noteInput");
+    const calcBtn = document.getElementById("calcBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const agreeCheck = document.getElementById("agreeCheck");
+    const messageEl = document.getElementById("message");
+    const warningArea = document.getElementById("warningArea");
+
+    const summaryRequestAmount = document.getElementById("summaryRequestAmount");
+    const summaryFeeRate = document.getElementById("summaryFeeRate");
+    const summaryMinFeePol = document.getElementById("summaryMinFeePol");
+    const summaryNvtRate = document.getElementById("summaryNvtRate");
+    const summaryPolRate = document.getElementById("summaryPolRate");
+    const summaryFinalFee = document.getElementById("summaryFinalFee");
+    const summaryNetAmount = document.getElementById("summaryNetAmount");
+    const summaryEstimatedPol = document.getElementById("summaryEstimatedPol");
+
+    function setMessage(text = "", type = "") {
+      messageEl.textContent = text;
+      messageEl.className = "msg" + (type ? " " + type : "");
+    }
+
+    function formatNum(value, digits = 6) {
+      const num = Number(value ?? 0);
+      if (!Number.isFinite(num)) return "-";
+      return num.toLocaleString("ja-JP", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: digits
+      });
+    }
+
+    function isValidAddress(address) {
+      return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
+    }
+
+    function clearEstimateView() {
+      summaryRequestAmount.textContent = "-";
+      summaryFeeRate.textContent = "-";
+      summaryMinFeePol.textContent = "-";
+      summaryNvtRate.textContent = "-";
+      summaryPolRate.textContent = "-";
+      summaryFinalFee.textContent = "-";
+      summaryNetAmount.textContent = "-";
+      summaryEstimatedPol.textContent = "-";
+      warningArea.innerHTML = "";
+      estimateResult = null;
+      submitBtn.disabled = true;
+    }
+
+    async function initPage() {
+      const { data: { user } } = await window.supabaseClient.auth.getUser();
+      if (!user) {
+        location.href = "../my-site/login.html";
+        return;
+      }
+      currentUser = user;
+
+      await loadProfile();
+      await loadSettings();
+      bindEvents();
+    }
+
+    async function loadProfile() {
+      const { data, error } = await window.supabaseClient
+        .from("profiles")
+        .select("id, email, username, wallet_address, nvt_balance")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (error) {
+        setMessage("プロフィールの取得に失敗しました: " + error.message, "error");
+        return;
+      }
+
+      currentProfile = data;
+      nvtBalanceText.textContent = formatNum(data.nvt_balance || 0, 6);
+    }
+
+    async function loadSettings() {
+      const { data, error } = await window.supabaseClient
+        .from("withdraw_system_settings")
+        .select("*")
+        .eq("setting_key", "default")
+        .maybeSingle();
+
+      if (error) {
+        setMessage("出金設定の取得に失敗しました: " + error.message, "error");
+        return;
+      }
+
+      settingsRow = data;
+      if (!settingsRow) {
+        setMessage("出金設定が見つかりません。", "error");
+      }
+    }
+
+    function calculateEstimate() {
+      setMessage("");
+      warningArea.innerHTML = "";
+      submitBtn.disabled = true;
+      estimateResult = null;
+
+      if (!currentProfile || !settingsRow) {
+        setMessage("プロフィールまたは設定の読み込みが完了していません。", "error");
+        return;
+      }
+
+      const destinationWallet = destinationWalletEl.value.trim();
+      const requestAmount = Number(requestAmountEl.value);
+
+      if (!isValidAddress(destinationWallet)) {
+        setMessage("送信先ウォレットアドレスの形式が不正です。", "error");
+        return;
+      }
+
+      if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
+        setMessage("出金申請額を正しく入力してください。", "error");
+        return;
+      }
+
+      const currentBalance = Number(currentProfile.nvt_balance || 0);
+      if (requestAmount > currentBalance) {
+        setMessage("NVT残高が不足しています。", "error");
+        return;
+      }
+
+      const withdrawFeeRate = Number(settingsRow.withdraw_fee_rate_default || 0.03);
+      const withdrawFeeMinPol = Number(settingsRow.withdraw_fee_min_pol || 0.05);
+      const nvtUsdRate = Number(settingsRow.nvt_usd_assumption || 1);
+
+      // いったん POL 基準値も 1 を既定にする
+      const polUsdRate = Number(settingsRow.pol_usd_rate_snapshot_default || 1);
+
+      const feeByRate = requestAmount * withdrawFeeRate;
+      const minFeeUsd = withdrawFeeMinPol * polUsdRate;
+      const minFeeNvt = minFeeUsd / nvtUsdRate;
+      const feeNvtFinal = Math.max(feeByRate, minFeeNvt);
+      const netAmount = requestAmount - feeNvtFinal;
+
+      // ここでは暫定で「送るPOL量」を最低手数料基準と同値にする
+      const estimatedPol = withdrawFeeMinPol;
+
+      if (netAmount <= 0) {
+        setMessage("出金申請額が小さすぎます。手数料が出金額以上になります。", "error");
+        return;
+      }
+
+      // POLコストが高すぎる場合の停止判定
+      // 想定POL手数料（USD）が、手数料で回収する額（USD）を超えるなら止める
+      const feeUsdFinal = feeNvtFinal * nvtUsdRate;
+      const estimatedPolUsd = estimatedPol * polUsdRate;
+
+      let feeBlockReason = null;
+      if (settingsRow.block_withdraw_when_pol_fee_exceeds_fee && estimatedPolUsd > feeUsdFinal) {
+        feeBlockReason = settingsRow.pol_fee_warning_message || "現在、POL手数料が高くなっている可能性があります。時間をおいてやり直してください。";
+      }
+
+      summaryRequestAmount.textContent = `${formatNum(requestAmount)} NVT`;
+      summaryFeeRate.textContent = `${formatNum(withdrawFeeRate * 100, 4)} %`;
+      summaryMinFeePol.textContent = `${formatNum(withdrawFeeMinPol, 6)} POL`;
+      summaryNvtRate.textContent = `$${formatNum(nvtUsdRate, 6)}`;
+      summaryPolRate.textContent = `$${formatNum(polUsdRate, 6)}`;
+      summaryFinalFee.textContent = `${formatNum(feeNvtFinal, 6)} NVT`;
+      summaryNetAmount.textContent = `${formatNum(netAmount, 6)} NVT`;
+      summaryEstimatedPol.textContent = `${formatNum(estimatedPol, 6)} POL`;
+
+      if (feeBlockReason) {
+        warningArea.innerHTML = `<div class="warn-box">${feeBlockReason}</div>`;
+      } else {
+        warningArea.innerHTML = `<div class="ok-box">この条件で出金申請を作成できます。</div>`;
+      }
+
+      estimateResult = {
+        destination_wallet_address: destinationWallet,
+        token_symbol: "NVT",
+        request_amount: requestAmount,
+        fee_rate: withdrawFeeRate,
+        fee_amount: feeNvtFinal,
+        net_amount: netAmount,
+        estimated_pol: estimatedPol,
+        nvt_usd_rate_snapshot: nvtUsdRate,
+        pol_usd_rate_snapshot: polUsdRate,
+        fee_min_pol_snapshot: withdrawFeeMinPol,
+        fee_nvt_final: feeNvtFinal,
+        fee_block_reason: feeBlockReason,
+        note: noteInputEl.value.trim() || null
+      };
+
+      updateSubmitState();
+    }
+
+    function updateSubmitState() {
+      submitBtn.disabled = !(
+        estimateResult &&
+        !estimateResult.fee_block_reason &&
+        agreeCheck.checked
+      );
+    }
+
+    async function createWithdrawRequest() {
+      setMessage("");
+
+      if (!estimateResult) {
+        setMessage("先に手数料計算を行ってください。", "error");
+        return;
+      }
+
+      if (estimateResult.fee_block_reason) {
+        setMessage("現在の条件では出金申請できません。", "error");
+        return;
+      }
+
+      if (!agreeCheck.checked) {
+        setMessage("同意チェックが必要です。", "error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+
+      const payload = {
+        user_id: currentUser.id,
+        profile_id: currentUser.id,
+        source_wallet_address: currentProfile.wallet_address || null,
+        destination_wallet_address: estimateResult.destination_wallet_address,
+        token_symbol: estimateResult.token_symbol,
+        request_amount: estimateResult.request_amount,
+        fee_rate: estimateResult.fee_rate,
+        fee_amount: estimateResult.fee_amount,
+        net_amount: estimateResult.net_amount,
+        estimated_pol: estimateResult.estimated_pol,
+        status: "requested",
+        note: estimateResult.note,
+        nvt_usd_rate_snapshot: estimateResult.nvt_usd_rate_snapshot,
+        pol_usd_rate_snapshot: estimateResult.pol_usd_rate_snapshot,
+        fee_min_pol_snapshot: estimateResult.fee_min_pol_snapshot,
+        fee_nvt_final: estimateResult.fee_nvt_final,
+        fee_block_reason: estimateResult.fee_block_reason
+      };
+
+      const { error } = await window.supabaseClient
+        .from("withdraw_requests")
+        .insert([payload]);
+
+      submitBtn.disabled = false;
+
+      if (error) {
+        setMessage("出金申請の作成に失敗しました: " + error.message, "error");
+        return;
+      }
+
+      setMessage("出金申請を作成しました。", "ok");
+      destinationWalletEl.value = "";
+      requestAmountEl.value = "";
+      noteInputEl.value = "";
+      agreeCheck.checked = false;
+      clearEstimateView();
+      await loadProfile();
+    }
+
+    function bindEvents() {
+      calcBtn.addEventListener("click", calculateEstimate);
+      submitBtn.addEventListener("click", createWithdrawRequest);
+      agreeCheck.addEventListener("change", updateSubmitState);
+
+      destinationWalletEl.addEventListener("input", () => {
+        clearEstimateView();
+        setMessage("");
+      });
+
+      requestAmountEl.addEventListener("input", () => {
+        clearEstimateView();
+        setMessage("");
+      });
+
+      noteInputEl.addEventListener("input", () => {
+        if (estimateResult) {
+          estimateResult.note = noteInputEl.value.trim() || null;
+        }
+      });
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
