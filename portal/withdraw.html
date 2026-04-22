@@ -453,8 +453,8 @@
     }
 
     function calculateEstimate() {
-      alert("calculateEstimate start");
       setMessage("");
+      console.log("currentProfile:", currentProfile, "settingsRow:", settingsRow);
       warningArea.innerHTML = "";
       submitBtn.disabled = true;
       estimateResult = null;
