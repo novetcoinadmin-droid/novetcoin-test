@@ -165,6 +165,9 @@ async function fetchBalances() {
         currentProfile = profile;
         currentWalletAddress = profile.wallet_address || "";
 
+        console.log("wallet profile:", profile);
+        console.log("wallet address:", profile.wallet_address);
+
         document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
         document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
 
