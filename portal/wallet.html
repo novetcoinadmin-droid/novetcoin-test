@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>ウォレット | ノベットコイン.com</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
     <script src="../my-site/auth-check.js"></script>
     <style>
         :root { --main-purple: #6a0dad; --gold: #ffd700; --bg-gray: #f5f5f5; }
@@ -142,9 +144,52 @@
 let currentUser = null;
 let currentProfile = null;
 let currentWalletAddress = "";
+let web3authInstance = null;
+let web3Provider = null;
 const RATE = 150; // 1 NVT = 150 NP
 
+async function initWalletWeb3Auth() {
+    try {
+        const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE";
+
+        const chainConfig = {
+            chainNamespace: "eip155",
+            chainId: "0x89",
+            rpcTarget: "https://polygon.drpc.org",
+            displayName: "Polygon Mainnet",
+            blockExplorerUrl: "https://polygonscan.com/",
+            ticker: "POL",
+            tickerName: "POL",
+        };
+
+        const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+            config: { chainConfig }
+        });
+
+        web3authInstance = new window.Modal.Web3Auth({
+            clientId,
+            web3AuthNetwork: "sapphire_devnet",
+            privateKeyProvider,
+            uiConfig: {
+                uxMode: "redirect",
+                appName: "Novetcoin",
+                theme: "light",
+            }
+        });
+
+        await web3authInstance.initModal();
+
+        if (web3authInstance.connected) {
+            web3Provider = web3authInstance.provider;
+        }
+    } catch (err) {
+        console.error("wallet.html の Web3Auth 初期化失敗:", err);
+    }
+}
+
 async function initWallet() {
+    await initWalletWeb3Auth();
+
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     // ★修正: ログイン画面へのパスを相対パスに変更
     if (!user) { location.href = "../my-site/login.html"; return; }
@@ -296,12 +341,12 @@ document.getElementById("checkProviderBtn").addEventListener("click", async () =
     const resultEl = document.getElementById("providerCheckResult");
 
     try {
-        if (!window.ethereum) {
-            resultEl.innerText = "window.ethereum が見つかりません。";
+        if (!web3Provider) {
+            resultEl.innerText = "Web3Auth provider が見つかりません。";
             return;
         }
 
-        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        const accounts = await web3Provider.request({ method: "eth_accounts" });
         resultEl.innerText = `接続確認OK: ${accounts && accounts[0] ? accounts[0] : "アカウントなし"}`;
     } catch (err) {
         resultEl.innerText = "接続確認失敗: " + err.message;
