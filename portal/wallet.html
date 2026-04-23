@@ -138,6 +138,7 @@
 // 接続設定は auth-check.js に移行済み
 let currentUser = null;
 let currentProfile = null;
+let currentWalletAddress = "";
 const RATE = 150; // 1 NVT = 150 NP
 
 async function initWallet() {
@@ -154,12 +155,31 @@ async function initWallet() {
 }
 
 async function fetchBalances() {
-    const { data: profile } = await window.supabaseClient.from('profiles').select('nvt_balance, np_balance').eq('id', currentUser.id).single();
+    const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('nvt_balance, np_balance, wallet_address')
+        .eq('id', currentUser.id)
+        .single();
+
     if (profile) {
         currentProfile = profile;
-        // 小数点第2位まで表示
+        currentWalletAddress = profile.wallet_address || "";
+
         document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
         document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
+
+        const walletAddressText = document.getElementById("walletAddressText");
+        const walletScanLink = document.getElementById("walletScanLink");
+
+        if (walletAddressText) {
+            walletAddressText.innerText = currentWalletAddress || "未設定";
+        }
+
+        if (walletScanLink) {
+            walletScanLink.href = currentWalletAddress
+                ? `https://polygonscan.com/address/${currentWalletAddress}`
+                : "#";
+        }
     }
 }
 
@@ -255,6 +275,22 @@ async function fetchHistory() {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした（テーブル未作成）</td></tr>`;
     }
 }
+
+document.addEventListener("click", async (e) => {
+    if (e.target && e.target.id === "copyWalletBtn") {
+        if (!currentWalletAddress) {
+            alert("ウォレットアドレスがまだ読み込まれていません。");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(currentWalletAddress);
+            alert("ウォレットアドレスをコピーしました。");
+        } catch (err) {
+            alert("コピーに失敗しました。");
+        }
+    }
+});
 
 initWallet();
 </script>
