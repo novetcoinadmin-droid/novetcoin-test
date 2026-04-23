@@ -165,7 +165,7 @@ async function fetchBalances() {
     currentWalletAddress = profile.wallet_address || "";
 
     document.getElementById("walletAddressText").innerText =
-        "DEBUG: " + (profile.wallet_address || "empty");
+        (profile.wallet_address || "empty");
 
     document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
     document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
