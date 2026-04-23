@@ -162,28 +162,22 @@ async function fetchBalances() {
         .single();
 
     if (profile) {
-        currentProfile = profile;
-        currentWalletAddress = profile.wallet_address || "";
+    currentProfile = profile;
+    currentWalletAddress = profile.wallet_address || "";
 
-        console.log("wallet profile:", profile);
-        console.log("wallet address:", profile.wallet_address);
+    document.getElementById("walletAddressText").innerText =
+        "DEBUG: " + (profile.wallet_address || "empty");
 
-        document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
-        document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
+    document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
+    document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
 
-        const walletAddressText = document.getElementById("walletAddressText");
-        const walletScanLink = document.getElementById("walletScanLink");
-
-        if (walletAddressText) {
-            walletAddressText.innerText = currentWalletAddress || "未設定";
-        }
-
-        if (walletScanLink) {
-            walletScanLink.href = currentWalletAddress
-                ? `https://polygonscan.com/address/${currentWalletAddress}`
-                : "#";
-        }
+    const walletScanLink = document.getElementById("walletScanLink");
+    if (walletScanLink) {
+        walletScanLink.href = currentWalletAddress
+            ? `https://polygonscan.com/address/${currentWalletAddress}`
+            : "#";
     }
+}
 }
 
 // 変換の計算とボタンの有効化
