@@ -55,12 +55,16 @@
   });
 
   const wallet = inAppWallet({
-    auth: {
-      mode: "redirect",
-      options: ["google"],
-      redirectUrl: window.location.href,
-    },
-  });
+  auth: {
+    mode: "redirect",
+    options: ["google"],
+    redirectUrl: window.location.href,
+  },
+  executionMode: {
+    mode: "EIP7702",
+    sponsorGas: true,
+  },
+});
 
   async function signInToSupabaseByEmail(email) {
     const syncPassword = "Nvt!" + email + "2026";
