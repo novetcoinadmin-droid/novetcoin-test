@@ -88,30 +88,48 @@
   }
 
   async function handleThirdwebLoginReturn() {
-    try {
-      if (statusEl) statusEl.innerText = "thirdweb 接続確認中...";
+  try {
+    if (statusEl) statusEl.innerText = "thirdweb 接続確認中...";
 
-      const account = await wallet.getAccount();
-      if (!account) {
-        if (statusEl) statusEl.innerText = "thirdweb アカウント未接続";
-        return;
-      }
+    const url = new URL(window.location.href);
+    const hasRedirectResult =
+      url.searchParams.has("authResult") || url.searchParams.has("walletId");
 
-      const walletAddress = account.address;
-      if (statusEl) statusEl.innerText = `thirdweb 接続済み: ${walletAddress}`;
+    let account = null;
 
-      const ok = await syncWalletAddressToProfile(walletAddress);
-      if (!ok) return;
-
-      if (statusEl) statusEl.innerText = "保存完了。トップへ戻ります...";
-      setTimeout(() => {
-        window.location.href = "../my-site/index.html";
-      }, 1000);
-    } catch (err) {
-      console.error("thirdweb return handling error:", err);
-      if (statusEl) statusEl.innerText = "thirdweb ログイン後処理失敗";
+    if (hasRedirectResult) {
+      account = await wallet.connect({
+        client,
+        strategy: "google",
+      });
+    } else {
+      account = await wallet.getAccount();
     }
+
+    if (!account) {
+      if (statusEl) statusEl.innerText = "thirdweb アカウント未接続";
+      return;
+    }
+
+    const walletAddress = account.address;
+    if (statusEl) statusEl.innerText = `thirdweb 接続済み: ${walletAddress}`;
+
+    const ok = await syncWalletAddressToProfile(walletAddress);
+    if (!ok) return;
+
+    if (statusEl) statusEl.innerText = "保存完了。トップへ戻ります...";
+
+    url.search = "";
+    window.history.replaceState({}, document.title, url.toString());
+
+    setTimeout(() => {
+      window.location.href = "../my-site/index.html";
+    }, 1000);
+  } catch (err) {
+    console.error("thirdweb return handling error:", err);
+    if (statusEl) statusEl.innerText = "thirdweb ログイン後処理失敗";
   }
+}
 
   if (statusEl) {
     statusEl.innerText = "thirdweb module 読み込みOK";
