@@ -114,8 +114,9 @@
         <button type="button" class="btn-send" style="cursor:pointer; opacity:1;">出金申請ページへ進む</button>
     </a>
     <button type="button" id="checkProviderBtn" class="btn-send" style="cursor:pointer; opacity:1; margin-top:10px;">
-    ウォレット接続を確認する
+    thirdwebウォレットを接続する
 </button>
+<p id="providerCheckResult" style="font-size:12px; color:#666; margin-top:10px;">未接続</p>
 <p id="providerCheckResult" style="font-size:12px; color:#666; margin-top:10px;">未確認</p>
 </div>
 
@@ -342,27 +343,13 @@ document.getElementById("checkProviderBtn").addEventListener("click", async () =
   const resultEl = document.getElementById("providerCheckResult");
 
   try {
-    if (!thirdwebWallet) {
-      resultEl.innerText = "thirdweb wallet が見つかりません。";
+    if (!thirdwebAccount) {
+      resultEl.innerText = "thirdwebログインページへ移動します...";
+      window.location.href = "login-thirdweb.html";
       return;
     }
 
-    if (!thirdwebAccount) {
-      try {
-        thirdwebAccount = await thirdwebWallet.autoConnect({
-          client: thirdwebClient,
-        });
-      } catch (autoErr) {
-        thirdwebAccount = thirdwebWallet.getAccount();
-      }
-    }
-
-    if (!thirdwebAccount) {
-      resultEl.innerText = "thirdweb アカウント未接続";
-      return;
-    }
-
-    resultEl.innerText = `接続確認OK: ${thirdwebAccount.address}`;
+    resultEl.innerText = `接続済み: ${thirdwebAccount.address}`;
   } catch (err) {
     resultEl.innerText = "接続確認失敗: " + err.message;
   }
