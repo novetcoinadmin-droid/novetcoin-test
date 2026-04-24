@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログイン | ノベットコイン.com</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://unpkg.com/thirdweb@latest/dist/browser/index.js"></script>
+
+  <style>
+    body { font-family: sans-serif; background-color: #f5f5f5; }
+    .container { max-width: 400px; margin: 100px auto; background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; margin-bottom: 30px; }
+    button { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+    
+    .google-btn { background-color: #4285F4; color: #fff; font-weight: bold; }
+    .google-btn:hover { background-color: #357ae8; }
+    .back-link { display: inline-block; margin-bottom: 20px; color: #6a0dad; text-decoration: none; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    .info-text { text-align: center; margin-top: 20px; font-size: 13px; color: #666; line-height: 1.6; }
+    .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 60px; }
+    .footer .copy { font-size: 12px; color: #ccc; }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <a href="../my-site/index.html" class="back-link">← トップへ戻る</a>
+  <h1>ログイン</h1>
+
+  <button type="button" id="googleLoginBtn" class="google-btn">Googleでログイン / ウォレット作成</button>
+  <p id="thirdwebStatus" style="font-size:12px; color:#666; margin-top:12px;">thirdweb 未確認</p>
+
+  <div class="info-text">
+    Googleアカウントでログインするだけで、<br>
+    あなたの専用ウォレットが自動的に作成されます。
+  </div>
+</div>
+
+<div class="footer">
+  <div class="copy">ODAcorp</div>
+</div>
+
+<script src="auth-check.js"></script>
+<script>
+// --- Web3Auth 初期化設定 ---
+let web3auth = null;
+
+async function initWeb3Auth() {
+  try {
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
+
+    const chainConfig = {
+      chainNamespace: "eip155",
+      chainId: "0x89", 
+      rpcTarget: "https://polygon.drpc.org", 
+      displayName: "Polygon Mainnet",
+      blockExplorerUrl: "https://polygonscan.com/",
+      ticker: "MATIC",
+      tickerName: "Matic",
+    };
+
+    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+      config: { chainConfig: chainConfig }
+    });
+
+    web3auth = new window.Modal.Web3Auth({
+      clientId: clientId,
+      web3AuthNetwork: "sapphire_devnet", 
+      privateKeyProvider: privateKeyProvider,
+      uiConfig: {
+        uxMode: "redirect", 
+        appName: "Novetcoin",
+        theme: "light",
+      }
+    });
+
+    await web3auth.initModal();
+
+    // 🌟 ログイン済みで戻ってきた時の処理（データベース連携）
+    if (web3auth.connected) {
+      const user = await web3auth.getUserInfo();
+      
+      // ウォレットアドレスを取得
+      const accounts = await web3auth.provider.request({ method: "eth_accounts" });
+      const walletAddress = accounts[0];
+
+      console.log("DB連携スタート:", user.email, walletAddress);
+
+      // 🌟 【本番仕様】Supabase側にも正式にログインして「本物の証明書」を取得する
+      // Web3Authの固有IDを利用して、裏側でSupabaseアカウントと同期させます
+      const syncPassword = "Nvt!" + user.verifierId + "2026"; 
+      
+      let authResult = await window.supabaseClient.auth.signInWithPassword({ 
+          email: user.email, 
+          password: syncPassword 
+      });
+
+      // 初回ログイン（Supabase側にまだアカウントがない）場合、自動でサインアップ
+      if (authResult.error && authResult.error.message.includes("Invalid login")) {
+          authResult = await window.supabaseClient.auth.signUp({ 
+              email: user.email, 
+              password: syncPassword 
+          });
+      }
+
+      if (authResult.error) {
+          console.error("Supabase連携エラー:", authResult.error);
+          alert("データベースの連携に失敗しました。詳細: " + authResult.error.message);
+          return;
+      }
+
+      // 🌟 これがSupabaseが発行した「本物のユーザーID」です
+      const realUid = authResult.data.user.id;
+      
+      // 右パネル表示用にメールアドレスを保存
+      localStorage.setItem('userEmail', user.email);
+
+      // 1. データベースのプロフィール確認
+      const { data: existingProfile } = await window.supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // 2-A. 既存ならウォレットアドレスを更新
+        await window.supabaseClient
+          .from('profiles')
+          .update({ wallet_address: walletAddress, updated_at: new Date() })
+          .eq('id', existingProfile.id);
+      } else {
+        // 2-B. 新規なら行を作成 (★ランダムなIDではなく、Supabaseが発行した本物のIDを使う)
+        await window.supabaseClient
+          .from('profiles')
+          .insert([{
+            id: realUid, 
+            email: user.email,
+            username: user.name || "名称未設定",
+            wallet_address: walletAddress,
+            updated_at: new Date()
+          }]);
+      }
+
+      alert(`ログイン成功！\nようこそ、${user.name}さん\nセキュリティ同期が完了しました。`);
+      
+      // 成功したら自動的にトップページへ移動
+      window.location.href = "../my-site/index.html";
+    }
+
+  } catch (error) {
+    console.error("Web3Authの初期化エラー:", error);
+  }
+}
+
+window.addEventListener("load", initWeb3Auth);
+
+// Googleログインボタン
+document.getElementById("googleLoginBtn").addEventListener("click", async function() {
+  if (!web3auth) return;
+  try {
+    await web3auth.connect();
+  } catch (error) {
+    console.error("ログインエラー:", error);
+  }
+});
+
+window.addEventListener("load", () => {
+  const statusEl = document.getElementById("thirdwebStatus");
+  if (!statusEl) return;
+
+  if (window.thirdweb) {
+    statusEl.innerText = "thirdweb 読み込みOK";
+  } else {
+    statusEl.innerText = "thirdweb が見つかりません";
+  }
+});
+</script>
+
+</body>
+</html>
