@@ -171,7 +171,13 @@ async function initWalletThirdweb() {
       return;
     }
 
-    thirdwebAccount = await thirdwebWallet.getAccount();
+    try {
+      thirdwebAccount = await thirdwebWallet.autoConnect({
+        client: thirdwebClient,
+      });
+    } catch (autoErr) {
+      thirdwebAccount = thirdwebWallet.getAccount();
+    }
 
     if (thirdwebAccount) {
       console.log("thirdweb account:", thirdwebAccount.address);
@@ -341,7 +347,15 @@ document.getElementById("checkProviderBtn").addEventListener("click", async () =
       return;
     }
 
-    thirdwebAccount = await thirdwebWallet.getAccount();
+    if (!thirdwebAccount) {
+      try {
+        thirdwebAccount = await thirdwebWallet.autoConnect({
+          client: thirdwebClient,
+        });
+      } catch (autoErr) {
+        thirdwebAccount = thirdwebWallet.getAccount();
+      }
+    }
 
     if (!thirdwebAccount) {
       resultEl.innerText = "thirdweb アカウント未接続";
