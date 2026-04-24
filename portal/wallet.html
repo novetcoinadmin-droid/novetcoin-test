@@ -138,23 +138,22 @@
 </div>
 
 <script type="module">
-  import { createThirdwebClient } from "https://esm.sh/thirdweb";
-  import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
+import { createThirdwebClient } from "https://esm.sh/thirdweb";
+import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
 
-  window.thirdwebClient = createThirdwebClient({
-    clientId: "cc1d58553ac67551873be028676a90d6"
-  });
+// thirdweb 初期化
+const thirdwebClient = createThirdwebClient({
+  clientId: "cc1d58553ac67551873be028676a90d6"
+});
 
-  window.thirdwebInAppWallet = inAppWallet({
-    auth: {
-      mode: "redirect",
-      options: ["google"],
-      redirectUrl: window.location.href,
-    },
-  });
-</script>
+const thirdwebInAppWallet = inAppWallet({
+  auth: {
+    mode: "redirect",
+    options: ["google"],
+    redirectUrl: window.location.href,
+  },
+});
 
-<script>
 // 接続設定は auth-check.js に移行済み
 let currentUser = null;
 let currentProfile = null;
@@ -164,196 +163,195 @@ let thirdwebAccount = null;
 const RATE = 150; // 1 NVT = 150 NP
 
 async function initWalletThirdweb() {
-    try {
-        thirdwebWallet = window.thirdwebInAppWallet || null;
+  try {
+    thirdwebWallet = thirdwebInAppWallet;
 
-        if (!thirdwebWallet) {
-            console.error("thirdweb wallet が見つかりません");
-            return;
-        }
-
-        thirdwebAccount = await thirdwebWallet.getAccount();
-
-        if (thirdwebAccount) {
-            console.log("thirdweb account:", thirdwebAccount.address);
-        } else {
-            console.log("thirdweb account: 未接続");
-        }
-    } catch (err) {
-        console.error("wallet.html の thirdweb 初期化失敗:", err);
+    if (!thirdwebWallet) {
+      console.error("thirdweb wallet が見つかりません");
+      return;
     }
+
+    thirdwebAccount = await thirdwebWallet.getAccount();
+
+    if (thirdwebAccount) {
+      console.log("thirdweb account:", thirdwebAccount.address);
+    } else {
+      console.log("thirdweb account: 未接続");
+    }
+  } catch (err) {
+    console.error("wallet.html の thirdweb 初期化失敗:", err);
+  }
 }
 
 async function initWallet() {
-    await initWalletThirdweb();
+  await initWalletThirdweb();
 
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
-    // ★修正: ログイン画面へのパスを相対パスに変更
-    if (!user) { location.href = "../my-site/login.html"; return; }
-    currentUser = user;
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
+  if (!user) {
+    location.href = "../my-site/login.html";
+    return;
+  }
+  currentUser = user;
 
-    // ユーザーIDの一部を匿名IDとして表示
-    document.getElementById("walletUserId").innerText = `ID: ${user.id.substring(0, 8)}...`;
+  document.getElementById("walletUserId").innerText = `ID: ${user.id.substring(0, 8)}...`;
 
-    await fetchBalances();
-    await fetchHistory();
+  await fetchBalances();
+  await fetchHistory();
 }
 
 async function fetchBalances() {
-    const { data: profile } = await window.supabaseClient
-        .from('profiles')
-        .select('nvt_balance, np_balance, wallet_address')
-        .eq('id', currentUser.id)
-        .single();
+  const { data: profile } = await window.supabaseClient
+    .from("profiles")
+    .select("nvt_balance, np_balance, wallet_address")
+    .eq("id", currentUser.id)
+    .single();
 
-    if (profile) {
+  if (profile) {
     currentProfile = profile;
     currentWalletAddress = profile.wallet_address || "";
 
     document.getElementById("walletAddressText").innerText =
-        (profile.wallet_address || "empty");
+      profile.wallet_address || "未設定";
 
     document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
     document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
 
     const walletScanLink = document.getElementById("walletScanLink");
     if (walletScanLink) {
-        walletScanLink.href = currentWalletAddress
-            ? `https://polygonscan.com/address/${currentWalletAddress}`
-            : "#";
+      walletScanLink.href = currentWalletAddress
+        ? `https://polygonscan.com/address/${currentWalletAddress}`
+        : "#";
     }
-}
+  }
 }
 
-// 変換の計算とボタンの有効化
 function calcConvert() {
-    const inputVal = parseFloat(document.getElementById("convertInput").value);
-    const btn = document.getElementById("convertBtn");
-    const receiveInput = document.getElementById("receiveInput");
+  const inputVal = parseFloat(document.getElementById("convertInput").value);
+  const btn = document.getElementById("convertBtn");
+  const receiveInput = document.getElementById("receiveInput");
 
-    if (isNaN(inputVal) || inputVal <= 0) {
-        receiveInput.value = "";
-        btn.disabled = true;
-        return;
-    }
-
-    const npAmount = Math.floor(inputVal * RATE);
-    receiveInput.value = npAmount;
-
-    // 残高チェック
-    if (currentProfile && inputVal <= currentProfile.nvt_balance) {
-        btn.disabled = false;
-        btn.innerText = "NPに変換する";
-    } else {
-        btn.disabled = true;
-        btn.innerText = "NVT残高が不足しています";
-    }
-}
-
-// 変換実行 (修正版)
-async function executeConvert() {
-    const inputVal = parseFloat(document.getElementById("convertInput").value);
-    const npAmount = Math.floor(inputVal * RATE);
-
-    if (!confirm(`${inputVal} NVT を ${npAmount} NP に変換しますか？`)) return;
-
-    const btn = document.getElementById("convertBtn");
+  if (isNaN(inputVal) || inputVal <= 0) {
+    receiveInput.value = "";
     btn.disabled = true;
-    btn.innerText = "処理中...";
+    return;
+  }
 
-    try {
-        const { data, error } = await window.supabaseClient.functions.invoke('convert-nvt-to-np', {
-            body: { amount_nvt: inputVal }
-        });
+  const npAmount = Math.floor(inputVal * RATE);
+  receiveInput.value = npAmount;
 
-        if (error) throw error;
-
-        alert("変換が完了しました！（サーバー側で安全に処理されました）");
-        document.getElementById("convertInput").value = "";
-        document.getElementById("receiveInput").value = "";
-        
-        await fetchBalances(); // 残高更新
-        await fetchHistory();  // 履歴更新
-
-    } catch (err) {
-        alert("エラーが発生しました: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "NPに変換する";
-    }
+  if (currentProfile && inputVal <= currentProfile.nvt_balance) {
+    btn.disabled = false;
+    btn.innerText = "NPに変換する";
+  } else {
+    btn.disabled = true;
+    btn.innerText = "NVT残高が不足しています";
+  }
 }
 
-// 履歴の取得
+window.calcConvert = calcConvert;
+
+async function executeConvert() {
+  const inputVal = parseFloat(document.getElementById("convertInput").value);
+  const npAmount = Math.floor(inputVal * RATE);
+
+  if (!confirm(`${inputVal} NVT を ${npAmount} NP に変換しますか？`)) return;
+
+  const btn = document.getElementById("convertBtn");
+  btn.disabled = true;
+  btn.innerText = "処理中...";
+
+  try {
+    const { error } = await window.supabaseClient.functions.invoke("convert-nvt-to-np", {
+      body: { amount_nvt: inputVal }
+    });
+
+    if (error) throw error;
+
+    alert("変換が完了しました！（サーバー側で安全に処理されました）");
+    document.getElementById("convertInput").value = "";
+    document.getElementById("receiveInput").value = "";
+
+    await fetchBalances();
+    await fetchHistory();
+  } catch (err) {
+    alert("エラーが発生しました: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "NPに変換する";
+  }
+}
+
+window.executeConvert = executeConvert;
+
 async function fetchHistory() {
-    const tbody = document.getElementById("historyBody");
-    
-    try {
-        const { data: logs, error } = await window.supabaseClient
-            .from('transactions')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('created_at', { ascending: false })
-            .limit(10);
+  const tbody = document.getElementById("historyBody");
 
-        if (error || !logs || logs.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴がありません</td></tr>`;
-            return;
-        }
+  try {
+    const { data: logs, error } = await window.supabaseClient
+      .from("transactions")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
 
-        tbody.innerHTML = logs.map(log => {
-            const date = new Date(log.created_at).toLocaleDateString();
-            const amtClass = log.amount_nvt > 0 ? 'amt-plus' : 'amt-minus';
-            const amtSign = log.amount_nvt > 0 ? '+' : '';
-            return `
-                <tr>
-                    <td>${date}</td>
-                    <td>${log.product_name || '-'}</td>
-                    <td style="text-align: right;" class="${amtClass}">${amtSign}${parseFloat(log.amount_nvt).toFixed(2)}</td>
-                </tr>
-            `;
-        }).join('');
-
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした（テーブル未作成）</td></tr>`;
+    if (error || !logs || logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴がありません</td></tr>`;
+      return;
     }
+
+    tbody.innerHTML = logs.map(log => {
+      const date = new Date(log.created_at).toLocaleDateString();
+      const amtClass = log.amount_nvt > 0 ? "amt-plus" : "amt-minus";
+      const amtSign = log.amount_nvt > 0 ? "+" : "";
+      return `
+        <tr>
+          <td>${date}</td>
+          <td>${log.product_name || "-"}</td>
+          <td style="text-align: right;" class="${amtClass}">${amtSign}${parseFloat(log.amount_nvt).toFixed(2)}</td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした（テーブル未作成）</td></tr>`;
+  }
 }
 
 document.addEventListener("click", async (e) => {
-    if (e.target && e.target.id === "copyWalletBtn") {
-        if (!currentWalletAddress) {
-            alert("ウォレットアドレスがまだ読み込まれていません。");
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(currentWalletAddress);
-            alert("ウォレットアドレスをコピーしました。");
-        } catch (err) {
-            alert("コピーに失敗しました。");
-        }
+  if (e.target && e.target.id === "copyWalletBtn") {
+    if (!currentWalletAddress) {
+      alert("ウォレットアドレスがまだ読み込まれていません。");
+      return;
     }
+
+    try {
+      await navigator.clipboard.writeText(currentWalletAddress);
+      alert("ウォレットアドレスをコピーしました。");
+    } catch (err) {
+      alert("コピーに失敗しました。");
+    }
+  }
 });
 
 document.getElementById("checkProviderBtn").addEventListener("click", async () => {
-    const resultEl = document.getElementById("providerCheckResult");
+  const resultEl = document.getElementById("providerCheckResult");
 
-    try {
-        if (!thirdwebWallet) {
-            resultEl.innerText = "thirdweb wallet が見つかりません。";
-            return;
-        }
-
-        thirdwebAccount = await thirdwebWallet.getAccount();
-
-        if (!thirdwebAccount) {
-            resultEl.innerText = "thirdweb アカウント未接続";
-            return;
-        }
-
-        resultEl.innerText = `接続確認OK: ${thirdwebAccount.address}`;
-    } catch (err) {
-        resultEl.innerText = "接続確認失敗: " + err.message;
+  try {
+    if (!thirdwebWallet) {
+      resultEl.innerText = "thirdweb wallet が見つかりません。";
+      return;
     }
+
+    thirdwebAccount = await thirdwebWallet.getAccount();
+
+    if (!thirdwebAccount) {
+      resultEl.innerText = "thirdweb アカウント未接続";
+      return;
+    }
+
+    resultEl.innerText = `接続確認OK: ${thirdwebAccount.address}`;
+  } catch (err) {
+    resultEl.innerText = "接続確認失敗: " + err.message;
+  }
 });
 
 initWallet();
