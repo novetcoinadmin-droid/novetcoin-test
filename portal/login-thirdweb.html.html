@@ -29,7 +29,7 @@
   <a href="../my-site/index.html" class="back-link">← トップへ戻る</a>
   <h1>ログイン</h1>
 
-  <button type="button" id="googleLoginBtn" class="google-btn">Googleでログイン / ウォレット作成</button>
+  <button type="button" id="googleLoginBtn" class="google-btn">thirdweb 接続テストを開始</button>
   <p id="thirdwebStatus" style="font-size:12px; color:#666; margin-top:12px;">thirdweb 未確認</p>
 
   <div class="info-text">
@@ -45,25 +45,42 @@
 <script src="auth-check.js"></script>
 <script type="module">
   import { createThirdwebClient } from "https://esm.sh/thirdweb";
+  import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
 
   const statusEl = document.getElementById("thirdwebStatus");
+  const loginBtn = document.getElementById("googleLoginBtn");
 
-  try {
-    const client = createThirdwebClient({
-      clientId: "cc1d58553ac67551873be028676a90d6"
-    });
+  const client = createThirdwebClient({
+    clientId: "cc1d58553ac67551873be028676a90d6"
+  });
 
-    if (statusEl) {
-      statusEl.innerText = client ? "thirdweb module 読み込みOK" : "thirdweb 初期化失敗";
-    }
+  const wallet = inAppWallet({
+    auth: {
+      mode: "redirect",
+      options: ["google"],
+      redirectUrl: window.location.href,
+    },
+  });
 
-    window.thirdwebClient = client;
-  } catch (err) {
-    console.error("thirdweb module error:", err);
-    if (statusEl) {
-      statusEl.innerText = "thirdweb module 読み込み失敗";
-    }
+  if (statusEl) {
+    statusEl.innerText = "thirdweb module 読み込みOK";
   }
+
+  loginBtn.addEventListener("click", async () => {
+    try {
+      if (statusEl) statusEl.innerText = "thirdweb Googleログインへ移動します...";
+      await wallet.connect({
+        client,
+        strategy: "google",
+      });
+    } catch (err) {
+      console.error("thirdweb login error:", err);
+      if (statusEl) statusEl.innerText = "thirdweb ログイン失敗";
+    }
+  });
+
+  window.thirdwebClient = client;
+  window.thirdwebWallet = wallet;
 </script>
 
 </body>
