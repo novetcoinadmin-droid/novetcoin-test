@@ -1,0 +1,1 @@
+import{ar as e,dr as t,lc as n,or as r}from"./index-hmDiE8R1.js";import{t as i}from"./wallet-CA4R1uzV.js";var a=n(),o=({onClick:n,text:o})=>(0,a.jsxs)(e,{onClick:n,children:[(0,a.jsx)(r,{children:(0,a.jsx)(i,{})}),(0,a.jsx)(t,{children:o})]});export{o as t};
