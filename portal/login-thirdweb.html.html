@@ -236,10 +236,45 @@
       await connectThirdweb();
     });
 
-    nextStepBtn.addEventListener("click", () => {
-      if (nextStepBtn.disabled) return;
-      alert("ここまで確認できたら、次に session key 付与コードを足します。");
+    nextStepBtn.addEventListener("click", async () => {
+  if (nextStepBtn.disabled) return;
+
+  try {
+    setStatus("session key 付与中...");
+
+    const operationWallet = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
+
+    const res = await fetch("https://embedded-wallet.thirdweb.com/api/2025-03-01/session-keys", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-client-id": CLIENT_ID,
+      },
+      body: JSON.stringify({
+        sessionKeyAddress: operationWallet,
+        permissions: {
+          approvedTargets: "*",
+          nativeTokenLimitPerTransactionInWei: "10000000000000000",
+          permissionStartTimestamp: Math.floor(Date.now() / 1000),
+          permissionEndTimestamp: Math.floor(Date.now() / 1000) + 86400,
+        },
+      }),
     });
+
+    const data = await res.json();
+    console.log("session key response:", data);
+
+    if (!res.ok) {
+      setStatus("session key 付与失敗: " + (data?.message || JSON.stringify(data)));
+      return;
+    }
+
+    setStatus("session key 付与API成功: " + JSON.stringify(data));
+  } catch (err) {
+    console.error("session key error:", err);
+    setStatus("session key 付与失敗: " + err.message);
+  }
+});
 
     setStatus("未接続");
     setWalletAddress("未取得");
