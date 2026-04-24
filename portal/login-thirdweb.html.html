@@ -220,8 +220,8 @@
       const address = currentAccount.address;
       setWalletAddress(address);
 
-      //const ok = await syncProfileWalletAddress(address);
-      //if (!ok) return;
+      const ok = await syncProfileWalletAddress(address);
+      if (!ok) return;
 
       if (address.toLowerCase() === EXPECTED_WALLET.toLowerCase()) {
         setStatus("接続成功（期待どおりのアドレスです）");
