@@ -62,26 +62,68 @@
     },
   });
 
-  async function syncWalletAddressToProfile(walletAddress) {
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
+  async function signInToSupabaseByEmail(email) {
+    const syncPassword = "Nvt!" + email + "2026";
 
-    if (!user) {
-      if (statusEl) statusEl.innerText = "Supabaseログインが見つかりません。";
-      return false;
+    let authResult = await window.supabaseClient.auth.signInWithPassword({
+      email,
+      password: syncPassword
+    });
+
+    if (authResult.error && authResult.error.message.includes("Invalid login")) {
+      authResult = await window.supabaseClient.auth.signUp({
+        email,
+        password: syncPassword
+      });
     }
 
-    const { error } = await window.supabaseClient
-      .from("profiles")
-      .update({
-        wallet_address: walletAddress,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", user.id);
+    if (authResult.error) {
+      console.error("Supabase連携エラー:", authResult.error);
+      if (statusEl) statusEl.innerText = "Supabaseログイン失敗: " + authResult.error.message;
+      return null;
+    }
 
-    if (error) {
-      console.error("profiles 更新失敗:", error);
-      if (statusEl) statusEl.innerText = "wallet_address 保存失敗";
-      return false;
+    return authResult.data.user;
+  }
+
+  async function syncProfile(user, email, walletAddress) {
+    const { data: existingProfile } = await window.supabaseClient
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      const { error } = await window.supabaseClient
+        .from("profiles")
+        .update({
+          email,
+          wallet_address: walletAddress,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      if (error) {
+        console.error("profiles update error:", error);
+        if (statusEl) statusEl.innerText = "profiles 更新失敗";
+        return false;
+      }
+    } else {
+      const { error } = await window.supabaseClient
+        .from("profiles")
+        .insert([{
+          id: user.id,
+          email,
+          username: "名称未設定",
+          wallet_address: walletAddress,
+          updated_at: new Date().toISOString()
+        }]);
+
+      if (error) {
+        console.error("profiles insert error:", error);
+        if (statusEl) statusEl.innerText = "profiles 作成失敗";
+        return false;
+      }
     }
 
     return true;
@@ -100,18 +142,29 @@
       if (statusEl) statusEl.innerText = "thirdweb ログイン結果を確認中...";
 
       const parsed = JSON.parse(authResult);
-      const walletAddress =
-        parsed?.storedToken?.authDetails?.walletAddress || "";
+      const authDetails = parsed?.storedToken?.authDetails || {};
+      const walletAddress = authDetails.walletAddress || "";
+      const email = authDetails.email || "";
 
       if (!walletAddress) {
         if (statusEl) statusEl.innerText = "walletAddress が見つかりません";
         return;
       }
 
+      if (!email) {
+        if (statusEl) statusEl.innerText = "email が見つかりません";
+        return;
+      }
+
       if (statusEl) statusEl.innerText = `thirdweb 接続済み: ${walletAddress}`;
 
-      const ok = await syncWalletAddressToProfile(walletAddress);
+      const supabaseUser = await signInToSupabaseByEmail(email);
+      if (!supabaseUser) return;
+
+      const ok = await syncProfile(supabaseUser, email, walletAddress);
       if (!ok) return;
+
+      localStorage.setItem("userEmail", email);
 
       if (statusEl) statusEl.innerText = "保存完了。トップへ戻ります...";
 
