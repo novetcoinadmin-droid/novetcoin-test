@@ -4,22 +4,6 @@
     <meta charset="UTF-8">
     <title>ウォレット | ノベットコイン.com</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module">
-  import { createThirdwebClient } from "https://esm.sh/thirdweb";
-  import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
-
-  window.thirdwebClient = createThirdwebClient({
-    clientId: "cc1d58553ac67551873be028676a90d6"
-  });
-
-  window.thirdwebInAppWallet = inAppWallet({
-    auth: {
-      mode: "redirect",
-      options: ["google"],
-      redirectUrl: window.location.href,
-    },
-  });
-</script>
     <script src="../my-site/auth-check.js"></script>
     <style>
         :root { --main-purple: #6a0dad; --gold: #ffd700; --bg-gray: #f5f5f5; }
@@ -152,6 +136,23 @@
     </div>
 
 </div>
+
+<script type="module">
+  import { createThirdwebClient } from "https://esm.sh/thirdweb";
+  import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
+
+  window.thirdwebClient = createThirdwebClient({
+    clientId: "cc1d58553ac67551873be028676a90d6"
+  });
+
+  window.thirdwebInAppWallet = inAppWallet({
+    auth: {
+      mode: "redirect",
+      options: ["google"],
+      redirectUrl: window.location.href,
+    },
+  });
+</script>
 
 <script>
 // 接続設定は auth-check.js に移行済み
