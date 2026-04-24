@@ -100,7 +100,7 @@ async function init() {
   const { data: { user } } = await window.supabaseClient.auth.getUser();
   if (!user) {
     alert("セッションが切れました。再ログインしてください。");
-    location.href = "../my-site/login.html";
+    location.href = "../portal/login.html";
     return;
   }
 
