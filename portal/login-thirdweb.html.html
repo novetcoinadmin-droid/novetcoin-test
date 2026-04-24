@@ -31,6 +31,10 @@
 
   <button type="button" id="googleLoginBtn" class="google-btn">thirdweb 接続テストを開始</button>
   <p id="thirdwebStatus" style="font-size:12px; color:#666; margin-top:12px;">thirdweb 未確認</p>
+  <button type="button" id="createSessionKeyBtn" class="google-btn" style="margin-top:12px; display:none;">
+  operation wallet に session key を付与する
+</button>
+<p id="sessionKeyStatus" style="font-size:12px; color:#666; margin-top:12px;">未実行</p>
 
   <div class="info-text">
     Googleアカウントでログインするだけで、<br>
@@ -44,27 +48,40 @@
 
 <script src="auth-check.js"></script>
 <script type="module">
-  import { createThirdwebClient } from "https://esm.sh/thirdweb";
+  import {
+    createThirdwebClient,
+    getContract,
+    sendTransaction,
+  } from "https://esm.sh/thirdweb";
+  import { polygon } from "https://esm.sh/thirdweb/chains";
   import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
+  import { createSessionKey } from "https://esm.sh/thirdweb/wallets/in-app";
 
   const statusEl = document.getElementById("thirdwebStatus");
   const loginBtn = document.getElementById("googleLoginBtn");
+  const createSessionKeyBtn = document.getElementById("createSessionKeyBtn");
+  const sessionKeyStatusEl = document.getElementById("sessionKeyStatus");
 
   const client = createThirdwebClient({
     clientId: "cc1d58553ac67551873be028676a90d6"
   });
 
   const wallet = inAppWallet({
-  auth: {
-    mode: "redirect",
-    options: ["google"],
-    redirectUrl: window.location.href,
-  },
-  executionMode: {
-    mode: "EIP7702",
-    sponsorGas: true,
-  },
-});
+    auth: {
+      mode: "redirect",
+      options: ["google"],
+      redirectUrl: window.location.href,
+    },
+    executionMode: {
+      mode: "EIP7702",
+      sponsorGas: true,
+    },
+  });
+
+  const SESSION_KEY_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
+
+  let currentAccount = null;
+  let currentWalletAddress = "";
 
   async function signInToSupabaseByEmail(email) {
     const syncPassword = "Nvt!" + email + "2026";
@@ -160,6 +177,14 @@
         return;
       }
 
+      currentWalletAddress = walletAddress;
+
+      currentAccount = await wallet.connect({
+        client,
+        chain: polygon,
+        strategy: "google",
+      });
+
       if (statusEl) statusEl.innerText = `thirdweb 接続済み: ${walletAddress}`;
 
       const supabaseUser = await signInToSupabaseByEmail(email);
@@ -170,14 +195,16 @@
 
       localStorage.setItem("userEmail", email);
 
-      if (statusEl) statusEl.innerText = "保存完了。トップへ戻ります...";
-
       url.search = "";
       window.history.replaceState({}, document.title, url.toString());
 
-      setTimeout(() => {
-        window.location.href = "wallet.html";
-      }, 1000);
+      if (createSessionKeyBtn) {
+        createSessionKeyBtn.style.display = "block";
+      }
+
+      if (statusEl) {
+        statusEl.innerText = `ログイン成功: ${walletAddress}`;
+      }
     } catch (err) {
       console.error("thirdweb return handling error:", err);
       if (statusEl) statusEl.innerText = "thirdweb ログイン後処理失敗";
@@ -193,11 +220,45 @@
       if (statusEl) statusEl.innerText = "thirdweb Googleログインへ移動します...";
       await wallet.connect({
         client,
+        chain: polygon,
         strategy: "google",
       });
     } catch (err) {
       console.error("thirdweb login error:", err);
       if (statusEl) statusEl.innerText = "thirdweb ログイン失敗";
+    }
+  });
+
+  createSessionKeyBtn.addEventListener("click", async () => {
+    try {
+      if (!currentAccount) {
+        sessionKeyStatusEl.innerText = "thirdweb アカウント未接続です";
+        return;
+      }
+
+      sessionKeyStatusEl.innerText = "session key 作成中...";
+
+      const accountContract = getContract({
+        address: currentAccount.address,
+        chain: polygon,
+        client,
+      });
+
+      const tx = await sendTransaction({
+        account: currentAccount,
+        transaction: createSessionKey({
+          account: currentAccount,
+          contract: accountContract,
+          sessionKeyAddress: SESSION_KEY_ADDRESS,
+          durationInSeconds: 86400,
+          grantFullPermissions: true,
+        }),
+      });
+
+      sessionKeyStatusEl.innerText = `session key 作成成功: ${tx.transactionHash}`;
+    } catch (err) {
+      console.error("session key create error:", err);
+      sessionKeyStatusEl.innerText = "session key 作成失敗: " + err.message;
     }
   });
 
