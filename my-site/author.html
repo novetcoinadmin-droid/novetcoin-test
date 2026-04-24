@@ -184,7 +184,7 @@ async function fetchNovels() {
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     
     if (!user) {
-      location.href = "login.html";
+      location.href = "../portal/login.html";
       return;
     }
     currentUser = user;
