@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privy ログイン | ノベットコイン.com</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../my-site/auth-check.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 520px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 36px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin: 0 0 24px;
+      text-align: center;
+      font-size: 42px;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #6a0dad;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .main-btn, .sub-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .main-btn {
+      background: #4a82e8;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .sub-btn {
+      background: #333;
+      color: #fff;
+      margin-top: 12px;
+    }
+    .sub-btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status-box {
+      margin-top: 16px;
+      padding: 14px;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-all;
+    }
+    .label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .value {
+      font-weight: bold;
+    }
+    .note {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #666;
+      line-height: 1.7;
+      text-align: center;
+    }
+    .danger {
+      color: #b00020;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18";
+    import { createRoot } from "https://esm.sh/react-dom@18/client";
+    import {
+      PrivyProvider,
+      usePrivy,
+      useWallets
+    } from "https://esm.sh/@privy-io/react-auth";
+
+    const PRIVY_APP_ID = "cmocs4qi6027f0dl5wyfy0nda";
+    const EXPECTED_WALLET = "0x386ae7147F3A30770af204339ef7D812A7e71A4B";
+
+    function LoginInner() {
+      const { ready, authenticated, user, login, logout } = usePrivy();
+      const { ready: walletsReady, wallets } = useWallets();
+
+      const [status, setStatus] = useState("Privy 初期化中...");
+      const [walletAddress, setWalletAddress] = useState("未取得");
+      const [saveStatus, setSaveStatus] = useState("未保存");
+      const [isSaving, setIsSaving] = useState(false);
+
+      const embeddedWallet = useMemo(() => {
+        if (!walletsReady || !wallets || wallets.length === 0) return null;
+
+        // Privy の埋め込みEVMウォレットを優先
+        const privyWallet =
+          wallets.find((w) => w.walletClientType === "privy") ||
+          wallets.find((w) => w.connectorType === "embedded") ||
+          wallets[0];
+
+        return privyWallet || null;
+      }, [walletsReady, wallets]);
+
+      useEffect(() => {
+        if (!ready) {
+          setStatus("Privy 初期化中...");
+          return;
+        }
+
+        if (!authenticated) {
+          setStatus("未ログイン");
+          setWalletAddress("未取得");
+          return;
+        }
+
+        if (!walletsReady) {
+          setStatus("ログイン済み。ウォレット確認中...");
+          return;
+        }
+
+        if (!embeddedWallet) {
+          setStatus("ログイン済みですが、埋め込みウォレット未取得");
+          setWalletAddress("未取得");
+          return;
+        }
+
+        const address = embeddedWallet.address || "未取得";
+        setWalletAddress(address);
+
+        if (address.toLowerCase() === EXPECTED_WALLET.toLowerCase()) {
+          setStatus("接続成功（期待どおりのアドレスです）");
+        } else {
+          setStatus("接続成功（ただし想定アドレスと異なります）");
+        }
+      }, [ready, authenticated, walletsReady, embeddedWallet]);
+
+      async function saveToSupabase() {
+        if (!authenticated || !embeddedWallet?.address) {
+          setSaveStatus("保存不可: ログインまたはウォレット未確認");
+          return;
+        }
+
+        try {
+          setIsSaving(true);
+          setSaveStatus("Supabase確認中...");
+
+          const { data: authData, error: authError } =
+            await window.supabaseClient.auth.getUser();
+
+          if (authError) {
+            setSaveStatus("Supabase認証取得失敗: " + authError.message);
+            return;
+          }
+
+          const supabaseUser = authData?.user;
+          if (!supabaseUser) {
+            setSaveStatus("Supabaseログインが見つかりません");
+            return;
+          }
+
+          const address = embeddedWallet.address;
+
+          const { error } = await window.supabaseClient
+            .from("profiles")
+            .update({
+              wallet_address: address,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", supabaseUser.id);
+
+          if (error) {
+            setSaveStatus("profiles 更新失敗: " + error.message);
+            return;
+          }
+
+          setSaveStatus("保存成功: " + address);
+        } catch (err) {
+          setSaveStatus("保存失敗: " + err.message);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+
+      function handleLogin() {
+        login();
+      }
+
+      return React.createElement(
+        "div",
+        { className: "container" },
+        React.createElement(
+          "a",
+          { href: "../my-site/index.html", className: "back-link" },
+          "← トップへ戻る"
+        ),
+        React.createElement("h1", null, "ログイン"),
+        React.createElement(
+          "button",
+          { type: "button", className: "main-btn", onClick: handleLogin },
+          "Privy でログインする"
+        ),
+        React.createElement(
+          "div",
+          { className: "status-box" },
+          React.createElement("div", { className: "label" }, "状態"),
+          React.createElement("div", { className: "value" }, status)
+        ),
+        React.createElement(
+          "div",
+          { className: "status-box" },
+          React.createElement("div", { className: "label" }, "現在の Privy ウォレットアドレス"),
+          React.createElement("div", { className: "value" }, walletAddress)
+        ),
+        React.createElement(
+          "div",
+          { className: "status-box" },
+          React.createElement("div", { className: "label" }, "Supabase 保存状態"),
+          React.createElement(
+            "div",
+            { className: saveStatus.startsWith("保存失敗") ? "value danger" : "value" },
+            saveStatus
+          )
+        ),
+        React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "sub-btn",
+            onClick: saveToSupabase,
+            disabled: !authenticated || !embeddedWallet?.address || isSaving
+          },
+          isSaving ? "保存中..." : "このウォレットアドレスを Supabase に保存する"
+        ),
+        authenticated &&
+          React.createElement(
+            "button",
+            {
+              type: "button",
+              className: "sub-btn",
+              onClick: () => logout()
+            },
+            "ログアウト"
+          ),
+        React.createElement(
+          "div",
+          { className: "note" },
+          "まずはこのページで、Googleログイン後に",
+          React.createElement("br"),
+          "Privy の埋め込み EVM ウォレットアドレスが表示されることを確認します。"
+        )
+      );
+    }
+
+    function App() {
+      return React.createElement(
+        PrivyProvider,
+        {
+          appId: PRIVY_APP_ID,
+          config: {
+            appearance: {
+              loginMethods: ["google"]
+            },
+            embeddedWallets: {
+              ethereum: {
+                createOnLogin: "users-without-wallets"
+              }
+            }
+          }
+        },
+        React.createElement(LoginInner)
+      );
+    }
+
+    createRoot(document.getElementById("root")).render(
+      React.createElement(App)
+    );
+  </script>
+</body>
+</html>
