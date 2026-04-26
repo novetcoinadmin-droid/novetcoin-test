@@ -16,11 +16,26 @@
     .google-btn:hover { background-color: #357ae8; }
     .google-btn:disabled { background-color: #aaa; cursor: not-allowed; }
 
+    .reset-btn { background-color: #6a0dad; color: #fff; font-weight: bold; margin-top: 12px; }
+    .reset-btn:hover { background-color: #580b91; }
+    .reset-btn:disabled { background-color: #aaa; cursor: not-allowed; }
+
     .back-link { display: inline-block; margin-bottom: 20px; color: #6a0dad; text-decoration: none; font-size: 14px; }
     .back-link:hover { text-decoration: underline; }
 
     .info-text { text-align: center; margin-top: 20px; font-size: 13px; color: #666; line-height: 1.6; }
     .status-text { text-align: center; margin-top: 15px; font-size: 12px; color: #888; line-height: 1.6; word-break: break-word; }
+
+    .reset-box { display: none; }
+    .reset-box input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
 
     .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 60px; }
     .footer .copy { font-size: 12px; color: #ccc; }
@@ -31,19 +46,42 @@
 
 <div class="container">
   <a href="../my-site/index.html" class="back-link">← トップへ戻る</a>
-  <h1>ログイン</h1>
 
-  <button type="button" id="googleLoginBtn" class="google-btn">
-    Googleでログイン / ウォレット作成
-  </button>
+  <div id="loginBox">
+    <h1>ログイン</h1>
 
-  <div class="info-text">
-    Googleアカウントでログインするだけで、<br>
-    あなたの専用ウォレットが自動的に作成されます。
+    <button type="button" id="googleLoginBtn" class="google-btn">
+      Googleでログイン / ウォレット作成
+    </button>
+
+    <div class="info-text">
+      Googleアカウントでログインするだけで、<br>
+      あなたの専用ウォレットが自動的に作成されます。
+    </div>
+
+    <div id="loginStatus" class="status-text">
+      Dynamicを初期化中...
+    </div>
   </div>
 
-  <div id="loginStatus" class="status-text">
-    Dynamicを初期化中...
+  <div id="resetBox" class="reset-box">
+    <h1>パスワード再設定</h1>
+
+    <div class="info-text">
+      Supabase Auth連携用のパスワードを再設定します。<br>
+      指定した形式のパスワードを入力してください。
+    </div>
+
+    <input type="password" id="newPasswordInput" placeholder="新しいパスワード">
+    <input type="password" id="newPasswordConfirmInput" placeholder="新しいパスワードを再入力">
+
+    <button type="button" id="resetPasswordBtn" class="reset-btn">
+      パスワードを更新する
+    </button>
+
+    <div id="resetStatus" class="status-text">
+      パスワードを入力してください。
+    </div>
   </div>
 </div>
 
@@ -69,14 +107,22 @@
   import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
   const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZhe5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0".replace("Zhe5", "h5");
 
   const environmentId = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 
   window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  const loginBox = document.getElementById("loginBox");
+  const resetBox = document.getElementById("resetBox");
+
   const statusEl = document.getElementById("loginStatus");
   const loginBtn = document.getElementById("googleLoginBtn");
+
+  const resetStatusEl = document.getElementById("resetStatus");
+  const resetPasswordBtn = document.getElementById("resetPasswordBtn");
+  const newPasswordInput = document.getElementById("newPasswordInput");
+  const newPasswordConfirmInput = document.getElementById("newPasswordConfirmInput");
 
   const client = createDynamicClient({
     environmentId,
@@ -90,6 +136,10 @@
 
   function setStatus(message) {
     statusEl.innerText = message;
+  }
+
+  function setResetStatus(message) {
+    resetStatusEl.innerText = message;
   }
 
   function getRedirectUrl() {
@@ -136,6 +186,47 @@
           )
       ) ?? null
     );
+  }
+
+  function isPasswordRecoveryReturn() {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const query = new URLSearchParams(window.location.search);
+
+    return (
+      hash.get("type") === "recovery" ||
+      query.get("type") === "recovery" ||
+      hash.has("access_token")
+    );
+  }
+
+  async function handlePasswordRecoveryIfNeeded() {
+    if (!isPasswordRecoveryReturn()) return false;
+
+    loginBox.style.display = "none";
+    resetBox.style.display = "block";
+
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+
+    if (!accessToken || !refreshToken) {
+      setResetStatus("リセット用トークンが見つかりません。もう一度リセットメールを送ってください。");
+      return true;
+    }
+
+    const { error } = await window.supabaseClient.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      setResetStatus("リセット認証に失敗しました: " + error.message);
+      return true;
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setResetStatus("新しいパスワードを入力してください。");
+    return true;
   }
 
   async function createWalletIfNeeded() {
@@ -243,6 +334,9 @@
 
   async function handleRedirectIfNeeded() {
     try {
+      const isRecovery = await handlePasswordRecoveryIfNeeded();
+      if (isRecovery) return;
+
       loginBtn.disabled = true;
       setStatus("Dynamicを初期化中...");
 
@@ -296,6 +390,45 @@
       console.error("Google login start error:", error);
       setStatus("ログイン開始エラー: " + (error?.message || String(error)));
       loginBtn.disabled = false;
+    }
+  });
+
+  resetPasswordBtn.addEventListener("click", async () => {
+    const newPassword = newPasswordInput.value;
+    const confirmPassword = newPasswordConfirmInput.value;
+
+    if (!newPassword || !confirmPassword) {
+      setResetStatus("パスワードを2回入力してください。");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setResetStatus("パスワードが一致しません。");
+      return;
+    }
+
+    resetPasswordBtn.disabled = true;
+    setResetStatus("パスワードを更新中...");
+
+    try {
+      const { error } = await window.supabaseClient.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await window.supabaseClient.auth.signOut();
+
+      setResetStatus("パスワードを更新しました。ログイン画面へ戻ります。");
+
+      setTimeout(() => {
+        window.location.href = "login.html";
+      }, 1000);
+    } catch (error) {
+      setResetStatus("更新エラー: " + (error?.message || String(error)));
+      resetPasswordBtn.disabled = false;
     }
   });
 
