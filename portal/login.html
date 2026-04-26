@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>ログイン | ノベットコイン.com</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     body { font-family: sans-serif; background-color: #f5f5f5; }
     .container { max-width: 400px; margin: 100px auto; background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
@@ -28,7 +30,7 @@
 <body>
 
 <div class="container">
-  <a href="index.html" class="back-link">← トップへ戻る</a>
+  <a href="../my-site/index.html" class="back-link">← トップへ戻る</a>
   <h1>ログイン</h1>
 
   <button type="button" id="googleLoginBtn" class="google-btn">
@@ -66,7 +68,12 @@
 
   import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
+  const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+
   const environmentId = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
+
+  window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const statusEl = document.getElementById("loginStatus");
   const loginBtn = document.getElementById("googleLoginBtn");
@@ -80,6 +87,29 @@
   });
 
   addEvmExtension();
+
+  function setStatus(message) {
+    statusEl.innerText = message;
+  }
+
+  function getRedirectUrl() {
+    if (window.location.protocol === "file:") {
+      return null;
+    }
+
+    return window.location.origin + window.location.pathname;
+  }
+
+  function getAfterLoginUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
+
+    if (next && !next.startsWith("http")) {
+      return next;
+    }
+
+    return "account.html";
+  }
 
   function getEmailFromDynamicUser(user) {
     const verifiedCredentials = user?.verifiedCredentials ?? [];
@@ -108,6 +138,15 @@
     );
   }
 
+  async function createWalletIfNeeded() {
+    const missingChains = getChainsMissingWaasWalletAccounts();
+
+    if (missingChains.length > 0) {
+      setStatus("サイト内ウォレットを作成中...");
+      await createWaasWalletAccounts({ chains: missingChains });
+    }
+  }
+
   async function syncDynamicProfile() {
     const user = client.user;
     const email = getEmailFromDynamicUser(user);
@@ -118,10 +157,6 @@
     if (!email || !dynamicUserId || !walletAddress) {
       throw new Error("Dynamicユーザー情報またはウォレット情報が不足しています。");
     }
-
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("dynamicUserId", dynamicUserId);
-    localStorage.setItem("dynamicWalletAddress", walletAddress);
 
     const response = await fetch(
       "https://brgaykxyfgylzyujrjbp.supabase.co/functions/v1/sync-dynamic-profile",
@@ -144,6 +179,10 @@
       throw new Error(result?.error || "Supabaseプロフィール同期に失敗しました。");
     }
 
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("dynamicUserId", dynamicUserId);
+    localStorage.setItem("dynamicWalletAddress", walletAddress);
+
     return {
       email,
       dynamicUserId,
@@ -152,27 +191,60 @@
     };
   }
 
-  async function createWalletIfNeeded() {
-    const missingChains = getChainsMissingWaasWalletAccounts();
+  async function ensureSupabaseAuthSession({ email, dynamicUserId }) {
+    const syncPassword = "Nvt!" + dynamicUserId + "2026";
 
-    if (missingChains.length > 0) {
-      statusEl.innerText = "サイト内ウォレットを作成中...";
-      await createWaasWalletAccounts({ chains: missingChains });
+    let authResult = await window.supabaseClient.auth.signInWithPassword({
+      email,
+      password: syncPassword,
+    });
+
+    if (authResult.error) {
+      const signUpResult = await window.supabaseClient.auth.signUp({
+        email,
+        password: syncPassword,
+      });
+
+      if (signUpResult.error) {
+        throw new Error("Supabase Auth連携失敗: " + signUpResult.error.message);
+      }
+
+      authResult = await window.supabaseClient.auth.signInWithPassword({
+        email,
+        password: syncPassword,
+      });
     }
+
+    if (authResult.error) {
+      throw new Error("Supabase Authログイン失敗: " + authResult.error.message);
+    }
+
+    return authResult.data.user;
   }
 
-  function getRedirectUrl() {
-    if (window.location.protocol === "file:") {
-      return null;
-    }
+  async function completeLoginFlow() {
+    await createWalletIfNeeded();
 
-    return window.location.origin + window.location.pathname;
+    setStatus("プロフィール同期中...");
+    const synced = await syncDynamicProfile();
+
+    setStatus("Supabaseログイン状態を作成中...");
+    await ensureSupabaseAuthSession({
+      email: synced.email,
+      dynamicUserId: synced.dynamicUserId,
+    });
+
+    setStatus("ログイン成功。移動します...");
+
+    setTimeout(() => {
+      window.location.href = getAfterLoginUrl();
+    }, 500);
   }
 
   async function handleRedirectIfNeeded() {
     try {
       loginBtn.disabled = true;
-      statusEl.innerText = "Dynamicを初期化中...";
+      setStatus("Dynamicを初期化中...");
 
       await waitForClientInitialized();
 
@@ -180,44 +252,25 @@
       const isReturning = await detectOAuthRedirect({ url: currentUrl });
 
       if (isReturning) {
-        statusEl.innerText = "Googleログイン完了処理中...";
+        setStatus("Googleログイン完了処理中...");
         await completeSocialAuthentication({ url: currentUrl });
 
         window.history.replaceState({}, document.title, window.location.pathname);
 
-        await createWalletIfNeeded();
-
-        statusEl.innerText = "プロフィール同期中...";
-        const synced = await syncDynamicProfile();
-
-        statusEl.innerText = `ログイン成功: ${synced.email}`;
-
-        setTimeout(() => {
-          window.location.href = "account.html";
-        }, 800);
-
+        await completeLoginFlow();
         return;
       }
 
       if (isSignedIn() && client.user) {
-        await createWalletIfNeeded();
-
-        statusEl.innerText = "ログイン済みです。プロフィール同期中...";
-        const synced = await syncDynamicProfile();
-
-        statusEl.innerText = `ログイン済み: ${synced.email}`;
-
-        setTimeout(() => {
-          window.location.href = "account.html";
-        }, 800);
-
+        setStatus("ログイン済みです。同期中...");
+        await completeLoginFlow();
         return;
       }
 
-      statusEl.innerText = "Googleでログインしてください。";
+      setStatus("Googleでログインしてください。");
     } catch (error) {
       console.error("Dynamic login handling error:", error);
-      statusEl.innerText = "ログイン処理エラー: " + (error?.message || String(error));
+      setStatus("ログイン処理エラー: " + (error?.message || String(error)));
     } finally {
       loginBtn.disabled = false;
     }
@@ -228,12 +281,12 @@
       const redirectUrl = getRedirectUrl();
 
       if (!redirectUrl) {
-        statusEl.innerText = "このログインはWeb上のURLで開いてください。file:// ではDynamicログインできません。";
+        setStatus("このログインはWeb上のURLで開いてください。file:// ではDynamicログインできません。");
         return;
       }
 
       loginBtn.disabled = true;
-      statusEl.innerText = "Googleログインへ移動中...";
+      setStatus("Googleログインへ移動中...");
 
       await authenticateWithSocial({
         provider: "google",
@@ -241,7 +294,7 @@
       });
     } catch (error) {
       console.error("Google login start error:", error);
-      statusEl.innerText = "ログイン開始エラー: " + (error?.message || String(error));
+      setStatus("ログイン開始エラー: " + (error?.message || String(error)));
       loginBtn.disabled = false;
     }
   });
