@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <title>ログイン | ノベットコイン.com</title>
-  
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
-  
+
   <style>
     body { font-family: sans-serif; background-color: #f5f5f5; }
     .container { max-width: 400px; margin: 100px auto; background: #fff; padding: 40px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     h1 { text-align: center; margin-bottom: 30px; }
     button { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s; }
-    
+
     .google-btn { background-color: #4285F4; color: #fff; font-weight: bold; }
     .google-btn:hover { background-color: #357ae8; }
+    .google-btn:disabled { background-color: #aaa; cursor: not-allowed; }
+
     .back-link { display: inline-block; margin-bottom: 20px; color: #6a0dad; text-decoration: none; font-size: 14px; }
     .back-link:hover { text-decoration: underline; }
+
     .info-text { text-align: center; margin-top: 20px; font-size: 13px; color: #666; line-height: 1.6; }
+    .status-text { text-align: center; margin-top: 15px; font-size: 12px; color: #888; line-height: 1.6; word-break: break-word; }
+
     .footer { background: #333; color: white; text-align: center; padding: 20px 10px; margin-top: 60px; }
     .footer .copy { font-size: 12px; color: #ccc; }
   </style>
@@ -27,14 +28,20 @@
 <body>
 
 <div class="container">
-  <a href="../my-site/index.html" class="back-link">← トップへ戻る</a>
+  <a href="index.html" class="back-link">← トップへ戻る</a>
   <h1>ログイン</h1>
 
-  <button type="button" id="googleLoginBtn" class="google-btn">Googleでログイン / ウォレット作成</button>
+  <button type="button" id="googleLoginBtn" class="google-btn">
+    Googleでログイン / ウォレット作成
+  </button>
 
   <div class="info-text">
     Googleアカウントでログインするだけで、<br>
     あなたの専用ウォレットが自動的に作成されます。
+  </div>
+
+  <div id="loginStatus" class="status-text">
+    Dynamicを初期化中...
   </div>
 </div>
 
@@ -42,129 +49,204 @@
   <div class="copy">ODAcorp</div>
 </div>
 
-<script src="auth-check.js"></script>
-<script>
-// --- Web3Auth 初期化設定 ---
-let web3auth = null;
+<script type="module">
+  import {
+    createDynamicClient,
+    authenticateWithSocial,
+    detectOAuthRedirect,
+    completeSocialAuthentication,
+    isSignedIn,
+    waitForClientInitialized,
+  } from "https://esm.sh/@dynamic-labs-sdk/client";
 
-async function initWeb3Auth() {
-  try {
-    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
+  import {
+    createWaasWalletAccounts,
+    getChainsMissingWaasWalletAccounts,
+  } from "https://esm.sh/@dynamic-labs-sdk/client/waas";
 
-    const chainConfig = {
-      chainNamespace: "eip155",
-      chainId: "0x89", 
-      rpcTarget: "https://polygon.drpc.org", 
-      displayName: "Polygon Mainnet",
-      blockExplorerUrl: "https://polygonscan.com/",
-      ticker: "MATIC",
-      tickerName: "Matic",
-    };
+  import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
-    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
-      config: { chainConfig: chainConfig }
-    });
+  const environmentId = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 
-    web3auth = new window.Modal.Web3Auth({
-      clientId: clientId,
-      web3AuthNetwork: "sapphire_devnet", 
-      privateKeyProvider: privateKeyProvider,
-      uiConfig: {
-        uxMode: "redirect", 
-        appName: "Novetcoin",
-        theme: "light",
-      }
-    });
+  const statusEl = document.getElementById("loginStatus");
+  const loginBtn = document.getElementById("googleLoginBtn");
 
-    await web3auth.initModal();
+  const client = createDynamicClient({
+    environmentId,
+    metadata: {
+      name: "ノベットコイン.com",
+      universalLink: window.location.origin,
+    },
+  });
 
-    // 🌟 ログイン済みで戻ってきた時の処理（データベース連携）
-    if (web3auth.connected) {
-      const user = await web3auth.getUserInfo();
-      
-      // ウォレットアドレスを取得
-      const accounts = await web3auth.provider.request({ method: "eth_accounts" });
-      const walletAddress = accounts[0];
+  addEvmExtension();
 
-      console.log("DB連携スタート:", user.email, walletAddress);
+  function getEmailFromDynamicUser(user) {
+    const verifiedCredentials = user?.verifiedCredentials ?? [];
 
-      // 🌟 【本番仕様】Supabase側にも正式にログインして「本物の証明書」を取得する
-      // Web3Authの固有IDを利用して、裏側でSupabaseアカウントと同期させます
-      const syncPassword = "Nvt!" + user.verifierId + "2026"; 
-      
-      let authResult = await window.supabaseClient.auth.signInWithPassword({ 
-          email: user.email, 
-          password: syncPassword 
-      });
+    return (
+      user?.email ||
+      user?.oauthEmails?.[0] ||
+      verifiedCredentials.map((item) => item?.email).filter(Boolean)[0] ||
+      null
+    );
+  }
 
-      // 初回ログイン（Supabase側にまだアカウントがない）場合、自動でサインアップ
-      if (authResult.error && authResult.error.message.includes("Invalid login")) {
-          authResult = await window.supabaseClient.auth.signUp({ 
-              email: user.email, 
-              password: syncPassword 
-          });
-      }
+  function getEvmWalletCredential(user) {
+    const verifiedCredentials = user?.verifiedCredentials ?? [];
 
-      if (authResult.error) {
-          console.error("Supabase連携エラー:", authResult.error);
-          alert("データベースの連携に失敗しました。詳細: " + authResult.error.message);
-          return;
-      }
+    return (
+      verifiedCredentials.find(
+        (item) =>
+          item?.address &&
+          (
+            item?.chain === "eip155" ||
+            item?.walletProvider === "embeddedWallet" ||
+            item?.walletName === "dynamicwaas"
+          )
+      ) ?? null
+    );
+  }
 
-      // 🌟 これがSupabaseが発行した「本物のユーザーID」です
-      const realUid = authResult.data.user.id;
-      
-      // 右パネル表示用にメールアドレスを保存
-      localStorage.setItem('userEmail', user.email);
+  async function syncDynamicProfile() {
+    const user = client.user;
+    const email = getEmailFromDynamicUser(user);
+    const dynamicUserId = user?.id ?? null;
+    const evmWalletCredential = getEvmWalletCredential(user);
+    const walletAddress = evmWalletCredential?.address ?? null;
 
-      // 1. データベースのプロフィール確認
-      const { data: existingProfile } = await window.supabaseClient
-        .from('profiles')
-        .select('id')
-        .eq('email', user.email)
-        .maybeSingle();
-
-      if (existingProfile) {
-        // 2-A. 既存ならウォレットアドレスを更新
-        await window.supabaseClient
-          .from('profiles')
-          .update({ wallet_address: walletAddress, updated_at: new Date() })
-          .eq('id', existingProfile.id);
-      } else {
-        // 2-B. 新規なら行を作成 (★ランダムなIDではなく、Supabaseが発行した本物のIDを使う)
-        await window.supabaseClient
-          .from('profiles')
-          .insert([{
-            id: realUid, 
-            email: user.email,
-            username: user.name || "名称未設定",
-            wallet_address: walletAddress,
-            updated_at: new Date()
-          }]);
-      }
-
-      alert(`ログイン成功！\nようこそ、${user.name}さん\nセキュリティ同期が完了しました。`);
-      
-      // 成功したら自動的にトップページへ移動
-      window.location.href = "../my-site/index.html";
+    if (!email || !dynamicUserId || !walletAddress) {
+      throw new Error("Dynamicユーザー情報またはウォレット情報が不足しています。");
     }
 
-  } catch (error) {
-    console.error("Web3Authの初期化エラー:", error);
-  }
-}
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("dynamicUserId", dynamicUserId);
+    localStorage.setItem("dynamicWalletAddress", walletAddress);
 
-window.addEventListener("load", initWeb3Auth);
+    const response = await fetch(
+      "https://brgaykxyfgylzyujrjbp.supabase.co/functions/v1/sync-dynamic-profile",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          dynamic_user_id: dynamicUserId,
+          dynamic_wallet_address: walletAddress,
+        }),
+      }
+    );
 
-// Googleログインボタン
-document.getElementById("googleLoginBtn").addEventListener("click", async function() {
-  if (!web3auth) return;
-  try {
-    await web3auth.connect();
-  } catch (error) {
-    console.error("ログインエラー:", error);
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(result?.error || "Supabaseプロフィール同期に失敗しました。");
+    }
+
+    return {
+      email,
+      dynamicUserId,
+      walletAddress,
+      result,
+    };
   }
-});
+
+  async function createWalletIfNeeded() {
+    const missingChains = getChainsMissingWaasWalletAccounts();
+
+    if (missingChains.length > 0) {
+      statusEl.innerText = "サイト内ウォレットを作成中...";
+      await createWaasWalletAccounts({ chains: missingChains });
+    }
+  }
+
+  function getRedirectUrl() {
+    if (window.location.protocol === "file:") {
+      return null;
+    }
+
+    return window.location.origin + window.location.pathname;
+  }
+
+  async function handleRedirectIfNeeded() {
+    try {
+      loginBtn.disabled = true;
+      statusEl.innerText = "Dynamicを初期化中...";
+
+      await waitForClientInitialized();
+
+      const currentUrl = new URL(window.location.href);
+      const isReturning = await detectOAuthRedirect({ url: currentUrl });
+
+      if (isReturning) {
+        statusEl.innerText = "Googleログイン完了処理中...";
+        await completeSocialAuthentication({ url: currentUrl });
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        await createWalletIfNeeded();
+
+        statusEl.innerText = "プロフィール同期中...";
+        const synced = await syncDynamicProfile();
+
+        statusEl.innerText = `ログイン成功: ${synced.email}`;
+
+        setTimeout(() => {
+          window.location.href = "account.html";
+        }, 800);
+
+        return;
+      }
+
+      if (isSignedIn() && client.user) {
+        await createWalletIfNeeded();
+
+        statusEl.innerText = "ログイン済みです。プロフィール同期中...";
+        const synced = await syncDynamicProfile();
+
+        statusEl.innerText = `ログイン済み: ${synced.email}`;
+
+        setTimeout(() => {
+          window.location.href = "account.html";
+        }, 800);
+
+        return;
+      }
+
+      statusEl.innerText = "Googleでログインしてください。";
+    } catch (error) {
+      console.error("Dynamic login handling error:", error);
+      statusEl.innerText = "ログイン処理エラー: " + (error?.message || String(error));
+    } finally {
+      loginBtn.disabled = false;
+    }
+  }
+
+  loginBtn.addEventListener("click", async () => {
+    try {
+      const redirectUrl = getRedirectUrl();
+
+      if (!redirectUrl) {
+        statusEl.innerText = "このログインはWeb上のURLで開いてください。file:// ではDynamicログインできません。";
+        return;
+      }
+
+      loginBtn.disabled = true;
+      statusEl.innerText = "Googleログインへ移動中...";
+
+      await authenticateWithSocial({
+        provider: "google",
+        redirectUrl,
+      });
+    } catch (error) {
+      console.error("Google login start error:", error);
+      statusEl.innerText = "ログイン開始エラー: " + (error?.message || String(error));
+      loginBtn.disabled = false;
+    }
+  });
+
+  handleRedirectIfNeeded();
 </script>
 
 </body>
