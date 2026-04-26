@@ -208,17 +208,17 @@ async function initWallet() {
 
 async function fetchBalances() {
   const { data: profile } = await window.supabaseClient
-    .from("profiles")
-    .select("nvt_balance, np_balance, wallet_address")
-    .eq("id", currentUser.id)
-    .single();
+  .from("profiles")
+  .select("nvt_balance, np_balance, wallet_address, dynamic_wallet_address")
+  .eq("id", currentUser.id)
+  .single();
 
-  if (profile) {
-    currentProfile = profile;
-    currentWalletAddress = profile.wallet_address || "";
+if (profile) {
+  currentProfile = profile;
+  currentWalletAddress = profile.dynamic_wallet_address || profile.wallet_address || "";
 
-    document.getElementById("walletAddressText").innerText =
-      profile.wallet_address || "未設定";
+  document.getElementById("walletAddressText").innerText =
+    currentWalletAddress || "未設定";
 
     document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
     document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
