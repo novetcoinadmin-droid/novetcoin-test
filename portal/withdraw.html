@@ -378,10 +378,25 @@
 
   import { polygon } from "https://esm.sh/viem/chains";
 
-    let currentUser = null;
-    let currentProfile = null;
-    let settingsRow = null;
-    let estimateResult = null;
+  let currentUser = null;
+let currentProfile = null;
+let settingsRow = null;
+let estimateResult = null;
+
+const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
+const NVT_CONTRACT_ADDRESS = "0x98dde5cc9a96c3aa4f4a9f094a2c4ae448e2359d";
+
+const dynamicClient = createDynamicClient({
+  environmentId: DYNAMIC_ENVIRONMENT_ID,
+  metadata: {
+    name: "ノベットコイン.com",
+    universalLink: window.location.origin,
+  },
+});
+
+addEvmExtension();
+
+let dynamicWalletAccount = null;
 
     const nvtBalanceText = document.getElementById("nvtBalanceText");
     const destinationWalletEl = document.getElementById("destinationWallet");
