@@ -348,7 +348,36 @@
     <div class="msg" id="message"></div>
   </div>
 
-  <script>
+  <script type="module">
+  import {
+    createDynamicClient,
+    getWalletAccounts,
+    isSignedIn,
+    waitForClientInitialized,
+  } from "https://esm.sh/@dynamic-labs-sdk/client";
+
+  import {
+    createWaasWalletAccounts,
+    getChainsMissingWaasWalletAccounts,
+  } from "https://esm.sh/@dynamic-labs-sdk/client/waas";
+
+  import {
+    addEvmExtension,
+    isEvmWalletAccount,
+  } from "https://esm.sh/@dynamic-labs-sdk/evm";
+
+  import {
+    createWalletClientForWalletAccount,
+  } from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
+
+  import {
+    encodeFunctionData,
+    erc20Abi,
+    parseUnits,
+  } from "https://esm.sh/viem";
+
+  import { polygon } from "https://esm.sh/viem/chains";
+
     let currentUser = null;
     let currentProfile = null;
     let settingsRow = null;
