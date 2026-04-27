@@ -536,6 +536,36 @@ let dynamicWalletAccount = null;
   return dynamicWalletAccount;
 }
 
+async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
+  if (!dynamicWalletAccount) {
+    await prepareDynamicWalletAccount();
+  }
+
+  const walletClient = await createWalletClientForWalletAccount(
+    dynamicWalletAccount,
+    {
+      chain: polygon,
+    }
+  );
+
+  const amountRaw = parseUnits(String(amountNvt), 18);
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [toAddress, amountRaw],
+  });
+
+  const txHash = await walletClient.sendTransaction({
+    account: dynamicWalletAccount.address,
+    to: NVT_CONTRACT_ADDRESS,
+    data,
+    value: 0n,
+  });
+
+  return txHash;
+}
+
     function calculateEstimate() {
       setMessage("");
       console.log("currentProfile:", currentProfile, "settingsRow:", settingsRow);
@@ -641,64 +671,114 @@ let dynamicWalletAccount = null;
     }
 
     async function createWithdrawRequest() {
-      setMessage("");
+  setMessage("");
 
-      if (!estimateResult) {
-        setMessage("先に手数料計算を行ってください。", "error");
-        return;
-      }
+  if (!estimateResult) {
+    setMessage("先に手数料計算を行ってください。", "error");
+    return;
+  }
 
-      if (estimateResult.fee_block_reason) {
-        setMessage("現在の条件では出金申請できません。", "error");
-        return;
-      }
+  if (estimateResult.fee_block_reason) {
+    setMessage("現在の条件では出金申請できません。", "error");
+    return;
+  }
 
-      if (!agreeCheck.checked) {
-        setMessage("同意チェックが必要です。", "error");
-        return;
-      }
+  if (!agreeCheck.checked) {
+    setMessage("同意チェックが必要です。", "error");
+    return;
+  }
 
-      submitBtn.disabled = true;
+  submitBtn.disabled = true;
 
-      const payload = {
-        user_id: currentUser.id,
-        profile_id: currentUser.id,
-        source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
-        destination_wallet_address: estimateResult.destination_wallet_address,
-        token_symbol: estimateResult.token_symbol,
-        request_amount: estimateResult.request_amount,
-        fee_rate: estimateResult.fee_rate,
-        fee_amount: estimateResult.fee_amount,
-        net_amount: estimateResult.net_amount,
-        estimated_pol: estimateResult.estimated_pol,
-        status: "requested",
-        note: estimateResult.note,
-        nvt_usd_rate_snapshot: estimateResult.nvt_usd_rate_snapshot,
-        pol_usd_rate_snapshot: estimateResult.pol_usd_rate_snapshot,
-        fee_min_pol_snapshot: estimateResult.fee_min_pol_snapshot,
-        fee_nvt_final: estimateResult.fee_nvt_final,
-        fee_block_reason: estimateResult.fee_block_reason
-      };
+  const payload = {
+    user_id: currentUser.id,
+    profile_id: currentUser.id,
+    source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
+    destination_wallet_address: estimateResult.destination_wallet_address,
+    token_symbol: estimateResult.token_symbol,
+    request_amount: estimateResult.request_amount,
+    fee_rate: estimateResult.fee_rate,
+    fee_amount: estimateResult.fee_amount,
+    net_amount: estimateResult.net_amount,
+    estimated_pol: estimateResult.estimated_pol,
+    status: "requested",
+    note: estimateResult.note,
+    nvt_usd_rate_snapshot: estimateResult.nvt_usd_rate_snapshot,
+    pol_usd_rate_snapshot: estimateResult.pol_usd_rate_snapshot,
+    fee_min_pol_snapshot: estimateResult.fee_min_pol_snapshot,
+    fee_nvt_final: estimateResult.fee_nvt_final,
+    fee_block_reason: estimateResult.fee_block_reason,
+    user_approved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
 
-      const { error } = await window.supabaseClient
-        .from("withdraw_requests")
-        .insert([payload]);
+  const { data: insertedRows, error: insertError } = await window.supabaseClient
+    .from("withdraw_requests")
+    .insert([payload])
+    .select("id")
+    .single();
 
-      submitBtn.disabled = false;
+  if (insertError) {
+    submitBtn.disabled = false;
+    setMessage("出金申請の作成に失敗しました: " + insertError.message, "error");
+    return;
+  }
 
-      if (error) {
-        setMessage("出金申請の作成に失敗しました: " + error.message, "error");
-        return;
-      }
+  const withdrawRequestId = insertedRows.id;
 
-      setMessage("出金申請を作成しました。", "ok");
-      destinationWalletEl.value = "";
-      requestAmountEl.value = "";
-      noteInputEl.value = "";
-      agreeCheck.checked = false;
-      clearEstimateView();
-      await loadProfile();
+  try {
+    setMessage("出金申請を作成しました。NVTを送金中です...");
+
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: estimateResult.destination_wallet_address,
+      amountNvt: estimateResult.net_amount
+    });
+
+    const { error: updateError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .update({
+        status: "completed",
+        user_transfer_tx_hash: txHash,
+        user_transfer_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", withdrawRequestId);
+
+    if (updateError) {
+      setMessage(
+        "送金は完了しましたが、DB更新に失敗しました。tx_hash: " + txHash,
+        "error"
+      );
+      return;
     }
+
+    setMessage("出金が完了しました。tx_hash: " + txHash, "ok");
+
+    destinationWalletEl.value = "";
+    requestAmountEl.value = "";
+    noteInputEl.value = "";
+    agreeCheck.checked = false;
+    clearEstimateView();
+    await loadProfile();
+  } catch (err) {
+    console.error("NVT withdrawal transfer error:", err);
+
+    await window.supabaseClient
+      .from("withdraw_requests")
+      .update({
+        status: "failed",
+        failed_stage: "user_transfer",
+        failed_reason: err?.message || String(err),
+        failed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", withdrawRequestId);
+
+    setMessage("出金送金に失敗しました: " + (err?.message || String(err)), "error");
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
 
     function bindEvents() {
       calcBtn.addEventListener("click", calculateEstimate);
