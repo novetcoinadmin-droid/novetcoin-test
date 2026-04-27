@@ -450,18 +450,28 @@ let dynamicWalletAccount = null;
     }
 
     async function initPage() {
-      const { data: { user } } = await window.supabaseClient.auth.getUser();
-      if (!user) {
-        location.href = "../my-site/login.html";
-        return;
-      }
-      currentUser = user;
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
+  if (!user) {
+    location.href = "../my-site/login.html";
+    return;
+  }
+  currentUser = user;
 
-      await loadProfile();
-      await loadSettings();
-      bindEvents();
-    }
+  await loadProfile();
+  await loadSettings();
 
+  try {
+    setMessage("Dynamicウォレットを確認中...");
+    await prepareDynamicWalletAccount();
+    setMessage("Dynamicウォレット確認OK。出金申請の準備ができています。", "ok");
+  } catch (err) {
+    console.error("Dynamic wallet prepare error:", err);
+    setMessage("Dynamicウォレット確認失敗: " + (err?.message || String(err)), "error");
+  }
+
+  bindEvents();
+}
+      
     async function loadProfile() {
       const { data, error } = await window.supabaseClient
         .from("profiles")
