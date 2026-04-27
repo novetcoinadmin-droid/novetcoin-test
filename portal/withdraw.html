@@ -495,6 +495,36 @@ let dynamicWalletAccount = null;
         setMessage("出金設定が見つかりません。", "error");
       }
     }
+    async function prepareDynamicWalletAccount() {
+  await waitForClientInitialized();
+
+  if (!isSignedIn()) {
+    throw new Error("Dynamicにログインしていません。portal/login.htmlからログインし直してください。");
+  }
+
+  const missingChains = getChainsMissingWaasWalletAccounts();
+  if (missingChains.length > 0) {
+    await createWaasWalletAccounts({ chains: missingChains });
+  }
+
+  const walletAccounts = getWalletAccounts();
+  const evmWalletAccount =
+    walletAccounts.find((account) => isEvmWalletAccount(account)) ||
+    walletAccounts[0] ||
+    null;
+
+  if (!evmWalletAccount) {
+    throw new Error("Dynamicウォレットアカウントが見つかりません。");
+  }
+
+  dynamicWalletAccount = evmWalletAccount;
+
+  console.log("dynamicWalletAccount:", {
+    address: dynamicWalletAccount.address,
+  });
+
+  return dynamicWalletAccount;
+}
 
     function calculateEstimate() {
       setMessage("");
