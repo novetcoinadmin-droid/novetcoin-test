@@ -341,22 +341,6 @@ document.addEventListener("click", async (e) => {
   }
 });
 
-document.getElementById("checkProviderBtn").addEventListener("click", async () => {
-  const resultEl = document.getElementById("providerCheckResult");
-
-  try {
-    if (!thirdwebAccount) {
-      resultEl.innerText = "thirdwebログインページへ移動します...";
-      window.location.href = "login-thirdweb.html";
-      return;
-    }
-
-    resultEl.innerText = `接続済み: ${thirdwebAccount.address}`;
-  } catch (err) {
-    resultEl.innerText = "接続確認失敗: " + err.message;
-  }
-});
-
 initWallet();
 </script>
 
