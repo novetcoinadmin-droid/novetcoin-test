@@ -541,12 +541,13 @@ async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
     await prepareDynamicWalletAccount();
   }
 
-  const walletClient = await createWalletClientForWalletAccount(
-    dynamicWalletAccount,
-    {
-      chain: polygon,
-    }
-  );
+  if (!isEvmWalletAccount(dynamicWalletAccount)) {
+    throw new Error("DynamicウォレットがEVMウォレットではありません。");
+  }
+
+  const walletClient = await createWalletClientForWalletAccount({
+    walletAccount: dynamicWalletAccount,
+  });
 
   const amountRaw = parseUnits(String(amountNvt), 18);
 
@@ -557,10 +558,10 @@ async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
   });
 
   const txHash = await walletClient.sendTransaction({
-    account: dynamicWalletAccount.address,
     to: NVT_CONTRACT_ADDRESS,
     data,
     value: 0n,
+    chain: polygon,
   });
 
   return txHash;
