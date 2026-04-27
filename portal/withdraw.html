@@ -350,11 +350,12 @@
 
   <script type="module">
   import {
-    createDynamicClient,
-    getWalletAccounts,
-    isSignedIn,
-    waitForClientInitialized,
-  } from "https://esm.sh/@dynamic-labs-sdk/client";
+  createDynamicClient,
+  getWalletAccounts,
+  isSignedIn,
+  waitForClientInitialized,
+  switchActiveNetwork,
+} from "https://esm.sh/@dynamic-labs-sdk/client";
 
   import {
     createWaasWalletAccounts,
@@ -546,11 +547,17 @@ let dynamicWalletAccount = null;
 
   dynamicWalletAccount = evmWalletAccount;
 
-  console.log("dynamicWalletAccount:", {
-    address: dynamicWalletAccount.address,
-  });
+await switchActiveNetwork({
+  walletAccount: dynamicWalletAccount,
+  networkId: "137",
+});
 
-  return dynamicWalletAccount;
+console.log("dynamicWalletAccount:", {
+  address: dynamicWalletAccount.address,
+  activeNetwork: "137",
+});
+
+return dynamicWalletAccount;
 }
 
 async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
