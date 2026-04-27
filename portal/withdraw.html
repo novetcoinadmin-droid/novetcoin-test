@@ -421,7 +421,7 @@
     async function loadProfile() {
       const { data, error } = await window.supabaseClient
         .from("profiles")
-        .select("id, email, username, wallet_address, nvt_balance")
+        .select("id, email, username, wallet_address, dynamic_wallet_address, nvt_balance")
         .eq("id", currentUser.id)
         .single();
 
@@ -579,7 +579,7 @@
       const payload = {
         user_id: currentUser.id,
         profile_id: currentUser.id,
-        source_wallet_address: currentProfile.wallet_address || null,
+        source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
         destination_wallet_address: estimateResult.destination_wallet_address,
         token_symbol: estimateResult.token_symbol,
         request_amount: estimateResult.request_amount,
