@@ -372,6 +372,8 @@ let currentProfile = null;
 let settingsRow = null;
 let estimateResult = null;
 let dynamicWalletAccount = null;
+let hasActiveWithdrawRequest = false;
+let activeWithdrawRequest = null;
 
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
@@ -453,6 +455,78 @@ function clearEstimateView() {
   submitBtn.disabled = true;
 }
 
+function setWithdrawFormDisabled(disabled) {
+  destinationWalletEl.disabled = disabled;
+  requestAmountEl.disabled = disabled;
+  noteInputEl.disabled = disabled;
+  calcBtn.disabled = disabled;
+  agreeCheck.disabled = disabled;
+  submitBtn.disabled = true;
+}
+
+async function checkActiveWithdrawRequest() {
+  const activeStatuses = [
+    "requested",
+    "fee_approved",
+    "pol_sent",
+    "user_transfer_pending"
+  ];
+
+  const { data, error } = await window.supabaseClient
+    .from("withdraw_requests")
+    .select(`
+      id,
+      status,
+      destination_wallet_address,
+      request_amount,
+      net_amount,
+      created_at
+    `)
+    .eq("user_id", currentUser.id)
+    .in("status", activeStatuses)
+    .is("user_transfer_tx_hash", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    setWithdrawFormDisabled(true);
+    setMessage("未完了の出金申請確認に失敗しました。安全のため新規申請を停止しています。", "error");
+    return true;
+  }
+
+  if (!data) {
+    hasActiveWithdrawRequest = false;
+    activeWithdrawRequest = null;
+    return false;
+  }
+
+  hasActiveWithdrawRequest = true;
+  activeWithdrawRequest = data;
+
+  setWithdrawFormDisabled(true);
+  clearEstimateView();
+
+  const createdAt = data.created_at
+    ? new Date(data.created_at).toLocaleString("ja-JP")
+    : "-";
+
+  warningArea.innerHTML = `
+    <div class="warn-box">
+      現在、処理中の出金申請があります。<br>
+      この申請が完了・失敗・キャンセルされるまで、新しい出金申請は作成できません。<br><br>
+      申請ID: ${data.id}<br>
+      状態: ${data.status}<br>
+      出金予定額: ${Number(data.net_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+      作成日時: ${createdAt}
+    </div>
+  `;
+
+  setMessage("処理中の出金申請があるため、新規出金申請は停止中です。", "error");
+  return true;
+}
+
 async function initPage() {
   const { data: { user } } = await window.supabaseClient.auth.getUser();
 
@@ -465,6 +539,13 @@ async function initPage() {
 
   await loadProfile();
   await loadSettings();
+
+  const hasActive = await checkActiveWithdrawRequest();
+
+  if (hasActive) {
+    bindEvents();
+    return;
+  }
 
   try {
     setMessage("Dynamicウォレットを確認中...");
@@ -673,7 +754,12 @@ async function createWithdrawRequest() {
 
   submitBtn.disabled = true;
 
-  const payload = {
+const hasActive = await checkActiveWithdrawRequest();
+if (hasActive) {
+  return;
+}
+
+const payload = {
     user_id: currentUser.id,
     profile_id: currentUser.id,
     source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
@@ -708,17 +794,14 @@ async function createWithdrawRequest() {
   }
 
   setMessage(
-    "出金申請を作成しました。運営側の確認後、処理が進みます。\n" +
-    "申請ID: " + insertedRows.id,
-    "ok"
-  );
+  "出金申請を作成しました。ウォレット画面へ戻ります。\n" +
+  "申請ID: " + insertedRows.id,
+  "ok"
+);
 
-  destinationWalletEl.value = "";
-  requestAmountEl.value = "";
-  noteInputEl.value = "";
-  agreeCheck.checked = false;
-  clearEstimateView();
-  await loadProfile();
+setTimeout(() => {
+  location.href = "wallet.html";
+}, 1200);
 }
 
 function bindEvents() {
