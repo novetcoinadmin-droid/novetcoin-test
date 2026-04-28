@@ -348,8 +348,8 @@
     <div class="msg" id="message"></div>
   </div>
 
-  <script type="module">
-  import {
+<script type="module">
+import {
   createDynamicClient,
   getWalletAccounts,
   isSignedIn,
@@ -357,39 +357,26 @@
   switchActiveNetwork,
 } from "https://esm.sh/@dynamic-labs-sdk/client";
 
-  import {
-    createWaasWalletAccounts,
-    getChainsMissingWaasWalletAccounts,
-  } from "https://esm.sh/@dynamic-labs-sdk/client/waas";
+import {
+  createWaasWalletAccounts,
+  getChainsMissingWaasWalletAccounts,
+} from "https://esm.sh/@dynamic-labs-sdk/client/waas";
 
-  import {
-    addEvmExtension,
-    isEvmWalletAccount,
-  } from "https://esm.sh/@dynamic-labs-sdk/evm";
+import {
+  addEvmExtension,
+  isEvmWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm";
 
-  import {
-    createWalletClientForWalletAccount,
-  } from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
-
-  import {
-    encodeFunctionData,
-    erc20Abi,
-    parseUnits,
-  } from "https://esm.sh/viem";
-
-  import { polygon } from "https://esm.sh/viem/chains";
-
-  let currentUser = null;
+let currentUser = null;
 let currentProfile = null;
 let settingsRow = null;
 let estimateResult = null;
+let dynamicWalletAccount = null;
 
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
-const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
-
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
 
-const dynamicClient = createDynamicClient({
+createDynamicClient({
   environmentId: DYNAMIC_ENVIRONMENT_ID,
   metadata: {
     name: "ノベットコイン.com",
@@ -414,65 +401,66 @@ const dynamicClient = createDynamicClient({
 
 addEvmExtension();
 
-let dynamicWalletAccount = null;
+const nvtBalanceText = document.getElementById("nvtBalanceText");
+const destinationWalletEl = document.getElementById("destinationWallet");
+const requestAmountEl = document.getElementById("requestAmount");
+const noteInputEl = document.getElementById("noteInput");
+const calcBtn = document.getElementById("calcBtn");
+const submitBtn = document.getElementById("submitBtn");
+const agreeCheck = document.getElementById("agreeCheck");
+const messageEl = document.getElementById("message");
+const warningArea = document.getElementById("warningArea");
 
-    const nvtBalanceText = document.getElementById("nvtBalanceText");
-    const destinationWalletEl = document.getElementById("destinationWallet");
-    const requestAmountEl = document.getElementById("requestAmount");
-    const noteInputEl = document.getElementById("noteInput");
-    const calcBtn = document.getElementById("calcBtn");
-    const submitBtn = document.getElementById("submitBtn");
-    const agreeCheck = document.getElementById("agreeCheck");
-    const messageEl = document.getElementById("message");
-    const warningArea = document.getElementById("warningArea");
+const summaryRequestAmount = document.getElementById("summaryRequestAmount");
+const summaryFeeRate = document.getElementById("summaryFeeRate");
+const summaryMinFeePol = document.getElementById("summaryMinFeePol");
+const summaryNvtRate = document.getElementById("summaryNvtRate");
+const summaryPolRate = document.getElementById("summaryPolRate");
+const summaryFinalFee = document.getElementById("summaryFinalFee");
+const summaryNetAmount = document.getElementById("summaryNetAmount");
+const summaryEstimatedPol = document.getElementById("summaryEstimatedPol");
 
-    const summaryRequestAmount = document.getElementById("summaryRequestAmount");
-    const summaryFeeRate = document.getElementById("summaryFeeRate");
-    const summaryMinFeePol = document.getElementById("summaryMinFeePol");
-    const summaryNvtRate = document.getElementById("summaryNvtRate");
-    const summaryPolRate = document.getElementById("summaryPolRate");
-    const summaryFinalFee = document.getElementById("summaryFinalFee");
-    const summaryNetAmount = document.getElementById("summaryNetAmount");
-    const summaryEstimatedPol = document.getElementById("summaryEstimatedPol");
+function setMessage(text = "", type = "") {
+  messageEl.textContent = text;
+  messageEl.className = "msg" + (type ? " " + type : "");
+}
 
-    function setMessage(text = "", type = "") {
-      messageEl.textContent = text;
-      messageEl.className = "msg" + (type ? " " + type : "");
-    }
+function formatNum(value, digits = 6) {
+  const num = Number(value ?? 0);
+  if (!Number.isFinite(num)) return "-";
 
-    function formatNum(value, digits = 6) {
-      const num = Number(value ?? 0);
-      if (!Number.isFinite(num)) return "-";
-      return num.toLocaleString("ja-JP", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: digits
-      });
-    }
+  return num.toLocaleString("ja-JP", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits
+  });
+}
 
-    function isValidAddress(address) {
-      return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
-    }
+function isValidAddress(address) {
+  return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
+}
 
-    function clearEstimateView() {
-      summaryRequestAmount.textContent = "-";
-      summaryFeeRate.textContent = "-";
-      summaryMinFeePol.textContent = "-";
-      summaryNvtRate.textContent = "-";
-      summaryPolRate.textContent = "-";
-      summaryFinalFee.textContent = "-";
-      summaryNetAmount.textContent = "-";
-      summaryEstimatedPol.textContent = "-";
-      warningArea.innerHTML = "";
-      estimateResult = null;
-      submitBtn.disabled = true;
-    }
+function clearEstimateView() {
+  summaryRequestAmount.textContent = "-";
+  summaryFeeRate.textContent = "-";
+  summaryMinFeePol.textContent = "-";
+  summaryNvtRate.textContent = "-";
+  summaryPolRate.textContent = "-";
+  summaryFinalFee.textContent = "-";
+  summaryNetAmount.textContent = "-";
+  summaryEstimatedPol.textContent = "-";
+  warningArea.innerHTML = "";
+  estimateResult = null;
+  submitBtn.disabled = true;
+}
 
-    async function initPage() {
+async function initPage() {
   const { data: { user } } = await window.supabaseClient.auth.getUser();
+
   if (!user) {
     location.href = "../my-site/login.html";
     return;
   }
+
   currentUser = user;
 
   await loadProfile();
@@ -489,41 +477,43 @@ let dynamicWalletAccount = null;
 
   bindEvents();
 }
-      
-    async function loadProfile() {
-      const { data, error } = await window.supabaseClient
-        .from("profiles")
-        .select("id, email, username, wallet_address, dynamic_wallet_address, nvt_balance")
-        .eq("id", currentUser.id)
-        .single();
 
-      if (error) {
-        setMessage("プロフィールの取得に失敗しました: " + error.message, "error");
-        return;
-      }
+async function loadProfile() {
+  const { data, error } = await window.supabaseClient
+    .from("profiles")
+    .select("id, email, username, wallet_address, dynamic_wallet_address, nvt_balance")
+    .eq("id", currentUser.id)
+    .single();
 
-      currentProfile = data;
-      nvtBalanceText.textContent = formatNum(data.nvt_balance || 0, 6);
-    }
+  if (error) {
+    setMessage("プロフィールの取得に失敗しました: " + error.message, "error");
+    return;
+  }
 
-    async function loadSettings() {
-      const { data, error } = await window.supabaseClient
-        .from("withdraw_system_settings")
-        .select("*")
-        .eq("setting_key", "default")
-        .maybeSingle();
+  currentProfile = data;
+  nvtBalanceText.textContent = formatNum(data.nvt_balance || 0, 6);
+}
 
-      if (error) {
-        setMessage("出金設定の取得に失敗しました: " + error.message, "error");
-        return;
-      }
+async function loadSettings() {
+  const { data, error } = await window.supabaseClient
+    .from("withdraw_system_settings")
+    .select("*")
+    .eq("setting_key", "default")
+    .maybeSingle();
 
-      settingsRow = data;
-      if (!settingsRow) {
-        setMessage("出金設定が見つかりません。", "error");
-      }
-    }
-    async function prepareDynamicWalletAccount() {
+  if (error) {
+    setMessage("出金設定の取得に失敗しました: " + error.message, "error");
+    return;
+  }
+
+  settingsRow = data;
+
+  if (!settingsRow) {
+    setMessage("出金設定が見つかりません。", "error");
+  }
+}
+
+async function prepareDynamicWalletAccount() {
   await waitForClientInitialized();
 
   if (!isSignedIn()) {
@@ -531,11 +521,13 @@ let dynamicWalletAccount = null;
   }
 
   const missingChains = getChainsMissingWaasWalletAccounts();
+
   if (missingChains.length > 0) {
     await createWaasWalletAccounts({ chains: missingChains });
   }
 
   const walletAccounts = getWalletAccounts();
+
   const evmWalletAccount =
     walletAccounts.find((account) => isEvmWalletAccount(account)) ||
     walletAccounts[0] ||
@@ -547,155 +539,121 @@ let dynamicWalletAccount = null;
 
   dynamicWalletAccount = evmWalletAccount;
 
-await switchActiveNetwork({
-  walletAccount: dynamicWalletAccount,
-  networkId: "137",
-});
-
-console.log("dynamicWalletAccount:", {
-  address: dynamicWalletAccount.address,
-  activeNetwork: "137",
-});
-
-return dynamicWalletAccount;
-}
-
-async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
-  if (!dynamicWalletAccount) {
-    await prepareDynamicWalletAccount();
-  }
-
-  if (!isEvmWalletAccount(dynamicWalletAccount)) {
-    throw new Error("DynamicウォレットがEVMウォレットではありません。");
-  }
-
-  const walletClient = await createWalletClientForWalletAccount({
+  await switchActiveNetwork({
     walletAccount: dynamicWalletAccount,
+    networkId: "137",
   });
 
-  const amountRaw = parseUnits(String(amountNvt), 18);
-
-  const data = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: "transfer",
-    args: [toAddress, amountRaw],
+  console.log("dynamicWalletAccount:", {
+    address: dynamicWalletAccount.address,
+    activeNetwork: "137",
   });
 
-  const txHash = await walletClient.sendTransaction({
-    to: NVT_CONTRACT_ADDRESS,
-    data,
-    value: 0n,
-    chain: polygon,
-  });
-
-  return txHash;
+  return dynamicWalletAccount;
 }
 
-    function calculateEstimate() {
-      setMessage("");
-      console.log("currentProfile:", currentProfile, "settingsRow:", settingsRow);
-      warningArea.innerHTML = "";
-      submitBtn.disabled = true;
-      estimateResult = null;
+function calculateEstimate() {
+  setMessage("");
+  warningArea.innerHTML = "";
+  submitBtn.disabled = true;
+  estimateResult = null;
 
-      if (!currentProfile || !settingsRow) {
-        setMessage("プロフィールまたは設定の読み込みが完了していません。", "error");
-        return;
-      }
+  if (!currentProfile || !settingsRow) {
+    setMessage("プロフィールまたは設定の読み込みが完了していません。", "error");
+    return;
+  }
 
-      const destinationWallet = destinationWalletEl.value.trim();
-      const requestAmount = Number(requestAmountEl.value);
+  const destinationWallet = destinationWalletEl.value.trim();
+  const requestAmount = Number(requestAmountEl.value);
 
-      if (!isValidAddress(destinationWallet)) {
-        setMessage("送信先ウォレットアドレスの形式が不正です。", "error");
-        return;
-      }
+  if (!isValidAddress(destinationWallet)) {
+    setMessage("送信先ウォレットアドレスの形式が不正です。", "error");
+    return;
+  }
 
-      if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
-        setMessage("出金申請額を正しく入力してください。", "error");
-        return;
-      }
+  if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
+    setMessage("出金申請額を正しく入力してください。", "error");
+    return;
+  }
 
-      const currentBalance = Number(currentProfile.nvt_balance || 0);
-      if (requestAmount > currentBalance) {
-        setMessage("NVT残高が不足しています。", "error");
-        return;
-      }
+  const currentBalance = Number(currentProfile.nvt_balance || 0);
 
-      const withdrawFeeRate = Number(settingsRow.withdraw_fee_rate_default || 0.03);
-      const withdrawFeeMinPol = Number(settingsRow.withdraw_fee_min_pol || 0.05);
-      const nvtUsdRate = Number(settingsRow.nvt_usd_assumption || 1);
+  if (requestAmount > currentBalance) {
+    setMessage("NVT残高が不足しています。", "error");
+    return;
+  }
 
-      // いったん POL 基準値も 1 を既定にする
-      const polUsdRate = Number(settingsRow.pol_usd_rate_snapshot_default || 1);
+  const withdrawFeeRate = Number(settingsRow.withdraw_fee_rate_default || 0.03);
+  const withdrawFeeMinPol = Number(settingsRow.withdraw_fee_min_pol || 0.05);
+  const nvtUsdRate = Number(settingsRow.nvt_usd_assumption || 1);
+  const polUsdRate = Number(settingsRow.pol_usd_rate_snapshot_default || 1);
 
-      const feeByRate = requestAmount * withdrawFeeRate;
-      const minFeeUsd = withdrawFeeMinPol * polUsdRate;
-      const minFeeNvt = minFeeUsd / nvtUsdRate;
-      const feeNvtFinal = Math.max(feeByRate, minFeeNvt);
-      const netAmount = requestAmount - feeNvtFinal;
+  const feeByRate = requestAmount * withdrawFeeRate;
+  const minFeeUsd = withdrawFeeMinPol * polUsdRate;
+  const minFeeNvt = minFeeUsd / nvtUsdRate;
+  const feeNvtFinal = Math.max(feeByRate, minFeeNvt);
+  const netAmount = requestAmount - feeNvtFinal;
+  const estimatedPol = withdrawFeeMinPol;
 
-      // ここでは暫定で「送るPOL量」を最低手数料基準と同値にする
-      const estimatedPol = withdrawFeeMinPol;
+  if (netAmount <= 0) {
+    setMessage("出金申請額が小さすぎます。手数料が出金額以上になります。", "error");
+    return;
+  }
 
-      if (netAmount <= 0) {
-        setMessage("出金申請額が小さすぎます。手数料が出金額以上になります。", "error");
-        return;
-      }
+  const feeUsdFinal = feeNvtFinal * nvtUsdRate;
+  const estimatedPolUsd = estimatedPol * polUsdRate;
 
-      // POLコストが高すぎる場合の停止判定
-      // 想定POL手数料（USD）が、手数料で回収する額（USD）を超えるなら止める
-      const feeUsdFinal = feeNvtFinal * nvtUsdRate;
-      const estimatedPolUsd = estimatedPol * polUsdRate;
+  let feeBlockReason = null;
 
-      let feeBlockReason = null;
-      if (settingsRow.block_withdraw_when_pol_fee_exceeds_fee && estimatedPolUsd > feeUsdFinal) {
-        feeBlockReason = settingsRow.pol_fee_warning_message || "現在、POL手数料が高くなっている可能性があります。時間をおいてやり直してください。";
-      }
+  if (settingsRow.block_withdraw_when_pol_fee_exceeds_fee && estimatedPolUsd > feeUsdFinal) {
+    feeBlockReason =
+      settingsRow.pol_fee_warning_message ||
+      "現在、POL手数料が高くなっている可能性があります。時間をおいてやり直してください。";
+  }
 
-      summaryRequestAmount.textContent = `${formatNum(requestAmount)} NVT`;
-      summaryFeeRate.textContent = `${formatNum(withdrawFeeRate * 100, 4)} %`;
-      summaryMinFeePol.textContent = `${formatNum(withdrawFeeMinPol, 6)} POL`;
-      summaryNvtRate.textContent = `$${formatNum(nvtUsdRate, 6)}`;
-      summaryPolRate.textContent = `$${formatNum(polUsdRate, 6)}`;
-      summaryFinalFee.textContent = `${formatNum(feeNvtFinal, 6)} NVT`;
-      summaryNetAmount.textContent = `${formatNum(netAmount, 6)} NVT`;
-      summaryEstimatedPol.textContent = `${formatNum(estimatedPol, 6)} POL`;
+  summaryRequestAmount.textContent = `${formatNum(requestAmount)} NVT`;
+  summaryFeeRate.textContent = `${formatNum(withdrawFeeRate * 100, 4)} %`;
+  summaryMinFeePol.textContent = `${formatNum(withdrawFeeMinPol, 6)} POL`;
+  summaryNvtRate.textContent = `$${formatNum(nvtUsdRate, 6)}`;
+  summaryPolRate.textContent = `$${formatNum(polUsdRate, 6)}`;
+  summaryFinalFee.textContent = `${formatNum(feeNvtFinal, 6)} NVT`;
+  summaryNetAmount.textContent = `${formatNum(netAmount, 6)} NVT`;
+  summaryEstimatedPol.textContent = `${formatNum(estimatedPol, 6)} POL`;
 
-      if (feeBlockReason) {
-        warningArea.innerHTML = `<div class="warn-box">${feeBlockReason}</div>`;
-      } else {
-        warningArea.innerHTML = `<div class="ok-box">この条件で出金申請を作成できます。</div>`;
-      }
+  if (feeBlockReason) {
+    warningArea.innerHTML = `<div class="warn-box">${feeBlockReason}</div>`;
+  } else {
+    warningArea.innerHTML = `<div class="ok-box">この条件で出金申請を作成できます。</div>`;
+  }
 
-      estimateResult = {
-        destination_wallet_address: destinationWallet,
-        token_symbol: "NVT",
-        request_amount: requestAmount,
-        fee_rate: withdrawFeeRate,
-        fee_amount: feeNvtFinal,
-        net_amount: netAmount,
-        estimated_pol: estimatedPol,
-        nvt_usd_rate_snapshot: nvtUsdRate,
-        pol_usd_rate_snapshot: polUsdRate,
-        fee_min_pol_snapshot: withdrawFeeMinPol,
-        fee_nvt_final: feeNvtFinal,
-        fee_block_reason: feeBlockReason,
-        note: noteInputEl.value.trim() || null
-      };
+  estimateResult = {
+    destination_wallet_address: destinationWallet,
+    token_symbol: "NVT",
+    request_amount: requestAmount,
+    fee_rate: withdrawFeeRate,
+    fee_amount: feeNvtFinal,
+    net_amount: netAmount,
+    estimated_pol: estimatedPol,
+    nvt_usd_rate_snapshot: nvtUsdRate,
+    pol_usd_rate_snapshot: polUsdRate,
+    fee_min_pol_snapshot: withdrawFeeMinPol,
+    fee_nvt_final: feeNvtFinal,
+    fee_block_reason: feeBlockReason,
+    note: noteInputEl.value.trim() || null
+  };
 
-      updateSubmitState();
-    }
+  updateSubmitState();
+}
 
-    function updateSubmitState() {
-      submitBtn.disabled = !(
-        estimateResult &&
-        !estimateResult.fee_block_reason &&
-        agreeCheck.checked
-      );
-    }
+function updateSubmitState() {
+  submitBtn.disabled = !(
+    estimateResult &&
+    !estimateResult.fee_block_reason &&
+    agreeCheck.checked
+  );
+}
 
-    async function createWithdrawRequest() {
+async function createWithdrawRequest() {
   setMessage("");
 
   if (!estimateResult) {
@@ -749,85 +707,43 @@ async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
     return;
   }
 
-  const withdrawRequestId = insertedRows.id;
+  setMessage(
+    "出金申請を作成しました。運営側の確認後、処理が進みます。\n" +
+    "申請ID: " + insertedRows.id,
+    "ok"
+  );
 
-  try {
-    setMessage("出金申請を作成しました。NVTを送金中です...");
-
-    const txHash = await sendNvtFromDynamicWallet({
-      toAddress: estimateResult.destination_wallet_address,
-      amountNvt: estimateResult.net_amount
-    });
-
-    const { error: updateError } = await window.supabaseClient
-      .from("withdraw_requests")
-      .update({
-        status: "completed",
-        user_transfer_tx_hash: txHash,
-        user_transfer_confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", withdrawRequestId);
-
-    if (updateError) {
-      setMessage(
-        "送金は完了しましたが、DB更新に失敗しました。tx_hash: " + txHash,
-        "error"
-      );
-      return;
-    }
-
-    setMessage("出金が完了しました。tx_hash: " + txHash, "ok");
-
-    destinationWalletEl.value = "";
-    requestAmountEl.value = "";
-    noteInputEl.value = "";
-    agreeCheck.checked = false;
-    clearEstimateView();
-    await loadProfile();
-  } catch (err) {
-    console.error("NVT withdrawal transfer error:", err);
-
-    await window.supabaseClient
-      .from("withdraw_requests")
-      .update({
-        status: "failed",
-        failed_stage: "user_transfer",
-        failed_reason: err?.message || String(err),
-        failed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", withdrawRequestId);
-
-    setMessage("出金送金に失敗しました: " + (err?.message || String(err)), "error");
-  } finally {
-    submitBtn.disabled = false;
-  }
+  destinationWalletEl.value = "";
+  requestAmountEl.value = "";
+  noteInputEl.value = "";
+  agreeCheck.checked = false;
+  clearEstimateView();
+  await loadProfile();
 }
 
-    function bindEvents() {
-      calcBtn.addEventListener("click", calculateEstimate);
-      submitBtn.addEventListener("click", createWithdrawRequest);
-      agreeCheck.addEventListener("change", updateSubmitState);
+function bindEvents() {
+  calcBtn.addEventListener("click", calculateEstimate);
+  submitBtn.addEventListener("click", createWithdrawRequest);
+  agreeCheck.addEventListener("change", updateSubmitState);
 
-      destinationWalletEl.addEventListener("input", () => {
-        clearEstimateView();
-        setMessage("");
-      });
+  destinationWalletEl.addEventListener("input", () => {
+    clearEstimateView();
+    setMessage("");
+  });
 
-      requestAmountEl.addEventListener("input", () => {
-        clearEstimateView();
-        setMessage("");
-      });
+  requestAmountEl.addEventListener("input", () => {
+    clearEstimateView();
+    setMessage("");
+  });
 
-      noteInputEl.addEventListener("input", () => {
-        if (estimateResult) {
-          estimateResult.note = noteInputEl.value.trim() || null;
-        }
-      });
+  noteInputEl.addEventListener("input", () => {
+    if (estimateResult) {
+      estimateResult.note = noteInputEl.value.trim() || null;
     }
+  });
+}
 
-    initPage();
-  </script>
+initPage();
+</script>
 </body>
 </html>
