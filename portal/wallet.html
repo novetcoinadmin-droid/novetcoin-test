@@ -121,7 +121,15 @@
         出金申請ページで、送金先アドレス・出金額・手数料を確認して申請します。
     </p>
 </div>
-
+<div class="pending-withdraw-section" style="margin-top: 30px; padding: 20px; background: #f8fff8; border: 1px solid #bbf7d0; border-radius: 10px;">
+    <h3 style="font-size: 15px; margin-top: 0; color: #2e7d32;">🚀 出金処理中の申請</h3>
+    <p style="font-size: 12px; color: #666;">
+        運営側でNVT/POL送付が完了した申請は、ここからMetaMaskへ最終出金できます。
+    </p>
+    <div id="pendingWithdrawList">
+        <div style="font-size: 13px; color: #999;">出金処理中の申請を確認中...</div>
+    </div>
+</div>
     <div class="history-section">
         <h3>📊 取引履歴 (Transaction)</h3>
         <table class="history-table">
@@ -139,93 +147,190 @@
     </div>
 
 </div>
-
 <script type="module">
-import { createThirdwebClient } from "https://esm.sh/thirdweb";
-import { inAppWallet } from "https://esm.sh/thirdweb/wallets";
+import {
+  createDynamicClient,
+  getWalletAccounts,
+  isSignedIn,
+  waitForClientInitialized,
+  switchActiveNetwork,
+} from "https://esm.sh/@dynamic-labs-sdk/client";
 
-// thirdweb 初期化
-const thirdwebClient = createThirdwebClient({
-  clientId: "cc1d58553ac67551873be028676a90d6"
-});
+import {
+  createWaasWalletAccounts,
+  getChainsMissingWaasWalletAccounts,
+} from "https://esm.sh/@dynamic-labs-sdk/client/waas";
 
-const thirdwebInAppWallet = inAppWallet({
-  auth: {
-    mode: "redirect",
-    options: ["google"],
-    redirectUrl: window.location.href,
-  },
-});
+import {
+  addEvmExtension,
+  isEvmWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm";
 
-// 接続設定は auth-check.js に移行済み
+import {
+  createWalletClientForWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
+
+import {
+  encodeFunctionData,
+  erc20Abi,
+  parseUnits,
+} from "https://esm.sh/viem";
+
+import { polygon } from "https://esm.sh/viem/chains";
+
 let currentUser = null;
 let currentProfile = null;
 let currentWalletAddress = "";
-let thirdwebWallet = null;
-let thirdwebAccount = null;
-const RATE = 150; // 1 NVT = 150 NP
+let dynamicWalletAccount = null;
+let pendingWithdrawRequests = [];
 
-async function initWalletThirdweb() {
-  try {
-    thirdwebWallet = thirdwebInAppWallet;
+const RATE = 150;
+const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
+const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
+const POLYGON_RPC_URL = "https://polygon.publicnode.com";
 
-    if (!thirdwebWallet) {
-      console.error("thirdweb wallet が見つかりません");
-      return;
-    }
+createDynamicClient({
+  environmentId: DYNAMIC_ENVIRONMENT_ID,
+  metadata: {
+    name: "ノベットコイン.com",
+    universalLink: window.location.origin,
+  },
+  transformers: {
+    networkData: (network) => {
+      if (String(network.networkId) === "137") {
+        return {
+          ...network,
+          rpcUrls: {
+            ...(network.rpcUrls || {}),
+            http: [POLYGON_RPC_URL],
+          },
+        };
+      }
 
-    try {
-      thirdwebAccount = await thirdwebWallet.autoConnect({
-        client: thirdwebClient,
-      });
-    } catch (autoErr) {
-      thirdwebAccount = thirdwebWallet.getAccount();
-    }
+      return network;
+    },
+  },
+});
 
-    if (thirdwebAccount) {
-      console.log("thirdweb account:", thirdwebAccount.address);
-    } else {
-      console.log("thirdweb account: 未接続");
-    }
-  } catch (err) {
-    console.error("wallet.html の thirdweb 初期化失敗:", err);
-  }
-}
+addEvmExtension();
 
 async function initWallet() {
-  await initWalletThirdweb();
-
   const { data: { user } } = await window.supabaseClient.auth.getUser();
+
   if (!user) {
     location.href = "../my-site/login.html";
     return;
   }
+
   currentUser = user;
 
-  document.getElementById("walletUserId").innerText = `ID: ${user.id.substring(0, 8)}...`;
+  document.getElementById("walletUserId").innerText =
+    `ID: ${user.id.substring(0, 8)}...`;
 
   await fetchBalances();
   await fetchHistory();
+
+  try {
+    await prepareDynamicWalletAccount();
+  } catch (err) {
+    console.warn("Dynamicウォレット確認:", err);
+  }
+
+  await fetchPendingWithdrawRequests();
+}
+
+async function prepareDynamicWalletAccount() {
+  await waitForClientInitialized();
+
+  if (!isSignedIn()) {
+    throw new Error("Dynamicにログインしていません。portal/login.htmlからログインし直してください。");
+  }
+
+  const missingChains = getChainsMissingWaasWalletAccounts();
+
+  if (missingChains.length > 0) {
+    await createWaasWalletAccounts({ chains: missingChains });
+  }
+
+  const walletAccounts = getWalletAccounts();
+
+  const evmWalletAccount =
+    walletAccounts.find((account) => isEvmWalletAccount(account)) ||
+    walletAccounts[0] ||
+    null;
+
+  if (!evmWalletAccount) {
+    throw new Error("Dynamicウォレットアカウントが見つかりません。");
+  }
+
+  dynamicWalletAccount = evmWalletAccount;
+
+  await switchActiveNetwork({
+    walletAccount: dynamicWalletAccount,
+    networkId: "137",
+  });
+
+  console.log("Dynamic wallet ready:", {
+    address: dynamicWalletAccount.address,
+    activeNetwork: "137",
+  });
+
+  return dynamicWalletAccount;
+}
+
+async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
+  if (!dynamicWalletAccount) {
+    await prepareDynamicWalletAccount();
+  }
+
+  if (!isEvmWalletAccount(dynamicWalletAccount)) {
+    throw new Error("DynamicウォレットがEVMウォレットではありません。");
+  }
+
+  const walletClient = await createWalletClientForWalletAccount({
+    walletAccount: dynamicWalletAccount,
+  });
+
+  const amountRaw = parseUnits(String(amountNvt), 18);
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [toAddress, amountRaw],
+  });
+
+  const txHash = await walletClient.sendTransaction({
+    to: NVT_CONTRACT_ADDRESS,
+    data,
+    value: 0n,
+    chain: polygon,
+  });
+
+  return txHash;
 }
 
 async function fetchBalances() {
   const { data: profile } = await window.supabaseClient
-  .from("profiles")
-  .select("nvt_balance, np_balance, wallet_address, dynamic_wallet_address")
-  .eq("id", currentUser.id)
-  .single();
+    .from("profiles")
+    .select("nvt_balance, np_balance, wallet_address, dynamic_wallet_address")
+    .eq("id", currentUser.id)
+    .single();
 
-if (profile) {
-  currentProfile = profile;
-  currentWalletAddress = profile.dynamic_wallet_address || profile.wallet_address || "";
+  if (profile) {
+    currentProfile = profile;
+    currentWalletAddress = profile.dynamic_wallet_address || profile.wallet_address || "";
 
-  document.getElementById("walletAddressText").innerText =
-    currentWalletAddress || "未設定";
+    document.getElementById("walletAddressText").innerText =
+      currentWalletAddress || "未設定";
 
-    document.getElementById("nvtBal").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
-    document.getElementById("npBal").innerText = Math.floor(profile.np_balance || 0);
+    document.getElementById("nvtBal").innerText =
+      parseFloat(profile.nvt_balance || 0).toFixed(2);
+
+    document.getElementById("npBal").innerText =
+      Math.floor(profile.np_balance || 0);
 
     const walletScanLink = document.getElementById("walletScanLink");
+
     if (walletScanLink) {
       walletScanLink.href = currentWalletAddress
         ? `https://polygonscan.com/address/${currentWalletAddress}`
@@ -276,7 +381,7 @@ async function executeConvert() {
 
     if (error) throw error;
 
-    alert("変換が完了しました！（サーバー側で安全に処理されました）");
+    alert("変換が完了しました！");
     document.getElementById("convertInput").value = "";
     document.getElementById("receiveInput").value = "";
 
@@ -291,6 +396,160 @@ async function executeConvert() {
 }
 
 window.executeConvert = executeConvert;
+
+async function fetchPendingWithdrawRequests() {
+  const listEl = document.getElementById("pendingWithdrawList");
+
+  if (!listEl) return;
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("withdraw_requests")
+      .select(`
+        id,
+        status,
+        destination_wallet_address,
+        request_amount,
+        fee_amount,
+        net_amount,
+        estimated_pol,
+        nvt_sent,
+        pol_sent,
+        user_transfer_tx_hash,
+        created_at
+      `)
+      .eq("user_id", currentUser.id)
+      .eq("status", "pol_sent")
+      .eq("nvt_sent", true)
+      .eq("pol_sent", true)
+      .is("user_transfer_tx_hash", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      listEl.innerHTML = `<div style="font-size:13px; color:#e74c3c;">出金処理中の申請を読み込めませんでした。</div>`;
+      return;
+    }
+
+    pendingWithdrawRequests = data || [];
+    renderPendingWithdrawRequests();
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = `<div style="font-size:13px; color:#e74c3c;">出金処理中の申請を読み込めませんでした。</div>`;
+  }
+}
+
+function renderPendingWithdrawRequests() {
+  const listEl = document.getElementById("pendingWithdrawList");
+
+  if (!listEl) return;
+
+  if (!pendingWithdrawRequests.length) {
+    listEl.innerHTML = `<div style="font-size: 13px; color: #999;">現在、出金処理中の申請はありません。</div>`;
+    return;
+  }
+
+  listEl.innerHTML = pendingWithdrawRequests.map((req) => {
+    const createdAt = req.created_at
+      ? new Date(req.created_at).toLocaleString("ja-JP")
+      : "-";
+
+    return `
+      <div style="border:1px solid #bbf7d0; border-radius:10px; padding:14px; margin-top:12px; background:#fff;">
+        <div style="font-size:12px; color:#666; margin-bottom:8px;">申請ID: ${req.id}</div>
+
+        <div style="font-size:13px; line-height:1.7;">
+          <strong>出金先:</strong><br>
+          <span style="word-break:break-all;">${req.destination_wallet_address}</span><br>
+          <strong>申請額:</strong> ${Number(req.request_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>手数料:</strong> ${Number(req.fee_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>最終送金額:</strong> ${Number(req.net_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>作成日時:</strong> ${createdAt}
+        </div>
+
+        <button
+          type="button"
+          onclick="executePendingWithdrawal('${req.id}')"
+          style="width:100%; margin-top:12px; padding:12px; border:none; border-radius:8px; background:#2e7d32; color:white; font-weight:bold; cursor:pointer;"
+        >
+          MetaMaskへ出金を完了する
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
+async function executePendingWithdrawal(requestId) {
+  const req = pendingWithdrawRequests.find((item) => item.id === requestId);
+
+  if (!req) {
+    alert("対象の出金申請が見つかりません。");
+    return;
+  }
+
+  if (req.user_transfer_tx_hash) {
+    alert("この出金申請はすでに完了しています。");
+    return;
+  }
+
+  const ok = confirm(
+    [
+      "ユーザーDynamicウォレットからMetaMaskへNVTを送金します。",
+      "",
+      `送金先: ${req.destination_wallet_address}`,
+      `送金額: ${req.net_amount} NVT`,
+      "",
+      "実トランザクションが発生します。実行しますか？"
+    ].join("\n")
+  );
+
+  if (!ok) return;
+
+  try {
+    const listEl = document.getElementById("pendingWithdrawList");
+    listEl.innerHTML = `<div style="font-size:13px; color:#666;">NVTをMetaMaskへ送金中です...</div>`;
+
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: req.destination_wallet_address,
+      amountNvt: req.net_amount
+    });
+
+    const { error: updateError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .update({
+        status: "completed",
+        user_transfer_tx_hash: txHash,
+        user_transfer_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", req.id)
+      .eq("user_id", currentUser.id)
+      .eq("status", "pol_sent")
+      .is("user_transfer_tx_hash", null);
+
+    if (updateError) {
+      alert(
+        "送金は完了しましたが、DB更新に失敗しました。\n" +
+        "tx_hash: " + txHash + "\n" +
+        "error: " + updateError.message
+      );
+      await fetchPendingWithdrawRequests();
+      return;
+    }
+
+    alert("出金が完了しました。\ntx_hash: " + txHash);
+
+    await fetchBalances();
+    await fetchHistory();
+    await fetchPendingWithdrawRequests();
+  } catch (err) {
+    console.error(err);
+    alert("出金送金に失敗しました: " + (err?.message || String(err)));
+    await fetchPendingWithdrawRequests();
+  }
+}
+
+window.executePendingWithdrawal = executePendingWithdrawal;
 
 async function fetchHistory() {
   const tbody = document.getElementById("historyBody");
@@ -312,6 +571,7 @@ async function fetchHistory() {
       const date = new Date(log.created_at).toLocaleDateString();
       const amtClass = log.amount_nvt > 0 ? "amt-plus" : "amt-minus";
       const amtSign = log.amount_nvt > 0 ? "+" : "";
+
       return `
         <tr>
           <td>${date}</td>
