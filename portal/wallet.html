@@ -59,6 +59,32 @@
     </div>
 </div>
 
+<div class="deposit-log-section" style="margin-top: 20px; padding: 20px; background: #f8fbff; border: 1px solid #cfe3ff; border-radius: 10px;">
+    <h3 style="font-size: 15px; margin-top: 0; color: #2563eb;">📥 NVT入金履歴を登録する</h3>
+
+    <p style="font-size: 12px; color: #666; line-height: 1.6;">
+        MetaMaskなど外部ウォレットから、上の入金用DynamicウォレットへNVTを送金した場合、<br>
+        送金後のtx_hashを登録すると、入金履歴として保存できます。
+    </p>
+
+    <input
+        type="text"
+        id="depositTxHashInput"
+        placeholder="0x... 入金tx_hashを入力"
+        style="width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; margin-top: 8px;"
+    />
+
+    <button
+        type="button"
+        id="confirmDepositBtn"
+        style="width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: bold; cursor: pointer;"
+    >
+        入金tx_hashを登録する
+    </button>
+
+    <div id="depositConfirmMessage" style="font-size: 13px; margin-top: 10px; color: #666;"></div>
+</div>
+
     <div class="balance-card">
         <div class="bal-box bal-nvt">
             <div class="bal-title">NVT 残高 (暗号資産)</div>
@@ -628,6 +654,66 @@ async function executePendingWithdrawal(requestId) {
 
 window.executePendingWithdrawal = executePendingWithdrawal;
 
+async function confirmDepositTxHash() {
+  const inputEl = document.getElementById("depositTxHashInput");
+  const btn = document.getElementById("confirmDepositBtn");
+  const msgEl = document.getElementById("depositConfirmMessage");
+
+  if (!inputEl || !btn || !msgEl) return;
+
+  const txHash = inputEl.value.trim();
+
+  if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+    msgEl.style.color = "#e74c3c";
+    msgEl.textContent = "tx_hash の形式が不正です。0xから始まる64桁のハッシュを入力してください。";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "入金tx確認中...";
+  msgEl.style.color = "#666";
+  msgEl.textContent = "オンチェーン上のNVT入金を確認しています...";
+
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("confirm-nvt-deposit", {
+      body: {
+        tx_hash: txHash,
+        note: "wallet.htmlからNVT入金tx_hash登録"
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "入金tx_hashの登録に失敗しました。");
+    }
+
+    if (data.already_registered) {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent = "このtx_hashはすでに入金履歴に登録済みです。";
+    } else {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent =
+        `入金履歴を登録しました。入金額: ${data.amount_nvt} NVT`;
+    }
+
+    inputEl.value = "";
+
+    await fetchBalances();
+  } catch (err) {
+    console.error(err);
+    msgEl.style.color = "#e74c3c";
+    msgEl.textContent = "入金tx_hash登録に失敗しました: " + (err?.message || String(err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "入金tx_hashを登録する";
+  }
+}
+
+window.confirmDepositTxHash = confirmDepositTxHash;
+
 async function fetchHistory() {
   const tbody = document.getElementById("historyBody");
 
@@ -663,6 +749,11 @@ async function fetchHistory() {
 }
 
 document.addEventListener("click", async (e) => {
+  if (e.target && e.target.id === "confirmDepositBtn") {
+    await confirmDepositTxHash();
+    return;
+  }
+
   if (e.target && e.target.id === "copyWalletBtn") {
     if (!currentWalletAddress) {
       alert("ウォレットアドレスがまだ読み込まれていません。");
