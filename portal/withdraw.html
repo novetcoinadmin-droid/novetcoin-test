@@ -794,7 +794,43 @@ const payload = {
   }
 
   setMessage(
-  "出金申請を作成しました。ウォレット画面へ戻ります。\n" +
+  "出金申請を作成しました。運営側の自動処理を開始します。\n" +
+  "申請ID: " + insertedRows.id,
+  "ok"
+);
+
+const { data: autoProcessResult, error: autoProcessError } =
+  await window.supabaseClient.functions.invoke("auto-process-withdraw-request", {
+    body: {
+      withdraw_request_id: insertedRows.id,
+      confirm: "PROCESS_WITHDRAW_REQUEST_ONCE"
+    }
+  });
+
+if (autoProcessError) {
+  console.error(autoProcessError);
+  setMessage(
+    "出金申請は作成されましたが、運営側の自動処理に失敗しました。\n" +
+    "申請ID: " + insertedRows.id + "\n" +
+    "error: " + autoProcessError.message,
+    "error"
+  );
+  return;
+}
+
+if (!autoProcessResult?.success) {
+  console.error(autoProcessResult);
+  setMessage(
+    "出金申請は作成されましたが、運営側の自動処理に失敗しました。\n" +
+    "申請ID: " + insertedRows.id + "\n" +
+    "error: " + (autoProcessResult?.error || "unknown error"),
+    "error"
+  );
+  return;
+}
+
+setMessage(
+  "出金申請と運営側の自動処理が完了しました。ウォレット画面へ戻ります。\n" +
   "申請ID: " + insertedRows.id,
   "ok"
 );
