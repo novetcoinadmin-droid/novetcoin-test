@@ -69,6 +69,29 @@
             <div class="bal-amount" style="color: var(--main-purple);"><span id="npBal">0</span></div>
         </div>
     </div>
+    <div class="reward-section" style="margin-top: 20px; padding: 20px; background: #fffaf0; border: 1px solid #f5d48b; border-radius: 10px;">
+  <h3 style="font-size: 16px; margin-top: 0; color: #b7791f;">✍️ 投稿報酬</h3>
+
+  <div style="font-size: 14px; line-height: 1.8; color: #444;">
+    <div>確定待ち：<strong id="pendingRewardNvt">-</strong> NVT</div>
+    <div>未受け取り：<strong id="claimableRewardNvt">-</strong> NVT</div>
+  </div>
+
+  <p style="font-size: 12px; color: #666; margin-top: 10px;">
+    未受け取り報酬がある場合は、ここからDynamicウォレットへ受け取れます。
+  </p>
+
+  <button
+    type="button"
+    id="claimTextRewardBtn"
+    style="width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 8px; background: #b7791f; color: white; font-weight: bold; cursor: pointer;"
+    disabled
+  >
+    報酬を受け取る
+  </button>
+
+  <div id="claimTextRewardMessage" style="font-size: 13px; margin-top: 10px; color: #666;"></div>
+</div>
 
     <div class="convert-section">
         <h3>🔄 NVT を NP に変換する</h3>
@@ -244,7 +267,8 @@ async function initWallet() {
     `ID: ${user.id.substring(0, 8)}...`;
 
   await fetchBalances();
-await fetchHistory();
+  await fetchHistory();
+  await fetchTextRewards();
 
 try {
   await prepareDynamicWalletAccount();
@@ -716,6 +740,142 @@ async function confirmDepositTxHash() {
 
 window.confirmDepositTxHash = confirmDepositTxHash;
 
+async function fetchTextRewards() {
+  const pendingEl = document.getElementById("pendingRewardNvt");
+  const claimableEl = document.getElementById("claimableRewardNvt");
+  const claimBtn = document.getElementById("claimTextRewardBtn");
+  const msgEl = document.getElementById("claimTextRewardMessage");
+
+  if (!pendingEl || !claimableEl || !claimBtn || !currentUser) return;
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("rewards_pending")
+      .select("id, amount, status, claimable_at")
+      .eq("user_id", currentUser.id)
+      .eq("status", "pending");
+
+    if (error) {
+      console.error("fetchTextRewards error:", error);
+      pendingEl.textContent = "-";
+      claimableEl.textContent = "-";
+      claimBtn.disabled = true;
+      if (msgEl) msgEl.textContent = "報酬情報を読み込めませんでした。";
+      return;
+    }
+
+    const now = new Date();
+    let pendingTotal = 0;
+    let claimableTotal = 0;
+
+    (data || []).forEach(row => {
+      const amount = Number(row.amount || 0);
+      const claimableAt = row.claimable_at ? new Date(row.claimable_at) : null;
+
+      if (claimableAt && claimableAt <= now) {
+        claimableTotal += amount;
+      } else {
+        pendingTotal += amount;
+      }
+    });
+
+    pendingEl.textContent = pendingTotal.toLocaleString("ja-JP", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6
+    });
+
+    claimableEl.textContent = claimableTotal.toLocaleString("ja-JP", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6
+    });
+
+    claimBtn.disabled = claimableTotal <= 0;
+
+    if (msgEl) {
+      msgEl.textContent = claimableTotal > 0
+        ? "受け取り可能な投稿報酬があります。"
+        : "現在、受け取り可能な投稿報酬はありません。";
+    }
+  } catch (err) {
+    console.error("fetchTextRewards failed:", err);
+    pendingEl.textContent = "-";
+    claimableEl.textContent = "-";
+    claimBtn.disabled = true;
+    if (msgEl) msgEl.textContent = "報酬情報を読み込めませんでした。";
+  }
+}
+
+async function claimTextRewards() {
+  const claimBtn = document.getElementById("claimTextRewardBtn");
+  const msgEl = document.getElementById("claimTextRewardMessage");
+
+  if (!claimBtn) return;
+
+  const ok = confirm("未受け取りの投稿報酬NVTをDynamicウォレットへ受け取ります。実行しますか？");
+  if (!ok) return;
+
+  claimBtn.disabled = true;
+  claimBtn.textContent = "報酬受け取り中...";
+
+  if (msgEl) {
+    msgEl.style.color = "#666";
+    msgEl.textContent = "Operation WalletからDynamicウォレットへNVTを送信中です...";
+  }
+
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("claim-text-rewards", {
+      body: {
+        confirm: "CLAIM_TEXT_REWARDS_ONCE"
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "報酬受け取りに失敗しました。");
+    }
+
+    if (!data.claimed) {
+      if (msgEl) {
+        msgEl.style.color = "#666";
+        msgEl.textContent = data.message || "受け取り可能な報酬はありません。";
+      }
+      await fetchTextRewards();
+      return;
+    }
+
+    if (msgEl) {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent =
+        `報酬 ${data.reward_nvt} NVT を受け取りました。tx_hash: ${data.tx_hash}`;
+    }
+
+    alert(
+      "投稿報酬を受け取りました。\n" +
+      "受け取りNVT: " + data.reward_nvt + "\n" +
+      "tx_hash: " + data.tx_hash
+    );
+
+    await fetchBalances();
+    await fetchHistory();
+    await fetchTextRewards();
+  } catch (err) {
+    console.error("claimTextRewards error:", err);
+
+    if (msgEl) {
+      msgEl.style.color = "#e74c3c";
+      msgEl.textContent = "報酬受け取りに失敗しました: " + (err?.message || String(err));
+    }
+  } finally {
+    claimBtn.textContent = "報酬を受け取る";
+    await fetchTextRewards();
+  }
+}
+
+window.claimTextRewards = claimTextRewards;
+
 async function fetchHistory() {
   const tbody = document.getElementById("historyBody");
   if (!tbody || !currentUser) return;
@@ -865,6 +1025,11 @@ document.addEventListener("click", async (e) => {
       alert("ウォレットアドレスがまだ読み込まれていません。");
       return;
     }
+
+    if (e.target && e.target.id === "claimTextRewardBtn") {
+    await claimTextRewards();
+    return;
+  }
 
     try {
       await navigator.clipboard.writeText(currentWalletAddress);
