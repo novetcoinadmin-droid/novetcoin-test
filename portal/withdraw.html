@@ -452,7 +452,7 @@ function clearEstimateView() {
   summaryEstimatedPol.textContent = "-";
   warningArea.innerHTML = "";
   estimateResult = null;
-  setProcessingState(true, "出金申請を作成しています。画面を閉じずにお待ちください...");
+  submitBtn.disabled = true;
 }
 
 function setWithdrawFormDisabled(disabled) {
