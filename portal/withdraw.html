@@ -452,7 +452,7 @@ function clearEstimateView() {
   summaryEstimatedPol.textContent = "-";
   warningArea.innerHTML = "";
   estimateResult = null;
-  submitBtn.disabled = true;
+  setProcessingState(true, "出金申請を作成しています。画面を閉じずにお待ちください...");
 }
 
 function setWithdrawFormDisabled(disabled) {
@@ -799,6 +799,13 @@ const payload = {
   "ok"
 );
 
+setMessage(
+  "出金申請を作成しました。運営側の自動処理中です。\n" +
+  "NVT/POL送付が完了するまで、画面を閉じずにお待ちください。\n" +
+  "申請ID: " + insertedRows.id,
+  "ok"
+);
+
 const { data: autoProcessResult, error: autoProcessError } =
   await window.supabaseClient.functions.invoke("auto-process-withdraw-request", {
     body: {
@@ -815,6 +822,7 @@ if (autoProcessError) {
     "error: " + autoProcessError.message,
     "error"
   );
+  setProcessingState(false);
   return;
 }
 
@@ -838,6 +846,24 @@ setMessage(
 setTimeout(() => {
   location.href = "wallet.html";
 }, 1200);
+}
+
+function setProcessingState(isProcessing, text = "") {
+  destinationWalletEl.disabled = isProcessing;
+  requestAmountEl.disabled = isProcessing;
+  noteInputEl.disabled = isProcessing;
+  calcBtn.disabled = isProcessing;
+  agreeCheck.disabled = isProcessing;
+  submitBtn.disabled = isProcessing;
+
+  if (isProcessing) {
+    submitBtn.textContent = "処理中...";
+    if (text) {
+      setMessage(text, "ok");
+    }
+  } else {
+    submitBtn.textContent = "出金申請を作成する";
+  }
 }
 
 function bindEvents() {
