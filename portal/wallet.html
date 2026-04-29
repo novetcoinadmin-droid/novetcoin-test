@@ -59,32 +59,6 @@
     </div>
 </div>
 
-<div class="deposit-log-section" style="margin-top: 20px; padding: 20px; background: #f8fbff; border: 1px solid #cfe3ff; border-radius: 10px;">
-    <h3 style="font-size: 15px; margin-top: 0; color: #2563eb;">📥 NVT入金履歴を登録する</h3>
-
-    <p style="font-size: 12px; color: #666; line-height: 1.6;">
-        MetaMaskなど外部ウォレットから、上の入金用DynamicウォレットへNVTを送金した場合、<br>
-        送金後のtx_hashを登録すると、入金履歴として保存できます。
-    </p>
-
-    <input
-        type="text"
-        id="depositTxHashInput"
-        placeholder="0x... 入金tx_hashを入力"
-        style="width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; margin-top: 8px;"
-    />
-
-    <button
-        type="button"
-        id="confirmDepositBtn"
-        style="width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: bold; cursor: pointer;"
-    >
-        入金tx_hashを登録する
-    </button>
-
-    <div id="depositConfirmMessage" style="font-size: 13px; margin-top: 10px; color: #666;"></div>
-</div>
-
     <div class="balance-card">
         <div class="bal-box bal-nvt">
             <div class="bal-title">NVT 残高 (暗号資産)</div>
@@ -262,15 +236,18 @@ async function initWallet() {
     `ID: ${user.id.substring(0, 8)}...`;
 
   await fetchBalances();
-  await fetchHistory();
+await fetchHistory();
 
-  try {
-    await prepareDynamicWalletAccount();
-  } catch (err) {
-    console.warn("Dynamicウォレット確認:", err);
-  }
+try {
+  await prepareDynamicWalletAccount();
+} catch (err) {
+  console.warn("Dynamicウォレット確認:", err);
+}
 
-  await fetchPendingWithdrawRequests();
+await fetchPendingWithdrawRequests();
+
+// 入金履歴は残高表示とは別に、裏で同期する
+await syncNvtDeposits();
 }
 
 async function prepareDynamicWalletAccount() {
@@ -499,6 +476,23 @@ async function executeConvert() {
 }
 
 window.executeConvert = executeConvert;
+
+async function syncNvtDeposits() {
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("sync-nvt-deposits", {
+      body: {}
+    });
+
+    if (error) {
+      console.warn("NVT入金履歴同期エラー:", error);
+      return;
+    }
+
+    console.log("NVT入金履歴同期:", data);
+  } catch (err) {
+    console.warn("NVT入金履歴同期失敗:", err);
+  }
+}
 
 async function fetchPendingWithdrawRequests() {
   const listEl = document.getElementById("pendingWithdrawList");
