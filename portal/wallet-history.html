@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ウォレット | ノベットコイン.com</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../my-site/auth-check.js"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --gold: #ffd700; --bg-gray: #f5f5f5; }
+        body { font-family: sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
+        .wallet-container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        h1 { font-size: 22px; color: var(--main-purple); border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        .back-link { font-size: 14px; color: #666; text-decoration: none; font-weight: normal; }
+        
+        /* 残高カード */
+        .balance-card { display: flex; gap: 15px; margin-top: 20px; }
+        .bal-box { flex: 1; padding: 20px; border-radius: 10px; text-align: center; }
+        .bal-nvt { background: #fdfaf6; border: 1px solid #f9e5c3; }
+        .bal-np { background: #f4f0fa; border: 1px solid #e1d4f2; }
+        .bal-title { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 10px; }
+        .bal-amount { font-size: 28px; font-weight: bold; }
+        
+        /* 変換セクション */
+        .convert-section { margin-top: 30px; padding: 20px; background: #fffdf5; border: 1px solid #ffe082; border-radius: 10px; }
+        .convert-section h3 { font-size: 15px; margin-top: 0; color: #d4ac0d; }
+        .input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .input-group input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; text-align: right; }
+        .btn-convert { width: 100%; padding: 15px; background: linear-gradient(135deg, #f1c40f, #d4ac0d); color: #000; font-weight: bold; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-convert:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+
+        /* Web3 送金 */
+        .web3-section { margin-top: 20px; padding: 20px; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
+        .btn-send { width: 100%; padding: 12px; background: #333; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: not-allowed; opacity: 0.7; }
+        
+        /* 履歴テーブル */
+        .history-section { margin-top: 30px; }
+        .history-section h3 { font-size: 16px; border-bottom: 2px solid var(--main-purple); padding-bottom: 5px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .history-table th, .history-table td { padding: 12px 8px; border-bottom: 1px solid #eee; text-align: left; }
+        .history-table th { color: #888; font-weight: normal; }
+        .amt-plus { color: #2ecc71; font-weight: bold; }
+        .amt-minus { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="wallet-container">
+  <div class="wallet-header">
+    <h2>📊 ウォレット明細</h2>
+    <a href="wallet.html" class="back-link">← ウォレットへ戻る</a>
+  </div>
+
+  <p style="font-size: 13px; color: #666; line-height: 1.7; margin-bottom: 18px;">
+    入金・出金・NVT→NP変換・NP消費の履歴を確認できます。
+  </p>
+
+  <div class="history-filter" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+    <button type="button" class="history-filter-btn active" data-filter="all">すべて</button>
+    <button type="button" class="history-filter-btn" data-filter="deposit">入金</button>
+    <button type="button" class="history-filter-btn" data-filter="withdraw">出金</button>
+    <button type="button" class="history-filter-btn" data-filter="convert">NVT→NP変換</button>
+    <button type="button" class="history-filter-btn" data-filter="np">NP利用</button>
+  </div>
+
+  <div class="history-section">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>日時</th>
+          <th>種別</th>
+          <th>内容</th>
+          <th style="text-align: right;">NVT</th>
+          <th style="text-align: right;">NP</th>
+          <th>tx</th>
+        </tr>
+      </thead>
+      <tbody id="walletHistoryBody">
+        <tr>
+          <td colspan="6" style="text-align: center; color: #999;">明細を読み込み中...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script type="module">
+let currentUser = null;
+let allHistoryItems = [];
+let currentFilter = "all";
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("ja-JP");
+}
+
+function shortHash(hash) {
+  if (!hash) return "-";
+  return hash.slice(0, 10) + "..." + hash.slice(-8);
+}
+
+function txLink(hash) {
+  if (!hash) return "-";
+  return `
+    <a href="https://polygonscan.com/tx/${hash}" target="_blank" rel="noopener" style="color:#6a0dad; font-weight:bold; text-decoration:none;">
+      ${shortHash(hash)}
+    </a>
+  `;
+}
+
+function renderWalletHistory() {
+  const tbody = document.getElementById("walletHistoryBody");
+  if (!tbody) return;
+
+  const filteredItems =
+    currentFilter === "all"
+      ? allHistoryItems
+      : allHistoryItems.filter(item => item.type === currentFilter);
+
+  if (filteredItems.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; color:#999;">
+          明細がありません
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filteredItems.map(item => {
+    const nvtClass = Number(item.nvt || 0) > 0 ? "amt-plus" : Number(item.nvt || 0) < 0 ? "amt-minus" : "";
+    const npClass = Number(item.np || 0) > 0 ? "amt-plus" : Number(item.np || 0) < 0 ? "amt-minus" : "";
+
+    const nvtText =
+      item.nvt === null || item.nvt === undefined
+        ? "-"
+        : `${Number(item.nvt) > 0 ? "+" : ""}${Number(item.nvt).toFixed(2)} NVT`;
+
+    const npText =
+      item.np === null || item.np === undefined
+        ? "-"
+        : `${Number(item.np) > 0 ? "+" : ""}${Number(item.np).toFixed(0)} NP`;
+
+    return `
+      <tr>
+        <td>${formatDateTime(item.date)}</td>
+        <td>${item.typeLabel}</td>
+        <td>${item.label}</td>
+        <td style="text-align:right;" class="${nvtClass}">${nvtText}</td>
+        <td style="text-align:right;" class="${npClass}">${npText}</td>
+        <td>${txLink(item.txHash)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+async function fetchWalletHistory() {
+  const tbody = document.getElementById("walletHistoryBody");
+  if (!tbody || !currentUser) return;
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="6" style="text-align:center; color:#999;">
+        明細を読み込み中...
+      </td>
+    </tr>
+  `;
+
+  const items = [];
+
+  try {
+    // 1. 入金履歴
+    const { data: depositLogs, error: depositError } = await window.supabaseClient
+      .from("nvt_deposit_logs")
+      .select("amount_nvt, tx_hash, status, confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (!depositError && depositLogs) {
+      depositLogs.forEach(log => {
+        items.push({
+          type: "deposit",
+          typeLabel: "入金",
+          date: log.confirmed_at || log.created_at,
+          label: `NVT入金（${log.status || "-"}）`,
+          nvt: Number(log.amount_nvt || 0),
+          np: null,
+          txHash: log.tx_hash
+        });
+      });
+    }
+
+    // 2. 出金履歴
+    const { data: withdrawLogs, error: withdrawError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .select("status, request_amount, fee_amount, net_amount, user_transfer_tx_hash, user_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (!withdrawError && withdrawLogs) {
+      withdrawLogs.forEach(log => {
+        const amount = Number(log.net_amount || log.request_amount || 0);
+
+        items.push({
+          type: "withdraw",
+          typeLabel: "出金",
+          date: log.user_transfer_confirmed_at || log.created_at,
+          label: `NVT出金（${log.status || "-"} / 手数料 ${Number(log.fee_amount || 0).toFixed(2)} NVT）`,
+          nvt: -amount,
+          np: null,
+          txHash: log.user_transfer_tx_hash
+        });
+      });
+    }
+
+    // 3. NVT → NP変換履歴
+    const { data: conversionLogs, error: conversionError } = await window.supabaseClient
+      .from("nvt_np_conversion_logs")
+      .select("nvt_amount, final_np_amount, nvt_transfer_tx_hash, status, nvt_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (!conversionError && conversionLogs) {
+      conversionLogs.forEach(log => {
+        items.push({
+          type: "convert",
+          typeLabel: "NVT→NP",
+          date: log.nvt_transfer_confirmed_at || log.created_at,
+          label: `NVT→NP変換（${log.status || "-"}）`,
+          nvt: -Number(log.nvt_amount || 0),
+          np: Number(log.final_np_amount || 0),
+          txHash: log.nvt_transfer_tx_hash
+        });
+      });
+    }
+
+    // 4. NP利用・サービス利用履歴
+    try {
+      const { data: txLogs, error: txError } = await window.supabaseClient
+        .from("transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!txError && txLogs) {
+        txLogs.forEach(log => {
+          const amountNvt = Number(log.amount_nvt || 0);
+          const amountNp = Number(log.amount_np || 0);
+
+          items.push({
+            type: "np",
+            typeLabel: "NP利用",
+            date: log.created_at,
+            label: log.product_name || log.type || "サービス利用",
+            nvt: amountNvt || null,
+            np: amountNp || null,
+            txHash: null
+          });
+        });
+      }
+    } catch (_) {
+      // transactionsテーブルが未作成でも明細ページは止めない
+    }
+
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    allHistoryItems = items;
+    renderWalletHistory();
+  } catch (err) {
+    console.error("fetchWalletHistory error:", err);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; color:#999;">
+          明細を読み込めませんでした
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function bindHistoryFilters() {
+  document.querySelectorAll(".history-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".history-filter-btn").forEach(b => {
+        b.classList.remove("active");
+      });
+
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter || "all";
+      renderWalletHistory();
+    });
+  });
+}
+
+async function initWalletHistory() {
+  const { data: userData, error: userError } = await window.supabaseClient.auth.getUser();
+
+  if (userError || !userData?.user) {
+    alert("ログインが必要です。");
+    location.href = "login.html";
+    return;
+  }
+
+  currentUser = userData.user;
+
+  bindHistoryFilters();
+  await fetchWalletHistory();
+}
+
+initWalletHistory();
+</script>
+</body>
+</html>

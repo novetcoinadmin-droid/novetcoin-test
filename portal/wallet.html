@@ -131,20 +131,28 @@
     </div>
 </div>
     <div class="history-section">
-        <h3>📊 取引履歴 (Transaction)</h3>
-        <table class="history-table">
-            <thead>
-                <tr>
-                    <th>日付</th>
-                    <th>内容</th>
-                    <th style="text-align: right;">NVT増減</th>
-                </tr>
-            </thead>
-            <tbody id="historyBody">
-                <tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込み中...</td></tr>
-            </tbody>
-        </table>
-    </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 3px solid #8a2be2; margin-bottom: 10px;">
+    <h3 style="margin: 0; border-bottom: none;">📊 取引履歴（直近5件）</h3>
+    <a href="wallet-history.html" style="font-size: 13px; color: #6a0dad; text-decoration: none; font-weight: bold;">
+      すべての履歴を見る →
+    </a>
+  </div>
+
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>内容</th>
+        <th style="text-align: right;">金額</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody">
+      <tr>
+        <td colspan="3" style="text-align: center; color: #999;">履歴を読み込み中...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 </div>
 <script type="module">
@@ -710,35 +718,139 @@ window.confirmDepositTxHash = confirmDepositTxHash;
 
 async function fetchHistory() {
   const tbody = document.getElementById("historyBody");
+  if (!tbody || !currentUser) return;
+
+  const items = [];
 
   try {
-    const { data: logs, error } = await window.supabaseClient
-      .from("transactions")
-      .select("*")
+    // 1. 入金履歴
+    const { data: depositLogs, error: depositError } = await window.supabaseClient
+      .from("nvt_deposit_logs")
+      .select("amount_nvt, tx_hash, status, confirmed_at, created_at")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(5);
 
-    if (error || !logs || logs.length === 0) {
+    if (!depositError && depositLogs) {
+      depositLogs.forEach(log => {
+        items.push({
+          date: log.confirmed_at || log.created_at,
+          label: "NVT入金",
+          amountText: `+${Number(log.amount_nvt || 0).toFixed(2)} NVT`,
+          amountClass: "amt-plus",
+          txHash: log.tx_hash
+        });
+      });
+    }
+
+    // 2. 出金履歴
+    const { data: withdrawLogs, error: withdrawError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .select("status, request_amount, net_amount, user_transfer_tx_hash, user_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!withdrawError && withdrawLogs) {
+      withdrawLogs.forEach(log => {
+        const amount = Number(log.net_amount || log.request_amount || 0);
+        items.push({
+          date: log.user_transfer_confirmed_at || log.created_at,
+          label: `NVT出金（${log.status || "-"}）`,
+          amountText: `-${amount.toFixed(2)} NVT`,
+          amountClass: "amt-minus",
+          txHash: log.user_transfer_tx_hash
+        });
+      });
+    }
+
+    // 3. NVT → NP変換履歴
+    const { data: conversionLogs, error: conversionError } = await window.supabaseClient
+      .from("nvt_np_conversion_logs")
+      .select("nvt_amount, final_np_amount, nvt_transfer_tx_hash, status, nvt_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!conversionError && conversionLogs) {
+      conversionLogs.forEach(log => {
+        items.push({
+          date: log.nvt_transfer_confirmed_at || log.created_at,
+          label: `NVT→NP変換（${log.status || "-"}）`,
+          amountText: `-${Number(log.nvt_amount || 0).toFixed(2)} NVT / +${Number(log.final_np_amount || 0).toFixed(0)} NP`,
+          amountClass: "amt-minus",
+          txHash: log.nvt_transfer_tx_hash
+        });
+      });
+    }
+
+    // 4. 既存transactions履歴があれば拾う
+    try {
+      const { data: txLogs, error: txError } = await window.supabaseClient
+        .from("transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (!txError && txLogs) {
+        txLogs.forEach(log => {
+          const amountNvt = Number(log.amount_nvt || 0);
+          const amountNp = Number(log.amount_np || 0);
+
+          let amountText = "-";
+          let amountClass = "";
+
+          if (amountNp !== 0) {
+            amountText = `${amountNp > 0 ? "+" : ""}${amountNp.toFixed(0)} NP`;
+            amountClass = amountNp > 0 ? "amt-plus" : "amt-minus";
+          } else if (amountNvt !== 0) {
+            amountText = `${amountNvt > 0 ? "+" : ""}${amountNvt.toFixed(2)} NVT`;
+            amountClass = amountNvt > 0 ? "amt-plus" : "amt-minus";
+          }
+
+          items.push({
+            date: log.created_at,
+            label: log.product_name || log.type || "サービス利用",
+            amountText,
+            amountClass,
+            txHash: null
+          });
+        });
+      }
+    } catch (_) {
+      // transactionsテーブルが未作成でもwallet表示は止めない
+    }
+
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const recentItems = items.slice(0, 5);
+
+    if (recentItems.length === 0) {
       tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴がありません</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = logs.map(log => {
-      const date = new Date(log.created_at).toLocaleDateString();
-      const amtClass = log.amount_nvt > 0 ? "amt-plus" : "amt-minus";
-      const amtSign = log.amount_nvt > 0 ? "+" : "";
+    tbody.innerHTML = recentItems.map(item => {
+      const dateText = item.date
+        ? new Date(item.date).toLocaleDateString("ja-JP")
+        : "-";
+
+      const txLink = item.txHash
+        ? `<br><a href="https://polygonscan.com/tx/${item.txHash}" target="_blank" rel="noopener" style="font-size: 11px; color: #6a0dad;">tx確認</a>`
+        : "";
 
       return `
         <tr>
-          <td>${date}</td>
-          <td>${log.product_name || "-"}</td>
-          <td style="text-align: right;" class="${amtClass}">${amtSign}${parseFloat(log.amount_nvt).toFixed(2)}</td>
+          <td>${dateText}</td>
+          <td>${item.label}${txLink}</td>
+          <td style="text-align: right;" class="${item.amountClass}">${item.amountText}</td>
         </tr>
       `;
     }).join("");
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした（テーブル未作成）</td></tr>`;
+    console.error("fetchHistory error:", err);
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした</td></tr>`;
   }
 }
 
