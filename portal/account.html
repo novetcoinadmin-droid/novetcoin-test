@@ -64,27 +64,22 @@
   <div id="userEmail" style="margin-bottom: 20px;">メール: ---</div>
 
   <div style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 30px;">
-    <h3 style="font-size: 16px; color: #333; margin-bottom: 15px; display: flex; align-items: center;">
-      <span style="margin-right: 8px;">💳</span> お財布 / 資産管理
-    </h3>
-    
-    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-      <div style="flex: 1; background: #f8f0ff; padding: 15px; border-radius: 10px; text-align: center;">
-        <div style="font-size: 11px; color: #6a0dad; font-weight: bold; margin-bottom: 5px;">NVT 残高</div>
-        <div style="font-size: 20px; font-weight: bold; color: #6a0dad;"><span id="nvtBalance">0</span> <small style="font-size: 12px;">NVT</small></div>
-      </div>
-      <div style="flex: 1; background: #fff8f0; padding: 15px; border-radius: 10px; text-align: center;">
-        <div style="font-size: 11px; color: #ff8c00; font-weight: bold; margin-bottom: 5px;">NP 残高</div>
-        <div style="font-size: 20px; font-weight: bold; color: #ff8c00;"><span id="npBalance">0</span> <small style="font-size: 12px;">NP</small></div>
-      </div>
-    </div>
+  <h3 style="font-size: 16px; color: #333; margin-bottom: 12px; display: flex; align-items: center;">
+    <span style="margin-right: 8px;">💳</span> ウォレット / 資産管理
+  </h3>
 
-    <button onclick="location.href='wallet.html'" style="width:100%; padding:15px; background:#6a0dad; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px; box-shadow: 0 4px 10px rgba(106,13,173,0.3);">
-        💳 ウォレットを開く
-    </button>
-    <p style="text-align:center; font-size:11px; color:#999; margin-top:10px;">※NVTの管理・変換・送金はこちら</p>
-    <p style="font-size: 10px; color: #aaa; margin-top: 12px; text-align: center;">※オンチェーン(Web3)連携機能は開発中です</p>
-  </div>
+  <p style="font-size: 13px; color: #666; line-height: 1.7; margin-bottom: 15px;">
+    NVT残高・NP残高・入出金・NVT→NP変換・投稿報酬の受け取りは、ウォレット画面で確認できます。
+  </p>
+
+  <button onclick="location.href='wallet.html'" style="width:100%; padding:15px; background:#6a0dad; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:10px; box-shadow: 0 4px 10px rgba(106,13,173,0.3);">
+      💳 ウォレットを開く
+  </button>
+
+  <p style="text-align:center; font-size:11px; color:#999; margin-top:10px;">
+    ※NVT残高はオンチェーン残高、NP残高はサイト内ポイントとしてウォレット画面で表示されます。
+  </p>
+</div>
 
   <div class="section">
     <h2>所属作家一覧</h2>
@@ -299,32 +294,71 @@ async function claimReward(event, messageId) {
 }
 
 // --- ④ ⑤ 報酬エリア表示 ---
+// --- ④ ⑤ 投稿報酬エリア表示 ---
 async function fetchPendingRewards() {
   try {
-    await initProfilesOnly();
+    const { data: rewards, error } = await window.supabaseClient
+      .from("rewards_pending")
+      .select("id, amount, status, claimable_at")
+      .eq("user_id", currentUser.id)
+      .eq("status", "pending")
+      .order("claimable_at", { ascending: true });
 
-    const { data: rewards } = await window.supabaseClient.from('rewards_pending').select('*').eq('user_id', currentUser.id).eq('status', 'pending').order('claimable_at', { ascending: true });
     const list = document.getElementById("pendingRewardList");
-    list.innerHTML = "";
-    const now = new Date();
+    if (!list) return;
 
-    if (!rewards || rewards.length === 0) {
-      list.innerHTML = "<p style='font-size:12px; color:#999;'>現在、確定待ちの報酬はありません。</p>";
+    if (error) {
+      console.error("fetchPendingRewards error:", error);
+      list.innerHTML = "<p style='font-size:12px; color:#999;'>報酬情報を読み込めませんでした。</p>";
       return;
     }
 
-    rewards.forEach(r => {
-      const diffMs = new Date(r.claimable_at) - now;
-      if (diffMs > 0) {
-        const h = Math.floor(diffMs / 3600000);
-        const m = Math.floor((diffMs % 3600000) / 60000);
-        const div = document.createElement("div");
-        div.style = "background: #f0f0f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;";
-        div.innerHTML = `<span><strong>${r.amount} NVT</strong> 獲得予定</span><span style="color:#666; font-weight:bold;">あと ${h}時間 ${m}分</span>`;
-        list.appendChild(div);
+    const now = new Date();
+    let pendingTotal = 0;
+    let claimableTotal = 0;
+
+    (rewards || []).forEach(r => {
+      const amount = Number(r.amount || 0);
+      const claimableAt = r.claimable_at ? new Date(r.claimable_at) : null;
+
+      if (claimableAt && claimableAt <= now) {
+        claimableTotal += amount;
+      } else {
+        pendingTotal += amount;
       }
     });
-  } catch (err) { console.error(err); }
+
+    if (pendingTotal <= 0 && claimableTotal <= 0) {
+      list.innerHTML = `
+        <div style="background:#f8f8f8; border-radius:8px; padding:12px; font-size:13px; color:#777;">
+          現在、投稿報酬はありません。
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = `
+      <div style="background:#fffaf0; border:1px solid #f5d48b; border-radius:10px; padding:14px; font-size:14px; line-height:1.8;">
+        <div>確定待ち：<strong style="color:#b7791f;">${pendingTotal.toLocaleString()} NVT</strong></div>
+        <div>未受け取り：<strong style="color:#b7791f;">${claimableTotal.toLocaleString()} NVT</strong></div>
+        <hr style="border:none; border-top:1px solid #f0dca8; margin:10px 0;">
+        <p style="font-size:12px; color:#666; margin:0 0 10px;">
+          未受け取り報酬がある場合は、ウォレットで受け取れます。
+        </p>
+        ${
+          claimableTotal > 0
+            ? `<button onclick="location.href='wallet.html'" style="width:100%; padding:10px; background:#b7791f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                ウォレットで報酬を受け取る
+              </button>`
+            : `<button disabled style="width:100%; padding:10px; background:#ddd; color:#777; border:none; border-radius:8px; font-weight:bold;">
+                受け取り可能な報酬はありません
+              </button>`
+        }
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // --- 起動と統合 ---
@@ -342,8 +376,6 @@ async function initProfilesOnly() {
   const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
   if (profile) {
     document.getElementById("currentDisplayName").innerText = profile.username || "未設定";
-    document.getElementById("nvtBalance").innerText = (profile.nvt_balance || 0).toLocaleString();
-    document.getElementById("npBalance").innerText = (profile.np_balance || 0).toLocaleString();
     document.getElementById("userEmail").innerText = currentUser.email;
     
     // ★修正: penalty.html へのパスを相対パスに変更
