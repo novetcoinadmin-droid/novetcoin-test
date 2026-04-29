@@ -189,6 +189,7 @@ let pendingWithdrawRequests = [];
 const RATE = 150;
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
+const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
 
 const publicClient = createPublicClient({
@@ -400,32 +401,74 @@ window.calcConvert = calcConvert;
 
 async function executeConvert() {
   const inputVal = parseFloat(document.getElementById("convertInput").value);
-  const npAmount = Math.floor(inputVal * RATE);
 
-  if (!confirm(`${inputVal} NVT を ${npAmount} NP に変換しますか？`)) return;
+  if (isNaN(inputVal) || inputVal <= 0) {
+    alert("変換するNVT数量を入力してください。");
+    return;
+  }
+
+  const expectedNpAmount = Math.floor(inputVal * RATE);
+
+  const ok = confirm(
+    [
+      `${inputVal} NVT を NP に変換します。`,
+      "",
+      `送金先: ${OPERATION_WALLET_ADDRESS}`,
+      `予定付与NP: ${expectedNpAmount} NP`,
+      "",
+      "DynamicウォレットからOperation WalletへNVT送金が発生します。",
+      "実行しますか？"
+    ].join("\n")
+  );
+
+  if (!ok) return;
 
   const btn = document.getElementById("convertBtn");
   btn.disabled = true;
-  btn.innerText = "処理中...";
+  btn.innerText = "NVT送金中...";
 
   try {
-    const { error } = await window.supabaseClient.functions.invoke("convert-nvt-to-np", {
-      body: { amount_nvt: inputVal }
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: OPERATION_WALLET_ADDRESS,
+      amountNvt: inputVal
     });
 
-    if (error) throw error;
+    btn.innerText = "NP反映中...";
 
-    alert("変換が完了しました！");
+    const { data: confirmResult, error: confirmError } =
+      await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
+        body: {
+          tx_hash: txHash,
+          note: "wallet.htmlからNVTをNPへ変換"
+        }
+      });
+
+    if (confirmError) {
+      throw confirmError;
+    }
+
+    if (!confirmResult?.success) {
+      throw new Error(confirmResult?.error || "NP変換確認に失敗しました");
+    }
+
+    alert(
+      "NVT→NP変換が完了しました。\n" +
+      "tx_hash: " + txHash + "\n" +
+      "付与NP: " + confirmResult.final_np_amount
+    );
+
     document.getElementById("convertInput").value = "";
     document.getElementById("receiveInput").value = "";
 
     await fetchBalances();
     await fetchHistory();
   } catch (err) {
-    alert("エラーが発生しました: " + err.message);
+    console.error(err);
+    alert("NVT→NP変換に失敗しました: " + (err?.message || String(err)));
   } finally {
     btn.disabled = false;
     btn.innerText = "NPに変換する";
+    calcConvert();
   }
 }
 
