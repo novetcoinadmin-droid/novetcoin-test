@@ -1015,6 +1015,11 @@ async function fetchHistory() {
 }
 
 document.addEventListener("click", async (e) => {
+  if (e.target && e.target.id === "claimTextRewardBtn") {
+    await claimTextRewards();
+    return;
+  }
+
   if (e.target && e.target.id === "confirmDepositBtn") {
     await confirmDepositTxHash();
     return;
@@ -1026,17 +1031,14 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    if (e.target && e.target.id === "claimTextRewardBtn") {
-    await claimTextRewards();
-    return;
-  }
-
     try {
       await navigator.clipboard.writeText(currentWalletAddress);
       alert("ウォレットアドレスをコピーしました。");
     } catch (err) {
       alert("コピーに失敗しました。");
     }
+
+    return;
   }
 });
 
