@@ -171,8 +171,11 @@ import {
 } from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
 
 import {
+  createPublicClient,
   encodeFunctionData,
   erc20Abi,
+  formatUnits,
+  http,
   parseUnits,
 } from "https://esm.sh/viem";
 
@@ -183,11 +186,15 @@ let currentProfile = null;
 let currentWalletAddress = "";
 let dynamicWalletAccount = null;
 let pendingWithdrawRequests = [];
-
 const RATE = 150;
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
+
+const publicClient = createPublicClient({
+  chain: polygon,
+  transport: http(POLYGON_RPC_URL),
+});
 
 createDynamicClient({
   environmentId: DYNAMIC_ENVIRONMENT_ID,
@@ -309,6 +316,19 @@ async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
   return txHash;
 }
 
+async function fetchOnchainNvtBalance(walletAddress) {
+  if (!walletAddress) return 0;
+
+  const balanceRaw = await publicClient.readContract({
+    address: NVT_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [walletAddress],
+  });
+
+  return Number(formatUnits(balanceRaw, 18));
+}
+
 async function fetchBalances() {
   const { data: profile } = await window.supabaseClient
     .from("profiles")
@@ -323,8 +343,22 @@ async function fetchBalances() {
     document.getElementById("walletAddressText").innerText =
       currentWalletAddress || "未設定";
 
-    document.getElementById("nvtBal").innerText =
-      parseFloat(profile.nvt_balance || 0).toFixed(2);
+    try {
+  const onchainNvtBalance = await fetchOnchainNvtBalance(currentWalletAddress);
+
+  document.getElementById("nvtBal").innerText =
+    onchainNvtBalance.toLocaleString("ja-JP", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+
+  currentProfile.nvt_balance = onchainNvtBalance;
+} catch (err) {
+  console.error("NVTオンチェーン残高取得エラー:", err);
+
+  document.getElementById("nvtBal").innerText =
+    parseFloat(profile.nvt_balance || 0).toFixed(2);
+}
 
     document.getElementById("npBal").innerText =
       Math.floor(profile.np_balance || 0);
