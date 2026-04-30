@@ -21,7 +21,7 @@ window.addEventListener("load", async () => {
         panel.innerHTML = `
             <h3>ゲストさん</h3>
             <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
-            <a href="login.html" class="right-btn" style="background:#4285F4; display:block; text-align:center; color:white; padding:10px; text-decoration:none; border-radius:5px;">ログイン画面へ</a>
+            <a href="../portal/login.html" class="right-btn" style="background:#4285F4; display:block; text-align:center; color:white; padding:10px; text-decoration:none; border-radius:5px;">ログイン画面へ</a>
         `;
         return;
     }
@@ -65,8 +65,6 @@ async function handleLogout() {
         // 3. ブラウザの記憶を完全に消去
         localStorage.clear();
         // 4. トップページへリダイレクト
-        window.location.href = window.location.pathname.includes("my-siteman")
-          ? "../my-site/index.html"
-          : "index.html";
-        }
+        window.location.href = "index.html";
+    }
 }
