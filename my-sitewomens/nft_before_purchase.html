@@ -20,7 +20,7 @@
         .btn-buy:hover:not(:disabled) { background: #5a0a9d; transform: translateY(-2px); }
         .nav-back { text-decoration: none; color: #666; font-size: 14px; margin-bottom: 20px; display: inline-block; }
     </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
 <div class="container">
@@ -60,8 +60,167 @@
 </div>
 
 <script src="auth-check.js"></script>
-<script>
+<script type="module">
 // Supabase設定は auth-check.js で共通読み込み済み
+
+import {
+  createDynamicClient,
+  getWalletAccounts,
+  isSignedIn,
+  waitForClientInitialized,
+  switchActiveNetwork,
+} from "https://esm.sh/@dynamic-labs-sdk/client";
+
+import {
+  createWaasWalletAccounts,
+  getChainsMissingWaasWalletAccounts,
+} from "https://esm.sh/@dynamic-labs-sdk/client/waas";
+
+import {
+  addEvmExtension,
+  isEvmWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm";
+
+import {
+  createWalletClientForWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
+
+import {
+  createPublicClient,
+  encodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  http,
+  parseUnits,
+} from "https://esm.sh/viem";
+
+import { polygon } from "https://esm.sh/viem/chains";
+
+const supabaseClient = window.supabaseClient;
+
+const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
+const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
+const POLYGON_RPC_URL = "https://polygon.publicnode.com";
+const NVT_TO_NP_RATE = 150;
+const PLATFORM_FEE_RATE = 0.05;
+const MIN_NNFT_PRICE_NVT = 5;
+
+let currentProfile = null;
+let currentWalletAddress = "";
+let dynamicWalletAccount = null;
+
+const publicClient = createPublicClient({
+  chain: polygon,
+  transport: http(POLYGON_RPC_URL),
+});
+
+createDynamicClient({
+  environmentId: DYNAMIC_ENVIRONMENT_ID,
+  metadata: {
+    name: "ノベットコイン.com",
+    universalLink: window.location.origin,
+  },
+  transformers: {
+    networkData: (network) => {
+      if (String(network.networkId) === "137") {
+        return {
+          ...network,
+          rpcUrls: {
+            ...(network.rpcUrls || {}),
+            http: [POLYGON_RPC_URL],
+          },
+        };
+      }
+
+      return network;
+    },
+  },
+});
+
+addEvmExtension();
+
+async function prepareDynamicWalletAccount() {
+  await waitForClientInitialized();
+
+  if (!isSignedIn()) {
+    throw new Error("Dynamicにログインしていません。ログインし直してください。");
+  }
+
+  const missingChains = getChainsMissingWaasWalletAccounts();
+
+  if (missingChains.length > 0) {
+    await createWaasWalletAccounts({ chains: missingChains });
+  }
+
+  const walletAccounts = getWalletAccounts();
+
+  const evmWalletAccount =
+    walletAccounts.find((account) => isEvmWalletAccount(account)) ||
+    walletAccounts[0] ||
+    null;
+
+  if (!evmWalletAccount) {
+    throw new Error("Dynamicウォレットアカウントが見つかりません。");
+  }
+
+  dynamicWalletAccount = evmWalletAccount;
+
+  await switchActiveNetwork({
+    walletAccount: dynamicWalletAccount,
+    networkId: "137",
+  });
+
+  console.log("Dynamic wallet ready:", {
+    address: dynamicWalletAccount.address,
+    activeNetwork: "137",
+  });
+
+  return dynamicWalletAccount;
+}
+
+async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
+  if (!dynamicWalletAccount) {
+    await prepareDynamicWalletAccount();
+  }
+
+  if (!isEvmWalletAccount(dynamicWalletAccount)) {
+    throw new Error("DynamicウォレットがEVMウォレットではありません。");
+  }
+
+  const walletClient = await createWalletClientForWalletAccount({
+    walletAccount: dynamicWalletAccount,
+  });
+
+  const amountRaw = parseUnits(String(amountNvt), 18);
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [toAddress, amountRaw],
+  });
+
+  const txHash = await walletClient.sendTransaction({
+    to: NVT_CONTRACT_ADDRESS,
+    data,
+    value: 0n,
+    chain: polygon,
+  });
+
+  return txHash;
+}
+
+async function fetchOnchainNvtBalance(walletAddress) {
+  if (!walletAddress) return 0;
+
+  const balanceRaw = await publicClient.readContract({
+    address: NVT_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [walletAddress],
+  });
+
+  return Number(formatUnits(balanceRaw, 18));
+}
 
 let currentUser = null;
 let targetNft = null;
@@ -102,16 +261,35 @@ async function init() {
         }
     }
 
-    // 残高の取得
-    let myNvt = 0;
-    if (currentUser) {
-        const { data: profile } = await supabaseClient
-            .from('profiles')
-            .select('nvt_balance')
-            .eq('id', currentUser.id)
-            .single();
-        myNvt = profile?.nvt_balance || 0;
+    // 残高の取得：NVTはDBではなくDynamicウォレットのオンチェーン残高を見る
+let myNvt = 0;
+
+if (currentUser) {
+    const { data: profile, error: profileError } = await supabaseClient
+        .from("profiles")
+        .select("wallet_address, dynamic_wallet_address, np_balance")
+        .eq("id", currentUser.id)
+        .single();
+
+    if (profileError) {
+        console.error(profileError);
     }
+
+    currentProfile = profile || null;
+    currentWalletAddress =
+        currentProfile?.dynamic_wallet_address ||
+        currentProfile?.wallet_address ||
+        "";
+
+    if (currentWalletAddress) {
+        try {
+            myNvt = await fetchOnchainNvtBalance(currentWalletAddress);
+        } catch (err) {
+            console.error("NVTオンチェーン残高取得エラー:", err);
+            myNvt = 0;
+        }
+    }
+}
 
     // 🌟 creatorName も一緒に画面描画へ渡す
     renderDetails(myNvt, creatorName);
@@ -126,28 +304,42 @@ function renderDetails(myNvt, creatorName) {
     document.getElementById("nftIllust").innerText = targetNft.illustrator_name || "不明";
     document.getElementById("nftCharCount").innerText = targetNft.char_count?.toLocaleString() || "---";
     document.getElementById("nftDate").innerText = new Date(targetNft.minted_at).toLocaleDateString();
-    
-    // 🌟 先ほどHTMLにつけたIDに、作者名を入れる（@をつけて表示）
+
     const creatorElement = document.getElementById("creatorName");
     if (creatorElement) {
         creatorElement.innerText = "@" + creatorName;
     }
 
+    const priceNvt = Number(targetNft.price_nvt || 0);
+    const platformFeeNp = Math.floor(priceNvt * NVT_TO_NP_RATE * PLATFORM_FEE_RATE);
+    const myNp = Number(currentProfile?.np_balance || 0);
+
     if (document.getElementById("myNvt")) {
-        document.getElementById("myNvt").innerText = myNvt.toLocaleString();
+        document.getElementById("myNvt").innerText = myNvt.toLocaleString("ja-JP", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
+        });
     }
 
     const btn = document.getElementById("buyButton");
+
     if (!currentUser) {
         btn.innerText = "ログインが必要です";
+        btn.disabled = true;
     } else if (targetNft.owner_id === currentUser.id) {
         btn.innerText = "自分の作品です";
         btn.disabled = true;
-    } else if (myNvt < targetNft.price_nvt) {
+    } else if (priceNvt < MIN_NNFT_PRICE_NVT) {
+        btn.innerText = `販売価格は最低 ${MIN_NNFT_PRICE_NVT} NVT 以上です`;
+        btn.disabled = true;
+    } else if (myNvt < priceNvt) {
         btn.innerText = "NVT残高が足りません";
         btn.disabled = true;
+    } else if (myNp < platformFeeNp) {
+        btn.innerText = `NP手数料が足りません（必要 ${platformFeeNp} NP）`;
+        btn.disabled = true;
     } else {
-        btn.innerText = "この作品を購入する";
+        btn.innerText = `この作品を購入する（手数料 ${platformFeeNp} NP）`;
         btn.disabled = false;
     }
 }
@@ -159,12 +351,12 @@ async function checkIfPurchased() {
     // 自分の作品なら何もしない
     if (currentUser.id === targetNft.owner_id) return; 
 
-    // sales_logs テーブルから、自分の購入履歴を探す
-    const { data: logs, error } = await supabaseClient
-        .from('sales_logs')
-        .select('id')
-        .eq('buyer_id', currentUser.id)
-        .eq('nft_id', targetNft.id);
+    // nnft_access_rights から、自分の閲覧権を探す
+const { data: logs, error } = await supabaseClient
+    .from("nnft_access_rights")
+    .select("id")
+    .eq("user_id", currentUser.id)
+    .eq("nft_metadata_id", targetNft.id);
 
     // 履歴が見つかった場合（すでに購入済み）
     if (logs && logs.length > 0) {
@@ -183,81 +375,149 @@ async function checkIfPurchased() {
 }
 
 async function processPurchase() {
-    // 運営（管理者）のUUID
-    const ADMIN_UUID = "fd7be995-23bb-443d-89af-f7c67c59334f"; 
+    if (!currentUser || !targetNft) {
+        alert("購入情報を読み込めていません。");
+        return;
+    }
 
-    if (!confirm(`${targetNft.price_nvt} NVTでこの作品を購入しますか？`)) return;
+    if (targetNft.owner_id === currentUser.id) {
+        alert("自分の作品は購入できません。");
+        return;
+    }
+
+    const priceNvt = Number(targetNft.price_nvt || 0);
+
+    if (!Number.isFinite(priceNvt) || priceNvt < MIN_NNFT_PRICE_NVT) {
+        alert(`NNFT作品価格は最低 ${MIN_NNFT_PRICE_NVT} NVT 以上が必要です。`);
+        return;
+    }
+
+    const platformFeeNp = Math.floor(priceNvt * NVT_TO_NP_RATE * PLATFORM_FEE_RATE);
 
     const btn = document.getElementById("buyButton");
-    btn.disabled = true;
-    btn.innerText = "決済処理中...";
 
     try {
-        // 1. 最新の残高を再チェック
-        const { data: profile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', currentUser.id).single();
-        if (profile.nvt_balance < targetNft.price_nvt) {
-            throw new Error("NVT残高が不足しています。");
+        btn.disabled = true;
+        btn.innerText = "購入準備中...";
+
+        // 1. 販売者Dynamicウォレットを取得
+        const { data: sellerProfile, error: sellerError } = await supabaseClient
+            .from("profiles")
+            .select("wallet_address, dynamic_wallet_address")
+            .eq("id", targetNft.owner_id)
+            .single();
+
+        if (sellerError || !sellerProfile) {
+            throw new Error("販売者プロフィールの取得に失敗しました。");
         }
 
-        const price = targetNft.price_nvt;
-        const fee = price * 0.05; // 5%手数料
-        const creatorGain = price - fee;      // 作者受取額（95%）
+        const sellerWalletAddress =
+            sellerProfile.dynamic_wallet_address ||
+            sellerProfile.wallet_address ||
+            "";
 
-        // --- 決済処理開始 ---
+        if (!sellerWalletAddress) {
+            throw new Error("販売者Dynamicウォレットが登録されていません。");
+        }
 
-        // A. 購入者の残高を減らす
-        const { error: buyerError } = await supabaseClient
-            .from('profiles')
-            .update({ nvt_balance: profile.nvt_balance - price })
-            .eq('id', currentUser.id);
-        if (buyerError) throw buyerError;
+        // 2. 購入者プロフィール・NP残高確認
+        const { data: buyerProfile, error: buyerError } = await supabaseClient
+            .from("profiles")
+            .select("wallet_address, dynamic_wallet_address, np_balance")
+            .eq("id", currentUser.id)
+            .single();
 
-        // B. 作者（クリエイター）に残高を加算
-        const { data: creatorProfile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', targetNft.owner_id).single();
-        const { error: creatorError } = await supabaseClient
-            .from('profiles')
-            .update({ nvt_balance: (creatorProfile.nvt_balance || 0) + creatorGain })
-            .eq('id', targetNft.owner_id);
-        if (creatorError) throw creatorError;
+        if (buyerError || !buyerProfile) {
+            throw new Error("購入者プロフィールの取得に失敗しました。");
+        }
 
-        // C. 運営（管理者）に残高を加算
-        const { data: adminProfile } = await supabaseClient.from('profiles').select('nvt_balance').eq('id', ADMIN_UUID).single();
-        const { error: adminError } = await supabaseClient
-            .from('profiles')
-            .update({ nvt_balance: (adminProfile.nvt_balance || 0) + fee })
-            .eq('id', ADMIN_UUID);
-        if (adminError) throw adminError;
+        currentProfile = buyerProfile;
+        currentWalletAddress =
+            buyerProfile.dynamic_wallet_address ||
+            buyerProfile.wallet_address ||
+            "";
 
-        // D. 売上カウントを増やす
-        const { error: countError } = await supabaseClient
-            .from('nft_metadata')
-            .update({ sales_count: (targetNft.sales_count || 0) + 1 })
-            .eq('id', targetNft.id);
-        if (countError) throw countError;
+        if (!currentWalletAddress) {
+            throw new Error("購入者Dynamicウォレットが登録されていません。");
+        }
 
-        // E. 購入履歴（閲覧権）の記録
-        const { error: logError } = await supabaseClient
-            .from('sales_logs')
-            .insert([{
-                buyer_id: currentUser.id,
-                nft_id: targetNft.id,
-                price_nvt: price
-            }]);
-        if (logError) throw logError;
-        
-        // --- 決済処理終了 ---
+        const buyerNpBalance = Number(buyerProfile.np_balance || 0);
 
-        alert("購入が完了しました！ライブラリで作品をお楽しみください。");
-        // 購入後、画面を再読み込みして「購入済み」ボタンに切り替える
-        window.location.reload();
+        if (buyerNpBalance < platformFeeNp) {
+            throw new Error(`NP残高が不足しています。必要手数料: ${platformFeeNp} NP`);
+        }
 
+        // 3. オンチェーンNVT残高確認
+        const onchainNvtBalance = await fetchOnchainNvtBalance(currentWalletAddress);
+
+        if (onchainNvtBalance < priceNvt) {
+            throw new Error(`NVT残高が不足しています。必要額: ${priceNvt} NVT`);
+        }
+
+        const ok = confirm(
+            [
+                `${targetNft.title_at_mint} を購入します。`,
+                "",
+                `作品価格: ${priceNvt} NVT`,
+                `送金先: ${sellerWalletAddress}`,
+                `運営手数料: ${platformFeeNp} NP`,
+                "",
+                "購入者Dynamicウォレットから作者DynamicウォレットへNVT送金します。",
+                "実行しますか？"
+            ].join("\n")
+        );
+
+        if (!ok) {
+            btn.disabled = false;
+            btn.innerText = "この作品を購入する";
+            return;
+        }
+
+        // 4. 購入者Dynamicウォレット → 作者DynamicウォレットへNVT送金
+        btn.innerText = "NVT送金中...";
+
+        const txHash = await sendNvtFromDynamicWallet({
+            toAddress: sellerWalletAddress,
+            amountNvt: priceNvt
+        });
+
+        // 5. tx_hashを検証して購入ログ・閲覧権・NP手数料を反映
+        btn.innerText = "購入記録を保存中...";
+
+        const { data: confirmResult, error: confirmError } =
+            await supabaseClient.functions.invoke("confirm-nnft-purchase", {
+                body: {
+                    nft_metadata_id: targetNft.id,
+                    tx_hash: txHash
+                }
+            });
+
+        if (confirmError) {
+            throw confirmError;
+        }
+
+        if (!confirmResult?.success) {
+            throw new Error(confirmResult?.error || "購入確認に失敗しました。");
+        }
+
+        alert(
+            "購入が完了しました。\n" +
+            "作品価格: " + confirmResult.price_nvt + " NVT\n" +
+            "運営手数料: " + confirmResult.platform_fee_np + " NP\n" +
+            "tx_hash: " + confirmResult.nvt_payment_tx_hash
+        );
+
+        window.location.href = `nft_view.html?id=${targetNft.id}`;
     } catch (err) {
         console.error("Purchase Error:", err);
-        alert("決済に失敗しました: " + err.message);
+        alert("購入に失敗しました: " + (err?.message || String(err)));
+
         btn.disabled = false;
         btn.innerText = "この作品を購入する";
     }
 }
+
+window.processPurchase = processPurchase;
 
 init();
 </script>
