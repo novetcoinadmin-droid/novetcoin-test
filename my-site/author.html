@@ -279,6 +279,10 @@ async function togglePublish(id, currentPublishedStatus) {
 
     if (error) throw error;
 
+        let publishMessage = currentPublishedStatus
+      ? "下書きに戻しました。"
+      : "本棚に投稿しました！";
+
     if (newStatus === true) {
       const { data: rewardData, error: rewardError } = await window.supabaseClient.rpc('check_and_grant_reward', { 
         target_novel_id: id 
@@ -286,13 +290,23 @@ async function togglePublish(id, currentPublishedStatus) {
 
       if (rewardError) {
         console.error("報酬チェック失敗:", rewardError.message);
-        alert("報酬判定でエラーが発生しました: " + rewardError.message);
-      } else if (rewardData && rewardData.status === 'success') {
-        alert(`【4000文字達成報酬】\n報酬として ${rewardData.new_grants} NVT を付与しました。`);
+        publishMessage += "\n\n※報酬判定でエラーが発生しました: " + rewardError.message;
+      } else if (rewardData) {
+        if (rewardData.status === 'success') {
+          publishMessage += `\n\n【投稿報酬候補】\n公開中の本文が条件を満たしたため、${rewardData.new_grants} NVT分の報酬候補を作成しました。\n\n報酬は72時間後に確定します。確定前に対象の話を非公開にすると、候補は取り消されます。`;
+        } else if (rewardData.status === 'cancelled_pending') {
+          publishMessage += `\n\n【投稿報酬】\n公開条件を下回ったため、未確定の報酬候補を取り消しました。`;
+        } else if (rewardData.status === 'no_reward_derivative') {
+          publishMessage += `\n\n【投稿報酬】\n二次創作として登録されているため、NVT報酬の対象外です。`;
+        } else if (rewardData.status === 'no_change') {
+          publishMessage += `\n\n【投稿報酬】\n現在、新しく発生する報酬候補はありません。`;
+        } else if (rewardData.status === 'not_found') {
+          publishMessage += `\n\n【投稿報酬】\n報酬判定対象の作品が見つかりませんでした。`;
+        }
       }
     }
 
-    alert(currentPublishedStatus ? "下書きに戻しました。" : "本棚に投稿しました！");
+    alert(publishMessage);
     await fetchNovels(); 
     if (typeof renderRightPanel === 'function') renderRightPanel();
 
