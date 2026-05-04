@@ -336,8 +336,8 @@ body {
                 注意：無くても生成可能です。同じようなキャラや世界観を統一したい時におすすめです。
             </p>
 
-            <button type="button" class="btn" style="background:#fff; border:1px solid #6a0dad; color:#6a0dad;" onclick="standardizeFromAsset()">
-                🖼️ イラスト保管庫 → 基準化
+            <button type="button" class="btn" style="background:#fff; border:1px solid #6a0dad; color:#6a0dad;" onclick="runStandardizeExtraction()">
+                🖼️ イラスト保管庫から選択
             </button>
 
             <div id="standardStatus" style="font-size:10px; color:#999; margin-top:8px;">
@@ -748,6 +748,50 @@ async function extractStandardReferenceFeatures() {
     return updatedRef;
 }
 
+async function runStandardizeExtraction() {
+    try {
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+        if (!raw) {
+            alert("先にイラスト保管庫から基準化用の画像を選択してください。");
+            return;
+        }
+
+        const ref = JSON.parse(raw);
+        ref.extracting = true;
+        ref.extracted = false;
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+        renderStandardReferenceCard();
+
+        const statusBox = document.getElementById("standardStatus");
+        if (statusBox) {
+            const loadingText = document.createElement("div");
+            loadingText.id = "standardLoadingText";
+            loadingText.style = "font-size:11px; color:#6a0dad; margin-top:8px; font-weight:bold;";
+            loadingText.innerText = "プロンプトデータを読み込んでいます...";
+            statusBox.appendChild(loadingText);
+        }
+
+        await extractStandardReferenceFeatures();
+
+        alert("基準化が完了しました。");
+    } catch (err) {
+        console.error("基準化エラー:", err);
+
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+        if (raw) {
+            try {
+                const ref = JSON.parse(raw);
+                ref.extracting = false;
+                ref.extracted = false;
+                ref.extraction_error = err instanceof Error ? err.message : String(err);
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+                renderStandardReferenceCard();
+            } catch {}
+        }
+
+        alert("基準化に失敗しました。プロンプトデータの読み込みで問題が発生しています。");
+    }
+}
 
 async function saveStandardReference(asset) {
     try {
@@ -763,11 +807,11 @@ async function saveStandardReference(asset) {
         await saveStandardReferenceImageBlob(blob);
 
         // 保存直後に読み戻して、抽出用Blobが本当に残っているか確認
-const cachedBlob = await getStandardReferenceImageBlob();
+        const cachedBlob = await getStandardReferenceImageBlob();
 
-if (!cachedBlob || cachedBlob.size === 0) {
-    throw new Error("基準化画像Blobの保存確認に失敗しました。");
-}
+        if (!cachedBlob || cachedBlob.size === 0) {
+            throw new Error("基準化画像Blobの保存確認に失敗しました。");
+        }
 
         const ref = {
             type,
@@ -775,25 +819,15 @@ if (!cachedBlob || cachedBlob.size === 0) {
             title: asset.file_name || "無題",
             image_url: asset.file_url,
             extracted: false,
+            extracting: false,
             blob_cached: true,
             saved_at: new Date().toISOString()
         };
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-renderStandardReferenceCard();
+        renderStandardReferenceCard();
 
-const statusBox = document.getElementById("standardStatus");
-if (statusBox) {
-    const loadingText = document.createElement("div");
-    loadingText.id = "standardLoadingText";
-    loadingText.style = "font-size:11px; color:#6a0dad; margin-top:8px; font-weight:bold;";
-    loadingText.innerText = "プロンプトデータを読み込んでいます...";
-    statusBox.appendChild(loadingText);
-}
-
-await extractStandardReferenceFeatures();
-
-alert("基準化イラストを設定しました。");
+        alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、プロンプトデータを読み込みます。");
     } catch (err) {
         console.error("基準化画像の保存エラー:", err);
         alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
@@ -854,7 +888,7 @@ function renderStandardReferenceCard() {
                 </div>
                 <div style="display:flex; gap:6px; margin-top:8px;">
                     <button type="button" onclick="standardizeFromAsset()" style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;">
-                        変更
+                        基準化
                     </button>
                     <button type="button" onclick="clearStandardReference()" style="flex:1; padding:6px; border:1px solid #999; color:#666; background:#f5f5f5; border-radius:5px; cursor:pointer; font-size:11px;">
                         解除
