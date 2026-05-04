@@ -962,18 +962,128 @@ function toggleMobileView() {
     }
     renderPage();
 }
+function buildTemplateSelect(label, id, options) {
+    return `
+        <div style="margin-bottom:8px;">
+            <label style="font-size:11px; color:#666; font-weight:bold;">${label}</label>
+            <select id="${id}" class="template-field" style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px;">
+                <option value="">指定なし</option>
+                ${options.map(opt => `<option value="${opt}">${opt}</option>`).join("")}
+            </select>
+        </div>
+    `;
+}
+
 function updateTemplateDisplay() {
     const type = document.getElementById("templateType")?.value;
     const box = document.getElementById("templateDisplay");
     if (!box) return;
 
     if (type === "character") {
-        box.innerText = "キャラクターの顔立ち、輪郭、髪型、表情、服装、ポーズ、画面構成を基準化して生成します。";
-    } else if (type === "scenery") {
-        box.innerText = "世界観、建物、空気感、光源、奥行き、場所の雰囲気を基準化して背景・風景を生成します。";
-    } else {
-        box.innerText = "スキル、魔法、装備、アイテム、象徴物など、キャラクターや風景以外の要素を生成します。";
+        box.innerHTML = `
+            <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
+                一人キャラクター用テンプレートです。顔や輪郭などの基準化特徴に、見え方・表情・衣装・背景などを組み合わせます。
+            </div>
+
+            ${buildTemplateSelect("キャラの見え方", "tpl_character_view", [
+                "顔アップ", "バストアップ", "上半身", "膝上", "全身", "少し離れた全身", "遠景の人物"
+            ])}
+
+            ${buildTemplateSelect("表情", "tpl_character_expression", [
+                "無表情", "微笑み", "喜び", "悲しげ", "真面目", "怒り", "疲れ", "照れ", "緊張", "決意"
+            ])}
+
+            ${buildTemplateSelect("ポーズ", "tpl_character_pose", [
+                "正面立ち", "斜め立ち", "座る", "振り返る", "歩く", "手を胸に当てる", "武器を構える", "本を持つ", "祈る", "見上げる"
+            ])}
+
+            ${buildTemplateSelect("衣装デザイン", "tpl_character_outfit", [
+                "ドレス", "スーツ", "甲冑", "冒険者マント", "和服", "制服", "ローブ", "旅装", "貴族服", "カジュアル服"
+            ])}
+
+            ${buildTemplateSelect("特徴パーツ", "tpl_character_parts", [
+                "角", "翼", "獣耳", "尻尾", "宝石装飾", "髪飾り", "眼帯", "仮面", "非人間的な瞳", "魔法紋"
+            ])}
+
+            ${buildTemplateSelect("背景", "tpl_character_background", [
+                "無地", "和風", "西洋風", "現代風", "自然", "城内", "路地", "森", "室内", "幻想空間"
+            ])}
+
+            ${buildTemplateSelect("ライティング・雰囲気", "tpl_character_lighting", [
+                "明るい", "暗い", "逆光", "柔らかい光", "強い影", "シリアス", "ポップ", "透明感", "神秘的", "静かな雰囲気"
+            ])}
+
+            ${buildTemplateSelect("質感", "tpl_character_texture", [
+                "アニメ風", "ラノベ挿絵風", "鉛筆線画風", "インク画風", "繊細", "荒い線", "淡い陰影", "強いコントラスト"
+            ])}
+        `;
+        return;
     }
+
+    if (type === "scenery") {
+        box.innerHTML = `
+            <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
+                風景用テンプレートです。基準化した世界観を使いながら、視点・構図・距離感・光・演出を調整します。
+            </div>
+
+            ${buildTemplateSelect("視点", "tpl_scenery_pov", [
+                "一人称視点", "背中越し", "俯瞰", "見上げる", "見下ろす", "遠くから眺める", "入口から覗く"
+            ])}
+
+            ${buildTemplateSelect("構図", "tpl_scenery_composition", [
+                "ワイド構図", "手前から奥への導線", "中央に象徴物", "左右対称", "斜め構図", "奥行き重視", "クローズアップ"
+            ])}
+
+            ${buildTemplateSelect("距離感・スケール", "tpl_scenery_scale", [
+                "近景", "中景", "遠景", "広大な景色", "巨大建造物", "空を大きく見せる", "小さな人物と巨大な背景"
+            ])}
+
+            ${buildTemplateSelect("場所タイプ", "tpl_scenery_place", [
+                "草原", "森", "山岳", "水辺", "遺跡", "ダンジョン", "城下町", "和風の町", "西洋風の町", "異世界都市", "現代都市", "室内"
+            ])}
+
+            ${buildTemplateSelect("世界観要素", "tpl_scenery_world", [
+                "魔法陣", "浮遊物", "未知の建築", "巨大な門", "空中都市", "古代遺物", "異形の植物", "幻想的な生物", "霧に沈む建物", "神殿"
+            ])}
+
+            ${buildTemplateSelect("環境ディテール", "tpl_scenery_detail", [
+                "草木", "石畳", "壊れた柱", "水面", "風の流れ", "空気中の粒子", "砂埃", "雪", "雨", "雲", "遠景の建物"
+            ])}
+
+            ${buildTemplateSelect("光・時間帯", "tpl_scenery_light", [
+                "朝", "昼", "夕方", "夜", "月明かり", "逆光", "木漏れ日", "神秘的な光", "暗い洞窟光", "窓から差す光"
+            ])}
+
+            ${buildTemplateSelect("明暗設計", "tpl_scenery_tone", [
+                "明るい", "暗い", "高コントラスト", "柔らかい陰影", "白背景多め", "黒ベタ多め", "霧で淡い", "影を強調", "透明感重視"
+            ])}
+
+            ${buildTemplateSelect("主人公の存在", "tpl_scenery_person", [
+                "人物なし", "小さなシルエット", "背中だけ入れる", "画面端に立つ", "中央に小さく配置", "手前に一部だけ入れる"
+            ])}
+
+            ${buildTemplateSelect("感情トーン・演出", "tpl_scenery_mood", [
+                "驚き", "畏怖", "静けさ", "希望", "孤独", "神秘的", "不穏", "冒険感", "夢のような雰囲気", "霧", "光のにじみ", "被写界深度風"
+            ])}
+        `;
+        return;
+    }
+
+    box.innerHTML = `
+        <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
+            その他テンプレートです。不要な項目は「指定なし」のままで大丈夫です。作りたい内容に合わない項目は無視して使ってください。
+        </div>
+
+        ${buildTemplateSelect("用途カテゴリ", "tpl_other_category", [
+            "アイテム", "魔法・スキル", "装備品"
+        ])}
+
+        <div id="otherTemplateDetail" style="margin-top:8px;"></div>
+
+        <button type="button" onclick="updateOtherTemplateDetail()" style="width:100%; padding:8px; border:1px solid #ccc; background:#f7f7f7; border-radius:6px; cursor:pointer; font-size:12px;">
+            用途カテゴリの項目を表示
+        </button>
+    `;
 }
 
 function standardizeFromAsset() {
