@@ -337,8 +337,8 @@ body {
             </p>
 
             <button type="button" class="btn" style="background:#fff; border:1px solid #6a0dad; color:#6a0dad;" onclick="standardizeFromAsset()">
-                🖼️ イラスト保管庫から選択
-            </button>
+    🖼️ イラスト保管庫から選択
+</button>
 
             <div id="standardStatus" style="font-size:10px; color:#999; margin-top:8px;">
                 現在の基準化：未設定
@@ -887,7 +887,7 @@ function renderStandardReferenceCard() {
                     特徴抽出：${ref.extracted ? "完了" : "未実行"}
                 </div>
                 <div style="display:flex; gap:6px; margin-top:8px;">
-                    <button type="button" onclick="standardizeFromAsset()" style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;">
+                    <button type="button" onclick="runStandardizeExtraction()" style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;">
                         基準化
                     </button>
                     <button type="button" onclick="clearStandardReference()" style="flex:1; padding:6px; border:1px solid #999; color:#666; background:#f5f5f5; border-radius:5px; cursor:pointer; font-size:11px;">
