@@ -333,6 +333,7 @@ body {
             <label style="font-size:13px; font-weight:bold;">基準化</label>
             <p style="font-size:10px; color:#777; line-height:1.5; margin:6px 0 10px;">
                 イラスト保管庫から基準にしたい画像を選び、今後の生成の作風・顔立ち・世界観を安定させます。
+                注意：無くても生成可能です。同じようなキャラや世界観を統一したい時におすすめです。
             </p>
 
             <button type="button" class="btn" style="background:#fff; border:1px solid #6a0dad; color:#6a0dad;" onclick="standardizeFromAsset()">
@@ -682,6 +683,72 @@ async function fetchImageAsBlob(imageUrl) {
     return await response.blob();
 }
 
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+            const result = String(reader.result || "");
+            const base64 = result.includes(",") ? result.split(",")[1] : result;
+            resolve(base64);
+        };
+
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function extractStandardReferenceFeatures() {
+    const raw = localStorage.getItem(STANDARD_REF_KEY);
+    if (!raw) {
+        throw new Error("基準化情報が見つかりません。");
+    }
+
+    const ref = JSON.parse(raw);
+    const blob = await getStandardReferenceImageBlob();
+
+    if (!blob || blob.size === 0) {
+        throw new Error("基準化画像Blobが見つかりません。");
+    }
+
+    const imageBase64 = await blobToBase64(blob);
+    const imageMimeType = blob.type || "image/webp";
+
+    const { data, error } = await supabaseClient.functions.invoke(
+        "extract-standard-reference-features",
+        {
+            body: {
+                image_base64: imageBase64,
+                image_mime_type: imageMimeType
+            }
+        }
+    );
+
+    if (error) {
+        console.error("特徴抽出Function Error:", error);
+        throw new Error(error.message || "特徴抽出Functionの呼び出しに失敗しました。");
+    }
+
+    if (!data || data.ok !== true) {
+        console.error("特徴抽出API Error:", data);
+        throw new Error(data?.error || "特徴抽出に失敗しました。");
+    }
+
+    const updatedRef = {
+        ...ref,
+        extracted: true,
+        extracting: false,
+        extracted_at: new Date().toISOString(),
+        features: data.extracted
+    };
+
+    localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(updatedRef));
+    renderStandardReferenceCard();
+
+    return updatedRef;
+}
+
+
 async function saveStandardReference(asset) {
     try {
         const type = document.getElementById("templateType")?.value || "character";
@@ -695,6 +762,13 @@ async function saveStandardReference(asset) {
         const blob = await fetchImageAsBlob(asset.file_url);
         await saveStandardReferenceImageBlob(blob);
 
+        // 保存直後に読み戻して、抽出用Blobが本当に残っているか確認
+const cachedBlob = await getStandardReferenceImageBlob();
+
+if (!cachedBlob || cachedBlob.size === 0) {
+    throw new Error("基準化画像Blobの保存確認に失敗しました。");
+}
+
         const ref = {
             type,
             asset_id: asset.id || null,
@@ -706,9 +780,20 @@ async function saveStandardReference(asset) {
         };
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-        renderStandardReferenceCard();
+renderStandardReferenceCard();
 
-        alert("基準化イラストを設定しました。");
+const statusBox = document.getElementById("standardStatus");
+if (statusBox) {
+    const loadingText = document.createElement("div");
+    loadingText.id = "standardLoadingText";
+    loadingText.style = "font-size:11px; color:#6a0dad; margin-top:8px; font-weight:bold;";
+    loadingText.innerText = "プロンプトデータを読み込んでいます...";
+    statusBox.appendChild(loadingText);
+}
+
+await extractStandardReferenceFeatures();
+
+alert("基準化イラストを設定しました。");
     } catch (err) {
         console.error("基準化画像の保存エラー:", err);
         alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
