@@ -48,7 +48,7 @@
     .btn-like { background: #ff4d4d; color: white; }
     .btn-like:disabled { background: #ccc; }
   </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+<style>body { background: #fdeff2 !important; }</style></head>
 <body>
 
 <div class="menu">
@@ -131,101 +131,10 @@ async function checkBannedContent(text) {
 }
 
 async function reportNovel() {
-  const btn = event.target; 
-  const GEMINI_API_KEY = "AIzaSyA3DOLSOmxjoj9EAeM3uluPjIsv8Br8J4s"; // あなたのキー
-
-  if (!confirm("AIによる自動精査を開始します。よろしいですか？")) return;
-
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return alert("ログインが必要です。");
-
-  try {
-    // 1. 作品データの取得
-    const { data: novel } = await supabaseClient
-      .from('novels')
-      .select('title, content, author_id')
-      .eq('id', novelId)
-      .single();
-
-    // 本文抽出ロジック
-    let fullText = "";
-    if (Array.isArray(novel.content)) {
-      fullText = novel.content.map(chapter => {
-        const episodes = chapter.episodes || [];
-        return episodes.map(ep => ep.content || "").join("\n");
-      }).join("\n");
-    } else {
-      fullText = typeof novel.content === 'string' ? novel.content : JSON.stringify(novel.content);
-    }
-
-    console.log("【チェック】AIに送る本文の冒頭:", fullText.substring(0, 200));
-
-    // 2. AIへの命令（プロンプト）
-    const prompt = `あなたは厳格な検閲官です。以下の【作品本文】を読み、性的・暴力・不適切な表現があるか判定してください。
-    出力は必ず以下のJSON形式1件のみとし、解説は一切禁止します。
-    {"score": 判定数値0-100, "reason": "理由"}
-    【作品本文】
-    ${fullText}`;
-
-    // 3. AIに送信（Gemini 3 Flash Preview）
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-    
-    console.log("--- AI判定開始 ---");
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      })
-    });
-
-    const result = await response.json();
-    const aiResponseText = result.candidates[0].content.parts[0].text;
-    const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
-    
-    // ここで aiResult を定義（これがエラーの原因でした）
-    const aiResult = JSON.parse(jsonMatch[0]);
-    console.log("AI判定結果:", aiResult);
-
-    // 4. DB記録（通報テーブル）
-    await supabaseClient.from('reports').upsert([{ 
-      reporter_id: user.id, 
-      novel_id: novelId, 
-      reason: "自動精査通報", 
-      ai_score: aiResult.score, 
-      ai_comment: aiResult.reason, 
-      status: 'processed' 
-    }], { onConflict: 'reporter_id, novel_id' });
-
-    // 5. 自動執行ロジック
-    if (aiResult.score >= 80) {
-      await supabaseClient.from('novels').update({ review_status: 'suspended', published: false }).eq('id', novelId);
-      
-      const { data: profile } = await supabaseClient.from('profiles').select('violation_count').eq('id', novel.author_id).maybeSingle();
-      if (profile) {
-        const newCount = (profile.violation_count || 0) + 1;
-        await supabaseClient.from('profiles').update({ 
-          violation_count: newCount, 
-          is_frozen: newCount >= 3 
-        }).eq('id', novel.author_id);
-      }
-      alert(`【AI判定：違反確定】スコア: ${aiResult.score}\n作品を即時停止しました。`);
-      location.reload();
-    } else {
-      alert(`AI判定スコア: ${aiResult.score}\nこの作品は許容範囲内です。`);
-    }
-
-  } catch (err) {
-    console.error("エラー詳細:", err);
-    alert("精査中に問題が発生しました。");
-  }
+  alert(
+    "通報機能は、AI判定処理を安全なサーバー側処理へ移行中です。\n" +
+    "公開前に再開予定です。"
+  );
 }
 
 // --- 4. 初期化処理 ---
