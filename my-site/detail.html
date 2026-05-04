@@ -303,12 +303,33 @@ function renderUI() {
   document.getElementById("authorWorksLink").href = `works.html?filterAuthor=${currentNovel.author_id}`;
 
   const tocArea = document.getElementById("tocArea");
-  if (flatEpisodes.length > 0) {
-    tocArea.innerHTML = flatEpisodes.map((e, i) => `
-      <div class="toc-item" onclick="renderEpisode(${i})"><span>${e.title}</span></div>
-    `).join("");
-    renderEpisode(0);
+
+  // 公開中の話が1つもない場合
+  if (!flatEpisodes || flatEpisodes.length === 0) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        現在公開中の話はありません。
+      </p>
+    `;
+
+    document.getElementById("displayChapTitle").innerText = "";
+    document.getElementById("displayEpiTitle").innerText = "現在公開中の話はありません";
+    document.getElementById("displayBody").innerText =
+      "この作品は投稿済みですが、作者が現在公開している話はありません。";
+
+    document.getElementById("prevBtn").disabled = true;
+    document.getElementById("nextBtn").disabled = true;
+
+    checkLikeStatus();
+    return;
   }
+
+  // 公開中の話がある場合
+  tocArea.innerHTML = flatEpisodes.map((e, i) => `
+    <div class="toc-item" onclick="renderEpisode(${i})"><span>${e.title}</span></div>
+  `).join("");
+
+  renderEpisode(0);
   checkLikeStatus();
 }
 
