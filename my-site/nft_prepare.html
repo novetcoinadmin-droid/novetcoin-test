@@ -391,6 +391,9 @@ let isMobileView = false;
 let isEdited = false; // ✨ これを追加（編集されたかを判定するフラグ）
 let assetModalMode = "insert"; // insert / standardize
 const STANDARD_REF_KEY = "novet_standard_reference";
+const STANDARD_REF_DB_NAME = "novet_standard_reference_cache";
+const STANDARD_REF_STORE_NAME = "standard_reference_images";
+const STANDARD_REF_IMAGE_KEY = "current";
 
 // 1. 初期化関数
 async function init() {
@@ -491,7 +494,7 @@ async function init() {
         // 🌟 最後に描画
         renderPage();
         renderStandardReferenceCard();
-        
+
         console.log("✅ 初期化完了：最新の画像データを読み込みました", pageAssets);
 
     } catch (err) { 
@@ -553,12 +556,12 @@ function closeAssetModal() {
     document.getElementById('assetModal').style.display = 'none';
 }
 
-function selectAssetFromList(index) {
+async function selectAssetFromList(index) {
     const asset = window.currentAssetList?.[index];
     if (!asset) return;
 
     if (assetModalMode === "standardize") {
-        saveStandardReference(asset);
+        await saveStandardReference(asset);
         closeAssetModal();
         assetModalMode = "insert";
         return;
@@ -585,29 +588,144 @@ function selectAsset(imageUrl) {
     alert("イラストを挿入しました！\n（※忘れずに「保存」ボタンを押してください）");
 }
 
-function saveStandardReference(asset) {
-    const type = document.getElementById("templateType")?.value || "character";
+function openStandardReferenceDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(STANDARD_REF_DB_NAME, 1);
 
-    const ref = {
-        type,
-        asset_id: asset.id || null,
-        title: asset.file_name || "無題",
-        image_url: asset.file_url,
-        extracted: false,
-        saved_at: new Date().toISOString()
-    };
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
 
-    localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-    renderStandardReferenceCard();
+            if (!db.objectStoreNames.contains(STANDARD_REF_STORE_NAME)) {
+                db.createObjectStore(STANDARD_REF_STORE_NAME, { keyPath: "key" });
+            }
+        };
 
-    alert("基準化イラストを設定しました。");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
 }
 
-function clearStandardReference() {
+async function saveStandardReferenceImageBlob(blob) {
+    const db = await openStandardReferenceDb();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STANDARD_REF_STORE_NAME, "readwrite");
+        const store = tx.objectStore(STANDARD_REF_STORE_NAME);
+
+        // 常に current 1件だけを上書き保存する
+        store.put({
+            key: STANDARD_REF_IMAGE_KEY,
+            blob,
+            updated_at: new Date().toISOString()
+        });
+
+        tx.oncomplete = () => {
+            db.close();
+            resolve(true);
+        };
+
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+}
+
+async function getStandardReferenceImageBlob() {
+    const db = await openStandardReferenceDb();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STANDARD_REF_STORE_NAME, "readonly");
+        const store = tx.objectStore(STANDARD_REF_STORE_NAME);
+        const request = store.get(STANDARD_REF_IMAGE_KEY);
+
+        request.onsuccess = () => {
+            db.close();
+            resolve(request.result?.blob || null);
+        };
+
+        request.onerror = () => {
+            db.close();
+            reject(request.error);
+        };
+    });
+}
+
+async function clearStandardReferenceImageBlob() {
+    const db = await openStandardReferenceDb();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STANDARD_REF_STORE_NAME, "readwrite");
+        const store = tx.objectStore(STANDARD_REF_STORE_NAME);
+
+        store.delete(STANDARD_REF_IMAGE_KEY);
+
+        tx.oncomplete = () => {
+            db.close();
+            resolve(true);
+        };
+
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+}
+
+async function fetchImageAsBlob(imageUrl) {
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+        throw new Error("基準化画像の取得に失敗しました。");
+    }
+
+    return await response.blob();
+}
+
+async function saveStandardReference(asset) {
+    try {
+        const type = document.getElementById("templateType")?.value || "character";
+
+        if (!asset.file_url) {
+            alert("基準化画像のURLが見つかりません。");
+            return;
+        }
+
+        // 画像本体を取得して、IndexedDBに current 1件だけ保存する
+        const blob = await fetchImageAsBlob(asset.file_url);
+        await saveStandardReferenceImageBlob(blob);
+
+        const ref = {
+            type,
+            asset_id: asset.id || null,
+            title: asset.file_name || "無題",
+            image_url: asset.file_url,
+            extracted: false,
+            blob_cached: true,
+            saved_at: new Date().toISOString()
+        };
+
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+        renderStandardReferenceCard();
+
+        alert("基準化イラストを設定しました。");
+    } catch (err) {
+        console.error("基準化画像の保存エラー:", err);
+        alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
+    }
+}
+
+async function clearStandardReference() {
     if (!confirm("現在の基準化イラストを解除しますか？")) return;
 
-    localStorage.removeItem(STANDARD_REF_KEY);
-    renderStandardReferenceCard();
+    try {
+        await clearStandardReferenceImageBlob();
+        localStorage.removeItem(STANDARD_REF_KEY);
+        renderStandardReferenceCard();
+    } catch (err) {
+        console.error("基準化画像の解除エラー:", err);
+        alert("基準化画像の解除中に問題が発生しました。");
+    }
 }
 
 function renderStandardReferenceCard() {
