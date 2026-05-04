@@ -274,16 +274,24 @@ async function init() {
   supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
   supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
 
-  flatEpisodes = [];
-  if (novel.content) {
+    flatEpisodes = [];
+
+  if (Array.isArray(novel.content)) {
     novel.content.forEach(chap => {
-      if (chap.episodes) {
-        chap.episodes.forEach(epi => {
-          flatEpisodes.push({ chapTitle: chap.title, title: epi.title, content: epi.content });
+      const publicEpisodes = Array.isArray(chap.episodes)
+        ? chap.episodes.filter(epi => epi.is_public === true)
+        : [];
+
+      publicEpisodes.forEach(epi => {
+        flatEpisodes.push({
+          chapTitle: chap.title || "",
+          title: epi.title || "無題",
+          content: epi.content || ""
         });
-      }
+      });
     });
   }
+
   renderUI();
 }
 
