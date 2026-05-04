@@ -32,7 +32,7 @@
     .btn-write { background: #28a745; color: white; font-size: 12px; }
     .btn-add { background: #f0f0f0; color: #333; font-size: 12px; margin-top: 5px; }
   </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
 <header>
@@ -231,24 +231,76 @@ function checkBeforeLeave() {
 }
 
 // --- 3. ツリー描画・構成管理（既存のまま） ---
+// --- 3. ツリー描画・構成管理 ---
 function renderTree() {
   const container = document.getElementById("treeContainer");
   container.innerHTML = "";
+
   if (!novelData.content || novelData.content.length === 0) {
     container.innerHTML = "<p style='color:#999; padding:20px;'>まだ章がありません。</p>";
     return;
   }
+
   novelData.content.forEach((ch, chIdx) => {
+    if (!Array.isArray(ch.episodes)) ch.episodes = [];
+
+    const totalEpisodes = ch.episodes.length;
+    const publicEpisodes = ch.episodes.filter(ep => ep.is_public === true).length;
+
     const chDiv = document.createElement("div");
     chDiv.className = "chapter-item";
-    chDiv.style = "background: #e0e0e0; padding: 12px; margin-top: 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #444;";
-    chDiv.innerHTML = `<span>${ch.title}</span><div><button class="btn" onclick="renameChapter(${chIdx})">名前変更</button><button class="btn" style="background:#ff4d4d; color:white;" onclick="deleteChapter(${chIdx})">削除</button></div>`;
+    chDiv.style = "background: #e0e0e0; padding: 12px; margin-top: 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #444; gap: 10px;";
+
+    chDiv.innerHTML = `
+      <div>
+        <div style="font-weight:bold;">${ch.title}</div>
+        <div style="font-size:11px; color:#666; margin-top:4px;">
+          公開 ${publicEpisodes} / ${totalEpisodes} 話
+        </div>
+      </div>
+      <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+        <button class="btn" style="background:#2ecc71; color:white;" onclick="setChapterEpisodesPublic(${chIdx}, true)">全話公開</button>
+        <button class="btn" style="background:#777; color:white;" onclick="setChapterEpisodesPublic(${chIdx}, false)">全話非公開</button>
+        <button class="btn" onclick="renameChapter(${chIdx})">名前変更</button>
+        <button class="btn" style="background:#ff4d4d; color:white;" onclick="deleteChapter(${chIdx})">削除</button>
+      </div>
+    `;
     container.appendChild(chDiv);
 
     ch.episodes.forEach((ep, epIdx) => {
+      const isPublic = ep.is_public === true;
+
       const epDiv = document.createElement("div");
       epDiv.className = "episode-item";
-      epDiv.innerHTML = `<span>${ep.title}</span><div><button class="btn" onclick="renameEpisode(${chIdx}, ${epIdx})">名前変更</button><button class="btn" style="background:#ff4d4d; color:white;" onclick="deleteEpisode(${chIdx}, ${epIdx})">削除</button><button class="btn btn-write" onclick="goToEditor('${ep.id}')">執筆</button></div>`;
+      epDiv.style = `
+        background: ${isPublic ? "#f0fff4" : "#fdfdfd"};
+        border-left: 3px solid ${isPublic ? "#2ecc71" : "#999"};
+        padding: 10px;
+        margin: 5px 0 5px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        gap: 10px;
+      `;
+
+      epDiv.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:bold;">${ep.title}</div>
+          <div style="font-size:11px; margin-top:4px; color:${isPublic ? "#2e7d32" : "#777"};">
+            ${isPublic ? "公開中" : "非公開"}
+          </div>
+        </div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="btn" style="background:${isPublic ? "#777" : "#2ecc71"}; color:white;" onclick="toggleEpisodePublic(${chIdx}, ${epIdx})">
+            ${isPublic ? "非公開にする" : "この話を公開"}
+          </button>
+          <button class="btn" onclick="renameEpisode(${chIdx}, ${epIdx})">名前変更</button>
+          <button class="btn" style="background:#ff4d4d; color:white;" onclick="deleteEpisode(${chIdx}, ${epIdx})">削除</button>
+          <button class="btn btn-write" onclick="goToEditor('${ep.id}')">執筆</button>
+        </div>
+      `;
       container.appendChild(epDiv);
     });
 
@@ -261,24 +313,74 @@ function renderTree() {
   });
 }
 
-// --- 4. その他補助関数（既存のまま） ---
+// --- 4. その他補助関数 ---
 async function saveContentToDb() {
-  await supabaseClient.from('novels').update({ content: novelData.content }).eq('id', currentNovelId);
+  await supabaseClient
+    .from('novels')
+    .update({ content: novelData.content })
+    .eq('id', currentNovelId);
+
   renderTree();
 }
+
 async function addChapter() {
   const name = prompt("章の名前");
   if (!name) return;
+
   if (!novelData.content) novelData.content = [];
-  novelData.content.push({ id: "ch_"+Date.now(), title: name, episodes: [] });
+
+  novelData.content.push({
+    id: "ch_" + Date.now(),
+    title: name,
+    episodes: []
+  });
+
   await saveContentToDb();
 }
+
 async function addEpisode(chIdx) {
   const name = prompt("話のタイトル");
   if (!name) return;
-  novelData.content[chIdx].episodes.push({ id: "ep_"+Date.now(), title: name, content: "" });
+
+  if (!novelData.content[chIdx].episodes) {
+    novelData.content[chIdx].episodes = [];
+  }
+
+  novelData.content[chIdx].episodes.push({
+    id: "ep_" + Date.now(),
+    title: name,
+    content: "",
+    is_public: false
+  });
+
   await saveContentToDb();
 }
+
+async function toggleEpisodePublic(chIdx, epIdx) {
+  const ep = novelData.content?.[chIdx]?.episodes?.[epIdx];
+  if (!ep) return;
+
+  ep.is_public = ep.is_public !== true;
+
+  await saveContentToDb();
+}
+
+async function setChapterEpisodesPublic(chIdx, isPublic) {
+  const chapter = novelData.content?.[chIdx];
+  if (!chapter || !Array.isArray(chapter.episodes)) return;
+
+  if (chapter.episodes.length === 0) {
+    alert("この章にはまだ話がありません。");
+    return;
+  }
+
+  chapter.episodes.forEach(ep => {
+    ep.is_public = isPublic;
+  });
+
+  await saveContentToDb();
+}
+
 async function goToEditor(episodeId) {
   // 追加：変更がある場合は確認を出す
   if (isDirty) {

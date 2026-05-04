@@ -39,11 +39,12 @@ body {
   width: 800px;
   margin: 20px auto 0;
   font-size: 14px;
+  color: #fff; /* ★ 矢印（←）を白にする */
 }
 
 .back-link a {
   text-decoration: none;
-  color: #333;
+  color: #fff; /* ★ リンクの文字を白にする */
 }
 
 /* メイン中央 */
@@ -132,13 +133,15 @@ h1 {
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+<style>body { background: #2c2e33 !important; }</style>
+</head>
 
 <body>
 
 <div class="menu">
   <a href="index.html">トップ</a>
   <a href="works.html">本棚</a>
+  <a href="nft_mint.html">NNFTへ</a>
 </div>
 
 <div class="back-link">
@@ -163,27 +166,28 @@ h1 {
 <script src="auth-check.js"></script>
 <script>
 // --- 1. 初期設定 ---
-// window.supabaseClient は auth-check.js で設定済み
+// window.supabaseClient は auth-check.js から引き継ぎ
 const authorId = localStorage.getItem("authorId");
 let novels = [];
 let currentUser = null;
 
-// --- 2. データの取得と描画 ---
+// --- 2. データの取得 ---
 async function fetchNovels() {
-  // ★ ご希望の妥協案をここに実装！
-  // authorId が無い、または "null" の文字列になっている場合はエラーを出さずに戻す
-  if (!authorId || authorId === "null" || authorId === "undefined") {
-    alert("作家データを読み込めません、アカウント管理ページから入りなおしてください。");
-    window.location.href = "../portal/account.html";
+  const authorId = localStorage.getItem("authorId");
+  
+  // IDがない場合は、不正なリクエストを投げる前にマイページへ戻す
+  if (!authorId || authorId === "null") {
+    console.warn("authorIdが見つかりません。account.htmlに戻ります。");
+    location.href = "../portal/account.html"; 
     return;
   }
-
+  
   try {
-    // ユーザー情報の取得
+    // window.supabaseClient を使用
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     
     if (!user) {
-      location.href = "login.html";
+      location.href = "../portal/login.html";
       return;
     }
     currentUser = user;
@@ -196,7 +200,6 @@ async function fetchNovels() {
       .single();
 
     if (authorError) throw authorError;
-
     document.getElementById("displayAuthorName").innerText = author?.author_name || "不明な作家";
 
     // 作品取得
@@ -235,7 +238,7 @@ function displayNovels(novels) {
 
     if (w.review_status === 'suspended') {
       statusText = "<span style='color:#d32f2f;'>【🚫規約違反による停止】</span>";
-      rowStyle += "background: #fff0f0;"; 
+      rowStyle += "background: #fff0f0;";
       statusNotice = `<div style="font-size: 11px; color: #d32f2f; margin-bottom: 5px; font-weight: bold;">※この作品は規約違反のため運営により公開停止されています。</div>`;
     } else if (w.review_status === 'reported') {
       statusText = "<span style='color:#f57f17;'>【⚠️内容精査中】</span>";
@@ -264,7 +267,7 @@ function displayNovels(novels) {
   });
 }
 
-// --- 4. 投稿状態の切り替え ---
+// --- 4. 投稿状態の切り替え（報酬ロジック維持版） ---
 async function togglePublish(id, currentPublishedStatus) {
   const action = currentPublishedStatus ? "本棚から下げて「下書き」に戻しますか？" : "この作品を「本棚」に公開しますか？";
   if (!confirm(action)) return;
@@ -279,18 +282,39 @@ async function togglePublish(id, currentPublishedStatus) {
 
     if (error) throw error;
 
+        let publishMessage = currentPublishedStatus
+      ? "下書きに戻しました。"
+      : "本棚に投稿しました！";
+
     if (newStatus === true) {
-      const { data: rewardData, error: rewardError } = await window.supabaseClient.rpc('check_and_grant_reward', { target_novel_id: id });
+      const { data: rewardData, error: rewardError } = await window.supabaseClient.rpc('check_and_grant_reward', { 
+        target_novel_id: id 
+      });
+
       if (rewardError) {
         console.error("報酬チェック失敗:", rewardError.message);
-      } else if (rewardData && rewardData.status === 'success') {
-        alert(`【達成報酬】\n報酬として ${rewardData.new_grants} NVT を付与しました。`);
+        publishMessage += "\n\n※報酬判定でエラーが発生しました: " + rewardError.message;
+      } else if (rewardData) {
+        if (rewardData.status === 'success') {
+          publishMessage += `\n\n【投稿報酬候補】\n公開中の本文が条件を満たしたため、${rewardData.new_grants} NVT分の報酬候補を作成しました。\n\n報酬は72時間後に確定します。確定前に対象の話を非公開にすると、候補は取り消されます。`;
+        } else if (rewardData.status === 'cancelled_pending') {
+          publishMessage += `\n\n【投稿報酬】\n公開条件を下回ったため、未確定の報酬候補を取り消しました。`;
+        } else if (rewardData.status === 'no_reward_derivative') {
+          publishMessage += `\n\n【投稿報酬】\n二次創作として登録されているため、NVT報酬の対象外です。`;
+        } else if (rewardData.status === 'no_change') {
+          publishMessage += `\n\n【投稿報酬】\n現在、新しく発生する報酬候補はありません。`;
+        } else if (rewardData.status === 'not_found') {
+          publishMessage += `\n\n【投稿報酬】\n報酬判定対象の作品が見つかりませんでした。`;
+        }
       }
     }
 
-    alert(currentPublishedStatus ? "下書きに戻しました。" : "本棚に投稿しました！");
+    alert(publishMessage);
     await fetchNovels(); 
+    if (typeof renderRightPanel === 'function') renderRightPanel();
+
   } catch (err) {
+    console.error("更新エラー:", err);
     alert("状態の更新に失敗しました: " + err.message);
   }
 }
@@ -300,16 +324,24 @@ async function deleteWork(id) {
   if (!confirm("この作品を完全に削除しますか？\n未確定の報酬データもすべて消去されます。")) return;
 
   try {
+    // 依存データの掃除も window.supabaseClient を使用
     await window.supabaseClient.from('rewards_pending').delete().eq('novel_id', id);
     await window.supabaseClient.from('reports').delete().eq('novel_id', id);
     await window.supabaseClient.from('messages').delete().eq('novel_id', id);
-    
-    const { error: mainError } = await window.supabaseClient.from('novels').delete().eq('id', id);
+
+    const { error: mainError } = await window.supabaseClient
+      .from('novels')
+      .delete()
+      .eq('id', id);
+
     if (mainError) throw mainError;
 
     alert("作品を完全に削除しました。");
     await fetchNovels();
+    if (typeof renderRightPanel === 'function') renderRightPanel();
+
   } catch (err) {
+    console.error("削除エラー:", err);
     alert(`削除に失敗しました。\n理由: ${err.message}`);
   }
 }
@@ -321,17 +353,22 @@ function editWork(id) {
 }
 
 async function createNewWork() {
-  if (!authorId || authorId === "null" || authorId === "undefined") {
-    alert("作家データを読み込めません、アカウント管理ページから入りなおしてください。");
-    window.location.href = "../portal/account.html";
+  const authorId = localStorage.getItem("authorId");
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+  if (!authorId || !user) {
+    alert("作家情報が不足しています。");
     return;
   }
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  if (!user) return;
 
   const { data, error } = await window.supabaseClient
     .from('novels')
-    .insert([{ user_id: user.id, author_id: authorId, title: "無題の作品", content: [] }])
+    .insert([{
+      user_id: user.id,
+      author_id: authorId,
+      title: "無題の作品",
+      content: []
+    }])
     .select()
     .single();
 
@@ -344,13 +381,18 @@ async function createNewWork() {
   location.href = "novel_profile.html";
 }
 
-// --- 7. 初期化とアカウント凍結チェック ---
+// --- 7. 初期化処理 ---
 async function checkAccountStatus() {
   const { data: { user } } = await window.supabaseClient.auth.getUser();
   if (user) {
-    const { data: profile } = await window.supabaseClient.from('profiles').select('is_frozen').eq('id', user.id).single();
+    const { data: profile } = await window.supabaseClient
+      .from('profiles')
+      .select('is_frozen')
+      .eq('id', user.id)
+      .single();
+
     if (profile && profile.is_frozen) {
-      window.location.replace('../my-site/penalty.html');
+      window.location.replace('penalty.html');
       return true;
     }
   }
@@ -359,13 +401,14 @@ async function checkAccountStatus() {
 
 async function initPage() {
   const isFrozen = await checkAccountStatus();
-  if (isFrozen) return; 
+  if (isFrozen) return;
 
   await fetchNovels();
+  if (typeof renderRightPanel === 'function') renderRightPanel();
 }
 
-// ページ読み込み時に実行
 initPage();
 </script>
+
 </body>
 </html>

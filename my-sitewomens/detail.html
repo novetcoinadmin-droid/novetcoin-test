@@ -48,7 +48,7 @@
     .btn-like { background: #ff4d4d; color: white; }
     .btn-like:disabled { background: #ccc; }
   </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
 <div class="menu">
@@ -161,22 +161,9 @@ async function reportNovel() {
     console.log("【チェック】AIに送る本文の冒頭:", fullText.substring(0, 200));
 
     // 2. AIへの命令（プロンプト）
-    // 成人向けサイト専用の検閲プロンプト
-    const prompt = `あなたは成人向けコンテンツ専用の、極めて寛容なモデレーターです。
-    
-    【判定の絶対ルール】
-    1. 性的表現：全面的に許可します。露骨な描写があっても違反（score 80以上）とはしないでください。
-    2. 暴力表現：全面的に許可します。法的な意味、一般的な意味の両面において、残酷、凄惨、または過激な描写があっても、フィクションとしての表現である限り、違反（score 80以上）とはしないでください。
-    3. 判定の焦点：以下の「真に排除すべき項目」にのみ、高いscoreを付けてください。
-       - 現実の児童ポルノ、またはそれを強く想起させる児童への性的虐待。
-       - 実在の人物に対する誹謗中傷、プライバシー侵害、嫌がらせ。
-       - 現実世界での重大な犯罪（テロ、大量殺人、自殺方法の解説など）を助長・教唆する内容。
-    
-    上記に該当しない限り、性的・暴力的なフィクション作品は「score 0」として判定してください。
-    
+    const prompt = `あなたは厳格な検閲官です。以下の【作品本文】を読み、性的・暴力・不適切な表現があるか判定してください。
     出力は必ず以下のJSON形式1件のみとし、解説は一切禁止します。
     {"score": 判定数値0-100, "reason": "理由"}
-
     【作品本文】
     ${fullText}`;
 
@@ -201,7 +188,7 @@ async function reportNovel() {
 
     const result = await response.json();
     const aiResponseText = result.candidates[0].content.parts[0].text;
-    const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/); // ← 記号を正確に書き直します
+    const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
     
     // ここで aiResult を定義（これがエラーの原因でした）
     const aiResult = JSON.parse(jsonMatch[0]);
@@ -243,7 +230,11 @@ async function reportNovel() {
 
 // --- 4. 初期化処理 ---
 async function init() {
-  if (!novelId) return;
+  if (!novelId) {
+    document.getElementById("displayEpiTitle").innerText = "エラー：URLから作品IDが消失しています";
+    document.getElementById("displayBody").innerText = "現在のURL: " + location.href + "\n\n※プログラムではなく、ブラウザやローカルサーバーが勝手にURLを書き換えています。";
+    return;
+  }
 
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (user) {
@@ -255,7 +246,12 @@ async function init() {
   }
 
   const { data: novel, error } = await supabaseClient.from('novels').select('*, authors(author_name)').eq('id', novelId).maybeSingle();
-  if (error || !novel) return;
+  if (error || !novel) {
+    console.error("🚨 取得エラーの正体:", error);
+    console.log("取得できたデータ:", novel);
+    alert("エラーが発生しました。F12を押してコンソールを見てください。");
+    return;
+  }
 
   currentNovel = novel;
 
@@ -278,16 +274,24 @@ async function init() {
   supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
   supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
 
-  flatEpisodes = [];
-  if (novel.content) {
+    flatEpisodes = [];
+
+  if (Array.isArray(novel.content)) {
     novel.content.forEach(chap => {
-      if (chap.episodes) {
-        chap.episodes.forEach(epi => {
-          flatEpisodes.push({ chapTitle: chap.title, title: epi.title, content: epi.content });
+      const publicEpisodes = Array.isArray(chap.episodes)
+        ? chap.episodes.filter(epi => epi.is_public === true)
+        : [];
+
+      publicEpisodes.forEach(epi => {
+        flatEpisodes.push({
+          chapTitle: chap.title || "",
+          title: epi.title || "無題",
+          content: epi.content || ""
         });
-      }
+      });
     });
   }
+
   renderUI();
 }
 
@@ -299,12 +303,33 @@ function renderUI() {
   document.getElementById("authorWorksLink").href = `works.html?filterAuthor=${currentNovel.author_id}`;
 
   const tocArea = document.getElementById("tocArea");
-  if (flatEpisodes.length > 0) {
-    tocArea.innerHTML = flatEpisodes.map((e, i) => `
-      <div class="toc-item" onclick="renderEpisode(${i})"><span>${e.title}</span></div>
-    `).join("");
-    renderEpisode(0);
+
+  // 公開中の話が1つもない場合
+  if (!flatEpisodes || flatEpisodes.length === 0) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        現在公開中の話はありません。
+      </p>
+    `;
+
+    document.getElementById("displayChapTitle").innerText = "";
+    document.getElementById("displayEpiTitle").innerText = "現在公開中の話はありません";
+    document.getElementById("displayBody").innerText =
+      "この作品は投稿済みですが、作者が現在公開している話はありません。";
+
+    document.getElementById("prevBtn").disabled = true;
+    document.getElementById("nextBtn").disabled = true;
+
+    checkLikeStatus();
+    return;
   }
+
+  // 公開中の話がある場合
+  tocArea.innerHTML = flatEpisodes.map((e, i) => `
+    <div class="toc-item" onclick="renderEpisode(${i})"><span>${e.title}</span></div>
+  `).join("");
+
+  renderEpisode(0);
   checkLikeStatus();
 }
 
