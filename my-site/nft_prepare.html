@@ -250,7 +250,6 @@ body {
     </style>
 </head>
 <body>
-<body>
     <style>
     /* モーダルの背景（黒半透明） */
     .asset-modal-overlay {
@@ -1238,6 +1237,41 @@ function updateTemplateDisplay() {
     `;
 }
 
+function collectTemplatePayload() {
+    const templateType = document.getElementById("templateType")?.value || "character";
+    const fields = {};
+
+    document.querySelectorAll("#templateDisplay .template-field").forEach(select => {
+        const key = select.id;
+        let value = select.value;
+
+        if (!value) return;
+
+        if (value === "__custom__") {
+            const customEl = document.getElementById(key + "_custom");
+            const customValue = customEl?.value?.trim();
+
+            if (!customValue) return;
+
+            fields[key] = {
+                mode: "custom",
+                value: customValue
+            };
+            return;
+        }
+
+        fields[key] = {
+            mode: "select",
+            value
+        };
+    });
+
+    return {
+        template_type: templateType,
+        template_fields: fields
+    };
+}
+
 function standardizeFromAsset() {
     assetModalMode = "standardize";
     openAssetModal();
@@ -1300,31 +1334,28 @@ async function generateImage(type) {
 
         // 🌟 ここから差し替え 🌟
         // プロンプト作成と送信データの構築
-        let requestPayload = {};
-        const novelTags = novelData.tag || "";
+        const templatePayload = collectTemplatePayload();
 
-        if (charId !== "text") {
-            // 【キャラクターモード】
-            const charData = novelData.characters.find(c => c.id === charId);
-            const dynamicContent = charData ? charData.detail : "";
-            const finalPrompt = `(monochrome:1.3), (black and white:1.2), grayscale, sketch, ink drawing, ${novelTags}, ${dynamicContent}, masterpiece, high quality`;
-            
-            requestPayload = {
-                mode: "character",
-                prompt: finalPrompt
-            };
-        } else {
-            // 【本文（風景）モード】
-            const basePrompt = `(masterpiece, best quality:1.2), (monochrome, grayscale, line art, ink drawing:1.4), scenery, landscape, background only, empty place, ${novelTags}, `;
-            
-            requestPayload = {
-                mode: "scenery",
-                base_prompt: basePrompt,
-                raw_text: pages[currentPage] // 抽出元のテキスト
-            };
-        }
+let standardRef = null;
+try {
+    const raw = localStorage.getItem(STANDARD_REF_KEY);
+    standardRef = raw ? JSON.parse(raw) : null;
+} catch {
+    standardRef = null;
+}
 
-        requestPayload.debug = true;
+const requestPayload = {
+    mode: "template",
+    template_type: templatePayload.template_type,
+    template_fields: templatePayload.template_fields,
+    reference_features: standardRef?.features || null,
+    fixed_style: {
+        monochrome: true,
+        hand_drawn: true,
+        novet_illustration: true
+    },
+    debug: true
+};
 
         // サーバー通信：全年齢用の関数（Leonardo）を直接叩く
         const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-safe`, {
