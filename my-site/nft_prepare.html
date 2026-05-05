@@ -376,6 +376,7 @@ body {
             <label style="font-size:13px; font-weight:bold;">生成テンプレート</label>
 
             <select id="templateType" onchange="updateTemplateDisplay()" style="width:100%; margin:8px 0; padding:8px; border-radius:6px; border:1px solid #ddd;">
+                <option value="">テンプレートを選択</option>
                 <option value="character">キャラテンプレート</option>
                 <option value="scenery">風景テンプレート</option>
                 <option value="other">その他テンプレート</option>
@@ -1130,6 +1131,15 @@ function updateTemplateDisplay() {
     const box = document.getElementById("templateDisplay");
     if (!box) return;
 
+        if (!type) {
+        box.innerHTML = `
+            <div style="font-size:11px; color:#777; line-height:1.5;">
+                生成したい内容に合わせて、キャラ・風景・その他からテンプレートを選択してください。
+            </div>
+        `;
+        return;
+    }
+
     if (type === "character") {
         box.innerHTML = `
             <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
@@ -1138,6 +1148,10 @@ function updateTemplateDisplay() {
 
             ${buildTemplateSelect("キャラの見え方", "tpl_character_view", [
                 "顔アップ", "バストアップ", "上半身", "膝上", "全身", "少し離れた全身", "遠景の人物"
+            ])}
+
+            ${buildTemplateSelect("年齢", "tpl_character_age", [
+                "幼少期", "少年・少女", "10代前半", "10代後半", "20代前半", "20代後半", "30代", "40代", "50代以上", "年齢不詳"
             ])}
 
             ${buildTemplateSelect("表情", "tpl_character_expression", [
@@ -1357,6 +1371,22 @@ const requestPayload = {
     debug: true
 };
 
+console.log("🧪 新方式生成payload確認:", {
+    mode: requestPayload.mode,
+    template_type: requestPayload.template_type,
+    template_fields: requestPayload.template_fields,
+    has_reference_features: !!requestPayload.reference_features,
+    fixed_style: requestPayload.fixed_style
+});
+
+console.log("🧪 送信payload確認:", {
+    mode: requestPayload.mode,
+    template_type: requestPayload.template_type,
+    template_fields: requestPayload.template_fields,
+    has_reference_features: !!requestPayload.reference_features,
+    fixed_style: requestPayload.fixed_style
+});
+
         // サーバー通信：全年齢用の関数（Leonardo）を直接叩く
         const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-safe`, {
             method: "POST",
@@ -1371,7 +1401,10 @@ const requestPayload = {
         if (!response.ok) throw new Error("サーバー通信エラー");
 
         const data = await response.json();
-        const imageUrl = data.imageUrl;
+
+console.log("🧪 Leonardoへ渡した最終prompt:", data.prompt);
+
+const imageUrl = data.imageUrl;
 
         if (imageUrl) {
             pageAssets[currentPage] = imageUrl;
