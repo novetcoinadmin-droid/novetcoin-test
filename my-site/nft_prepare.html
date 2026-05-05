@@ -1368,7 +1368,8 @@ const requestPayload = {
         hand_drawn: true,
         novet_illustration: true
     },
-    debug: true
+    debug: true,
+    debug_prompt_only: true
 };
 
 console.log("🧪 新方式生成payload確認:", {
@@ -1402,7 +1403,13 @@ console.log("🧪 送信payload確認:", {
 
         const data = await response.json();
 
-console.log("🧪 Leonardoへ渡した最終prompt:", data.prompt);
+console.log("🧪 Leonardoへ渡す予定の最終prompt:", data.prompt);
+
+if (data.status === "prompt_only") {
+    if (loadingOverlay) loadingOverlay.style.display = "none";
+    alert("プロンプト確認モードです。画像生成は実行していません。Consoleで最終promptを確認してください。");
+    return;
+}
 
 const imageUrl = data.imageUrl;
 
