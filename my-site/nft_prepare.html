@@ -1583,9 +1583,154 @@ function buildLeonardoReferenceDetailSettings(templatePayload = {}) {
     return convertDetailSettingsToEnglish(detailSettingsJa);
 }
 
-function standardizeFromAsset() {
+// =====================================================
+// 基準化画像選択前のガイド表示
+// =====================================================
+
+function showStandardReferenceGuideModal() {
+    const existing = document.getElementById("standardReferenceGuideOverlay");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "standardReferenceGuideOverlay";
+    overlay.style = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: sans-serif;
+    `;
+
+    overlay.innerHTML = `
+        <div style="
+            width: 92%;
+            max-width: 760px;
+            background: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.3);
+        ">
+            <div style="
+                padding: 16px 20px;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            ">
+                <div style="font-size:18px; font-weight:bold; color:#6a0dad;">
+                    基準化画像の選び方
+                </div>
+
+                <button
+                    type="button"
+                    onclick="closeStandardReferenceGuideModal()"
+                    style="
+                        background:none;
+                        border:none;
+                        font-size:24px;
+                        color:#999;
+                        cursor:pointer;
+                    "
+                >
+                    ×
+                </button>
+            </div>
+
+            <div style="padding:20px;">
+                <p style="font-size:13px; line-height:1.7; color:#555; margin:0 0 16px;">
+                    基準化には、顔がはっきり見える画像がおすすめです。<br>
+                    顔アップで、目・鼻・口・髪型が分かる画像を選ぶと、生成時のキャラクター再現が安定しやすくなります。
+                </p>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap:16px;
+                    margin-bottom:18px;
+                ">
+                    <div style="
+                        border:2px solid #2ecc71;
+                        border-radius:10px;
+                        overflow:hidden;
+                        background:#f8fff9;
+                    ">
+                        <img
+                            src="images/reference_good_example.png"
+                            alt="良い見本"
+                            style="width:100%; display:block;"
+                        >
+                    </div>
+
+                    <div style="
+                        border:2px solid #e74c3c;
+                        border-radius:10px;
+                        overflow:hidden;
+                        background:#fff8f8;
+                    ">
+                        <img
+                            src="images/reference_bad_example.png"
+                            alt="悪い見本"
+                            style="width:100%; display:block;"
+                        >
+                    </div>
+                </div>
+
+                <div style="
+                    font-size:12px;
+                    color:#777;
+                    line-height:1.7;
+                    background:#f7f7f7;
+                    border-radius:8px;
+                    padding:10px;
+                    margin-bottom:16px;
+                ">
+                    良い例：顔アップ・顔全体が見える・目が隠れていない<br>
+                    悪い例：横顔・顔が隠れている・髪や手で目鼻口が見えない
+                </div>
+
+                <button
+                    type="button"
+                    onclick="proceedToStandardReferenceAssetModal()"
+                    style="
+                        width:100%;
+                        padding:13px;
+                        border-radius:9px;
+                        border:1px solid #6a0dad;
+                        background:#6a0dad;
+                        color:white;
+                        font-weight:bold;
+                        font-size:15px;
+                        cursor:pointer;
+                    "
+                >
+                    イラスト保管庫の選択画面に進む
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
+
+function closeStandardReferenceGuideModal() {
+    const overlay = document.getElementById("standardReferenceGuideOverlay");
+    if (overlay) overlay.remove();
+}
+
+function proceedToStandardReferenceAssetModal() {
+    closeStandardReferenceGuideModal();
     assetModalMode = "standardize";
     openAssetModal();
+}
+
+function standardizeFromAsset() {
+    showStandardReferenceGuideModal();
 }
 
 function updatePromptSource() {
