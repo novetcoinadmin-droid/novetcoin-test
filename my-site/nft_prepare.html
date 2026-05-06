@@ -973,10 +973,17 @@ async function saveCurrentGeneratedImageToAssets() {
         const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
 
         const currentTemplateType =
-            String(document.getElementById("templateType")?.value || "").toLowerCase();
+    String(document.getElementById("templateType")?.value || "").toLowerCase();
 
-        const savedAssetType =
-            currentTemplateType === "scenery" ? "scene" : "illustration";
+let savedAssetType = "illustration";
+
+if (currentTemplateType === "scenery") {
+    savedAssetType = "scene";
+}
+
+if (currentTemplateType === "other") {
+    savedAssetType = "other";
+}
 
 const { error: insertError } = await supabaseClient
     .from("user_assets")
@@ -1551,19 +1558,24 @@ function updateTemplateDisplay() {
     }
 
     box.innerHTML = `
-        <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
-            その他テンプレートです。不要な項目は「指定なし」のままで大丈夫です。作りたい内容に合わない項目は無視して使ってください。
-        </div>
+    <div style="font-size:11px; color:#777; line-height:1.6; margin-bottom:10px;">
+        装備・アイテム・魔法・スキルなどの画像を作成するためのテンプレートです。<br>
+        必要な内容を自由に入力してください。
+    </div>
 
-        ${buildTemplateSelect("用途カテゴリ", "tpl_other_category", [
-            "アイテム", "魔法・スキル", "装備品"
-        ])}
+    <label style="font-size:11px; color:#666; font-weight:bold;">作成したい内容</label>
 
-        <div id="otherTemplateDetail" style="margin-top:8px;"></div>
-
-        <button type="button" onclick="updateOtherTemplateDetail()" style="width:100%; padding:8px; border:1px solid #ccc; background:#f7f7f7; border-radius:6px; cursor:pointer; font-size:12px;">
-            用途カテゴリの項目を表示
-        </button>
+    <textarea
+        id="tpl_other_free_text"
+        class="template-field"
+        placeholder="例：
+        ・装備名、アイテム名、魔法名、スキル名
+        ・素材（金属、革、宝石、木、布など）
+        ・質感（古びた、神聖な、禍々しい、透明感があるなど）
+        ・形や特徴（長剣、杖、指輪、魔法陣、炎のエフェクトなど）
+        ・雰囲気（高級感、呪われた感じ、冒険者向け、王族風など）"
+        style="width:100%; min-height:150px; margin-top:6px; padding:10px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; resize:vertical; box-sizing:border-box;"
+    ></textarea>
     `;
 }
 
@@ -2362,9 +2374,93 @@ if (templatePayload.template_type === "scenery") {
     return;
 }
 
+// --- その他テンプレートの場合 ---
+if (templatePayload.template_type === "other") {
+    const otherText = String(document.getElementById("tpl_other_free_text")?.value || "").trim();
+
+    if (!otherText) {
+        alert("その他テンプレートの内容を入力してください。");
+        return;
+    }
+
+    if (!confirm("その他生成を実行しますか？\n費用: 10 NP")) {
+        return;
+    }
+
+    if (loadingOverlay) {
+        loadingOverlay.style.display = "flex";
+    }
+
+    console.log("🧩 その他生成Functionへ送るpayload:", {
+        other_text: otherText,
+        debug_prompt_only: false
+    });
+
+    const { data, error } = await supabaseClient.functions.invoke(
+        "generate-nft-other-image-leonardo",
+        {
+            body: {
+                other_text: otherText,
+                debug_prompt_only: false
+            }
+        }
+    );
+
+    if (error) {
+        console.error("その他生成Function Error:", error);
+        throw new Error(error.message || "その他生成Functionの呼び出しに失敗しました。");
+    }
+
+    console.log("🧩 その他生成Function 結果:", data);
+
+    if (!data || data.ok !== true) {
+        throw new Error(data?.error || data?.message || "その他画像の取得に失敗しました。");
+    }
+
+    const imageUrl =
+        data.imageUrl ||
+        data.image_url ||
+        data.generatedImageUrl ||
+        data.generated_image_url ||
+        data.url ||
+        "";
+
+    if (!imageUrl) {
+        throw new Error("その他画像URLが返ってきませんでした。");
+    }
+
+    pageAssets[currentPage] = imageUrl;
+    isEdited = true;
+    renderPage();
+
+    const newNp = currentNp - 10;
+
+    const { error: updateError } = await supabaseClient
+        .from("profiles")
+        .update({ np_balance: newNp })
+        .eq("id", user.id);
+
+    if (updateError) {
+        console.error("NP更新エラー:", updateError);
+        alert("その他画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+    } else {
+        const myNpEl = document.getElementById("myNp");
+        if (myNpEl) {
+            myNpEl.innerText = newNp;
+        }
+    }
+
+    if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
+    }
+
+    alert("その他生成が完了しました。\n内容を保存してください。");
+    return;
+}
+
 // --- それ以外は現在未対応 ---
 if (templatePayload.template_type !== "character") {
-    alert("現在の生成は、キャラテンプレートまたは風景テンプレートに対応しています。");
+    alert("現在の生成は、キャラテンプレート・風景テンプレート・その他テンプレートに対応しています。");
     return;
 }
 
