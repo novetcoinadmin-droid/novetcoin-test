@@ -94,7 +94,7 @@
         </div>
 
         <div class="upload-area">
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+            <p id="uploadAreaDescription" style="font-size: 13px; color: #666; margin-bottom: 15px;">
                 小説の表紙や挿絵、または将来NFT化したいイラストをアップロードします。<br>
                 ※画像は自動的に最適化（WebP変換）されて安全に保存されます。
             </p>
@@ -168,6 +168,9 @@ function switchAssetTab(tabName) {
     const scenePresetTabBtn = document.getElementById("assetScenePresetTabBtn");
 
     const uploadArea = document.querySelector(".upload-area");
+    const uploadDesc = document.getElementById("uploadAreaDescription");
+    const uploadBtnText = document.getElementById("uploadBtnText");
+
     const galleryGrid = document.getElementById("galleryGrid");
     const sceneImagePanel = document.getElementById("sceneImagePanel");
     const scenePresetPanel = document.getElementById("scenePresetPanel");
@@ -188,8 +191,27 @@ function switchAssetTab(tabName) {
     setButtonStyle(sceneImageTabBtn, isSceneImages);
     setButtonStyle(scenePresetTabBtn, isScenePresets);
 
+    // アップロード欄は「イラスト」「風景」で表示、「風景設定」では非表示
     if (uploadArea) {
-        uploadArea.style.display = isImages ? "block" : "none";
+        uploadArea.style.display = (isImages || isSceneImages) ? "block" : "none";
+    }
+
+    if (uploadDesc && uploadBtnText) {
+        if (isImages) {
+            uploadDesc.innerHTML = `
+                小説の表紙や挿絵、または将来NFT化したいイラストをアップロードします。<br>
+                ※画像は自動的に最適化（WebP変換）されて安全に保存されます。
+            `;
+            uploadBtnText.innerText = "＋ イラスト用画像をアップロード（複数選択可）";
+        }
+
+        if (isSceneImages) {
+            uploadDesc.innerHTML = `
+                ギルド、王城、ダンジョン、街並みなどの風景画像をアップロードします。<br>
+                ※風景タブに保存され、今後の風景生成や世界観確認に使えます。
+            `;
+            uploadBtnText.innerText = "＋ 風景用画像をアップロード（複数選択可）";
+        }
     }
 
     if (galleryGrid) {
@@ -240,62 +262,101 @@ async function handleUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    const isSceneUpload = currentAssetTab === "sceneImages";
+
+    const assetType = isSceneUpload ? "scene" : "illustration";
+    const assetSource = "uploaded";
+
     const btn = document.getElementById('uploadBtnText');
-    btn.innerText = "⏳ 変換＆アップロード中...";
-    btn.disabled = true;
+    const originalBtnText = btn ? btn.innerText : "";
+
+    if (btn) {
+        btn.innerText = isSceneUpload
+            ? "⏳ 風景画像を変換＆アップロード中..."
+            : "⏳ イラストを変換＆アップロード中...";
+        btn.disabled = true;
+    }
 
     try {
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
-            
+
             const img = new Image();
             const objectUrl = URL.createObjectURL(file);
+
             await new Promise((resolve, reject) => {
-                img.onload = resolve; img.onerror = reject; img.src = objectUrl;
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = objectUrl;
             });
 
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
             canvas.height = img.height;
+
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0);
-            
+
+            URL.revokeObjectURL(objectUrl);
+
             const webpBlob = await new Promise(resolve => {
                 canvas.toBlob(resolve, "image/webp", 0.8);
             });
 
-            // ファイル名の生成
-            const fileName = `asset_${currentUser.id}_${Date.now()}_${i}.webp`;
-            
-            // 🌟 Storage へのアップロード (window.supabaseClient)
+            if (!webpBlob) {
+                throw new Error("WebP変換に失敗しました。");
+            }
+
+            const prefix = isSceneUpload ? "scene" : "asset";
+            const fileName = `${prefix}_${currentUser.id}_${Date.now()}_${i}.webp`;
+
             const { error: uploadErr } = await window.supabaseClient.storage
                 .from('illustrations')
                 .upload(fileName, webpBlob, { contentType: 'image/webp' });
 
             if (uploadErr) throw uploadErr;
 
-            const { data: publicUrlData } = window.supabaseClient.storage.from('illustrations').getPublicUrl(fileName);
+            const { data: publicUrlData } = window.supabaseClient.storage
+                .from('illustrations')
+                .getPublicUrl(fileName);
+
             const finalUrl = publicUrlData.publicUrl;
 
-            const originalName = file.name.split('.')[0]; 
-            
-            // 🌟 DBへのインサート (window.supabaseClient)
+            const originalName = file.name.split('.')[0];
+
             await window.supabaseClient.from('user_assets').insert({
                 user_id: currentUser.id,
                 file_url: finalUrl,
-                file_name: originalName
+                file_name: originalName,
+                asset_type: assetType,
+                asset_source: assetSource
             });
         }
-        
-        alert("アップロードが完了しました！");
-        await fetchAssets(); 
+
+        alert(isSceneUpload
+            ? "風景画像のアップロードが完了しました！"
+            : "イラストのアップロードが完了しました！"
+        );
+
+        await fetchAssets();
+
+        // アップロード後も今のタブ表示を維持
+        switchAssetTab(currentAssetTab);
 
     } catch (err) {
         console.error(err);
         alert("アップロード失敗: " + err.message);
+
     } finally {
-        btn.innerText = "＋ 新しい画像をアップロード（複数選択可）";
-        btn.disabled = false;
+        if (btn) {
+            btn.innerText = originalBtnText || (
+                isSceneUpload
+                    ? "＋ 風景用画像をアップロード（複数選択可）"
+                    : "＋ イラスト用画像をアップロード（複数選択可）"
+            );
+            btn.disabled = false;
+        }
+
         event.target.value = "";
     }
 }
