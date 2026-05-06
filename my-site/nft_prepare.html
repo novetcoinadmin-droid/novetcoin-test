@@ -424,6 +424,130 @@ const STANDARD_REF_DB_NAME = "novet_standard_reference_cache";
 const STANDARD_REF_STORE_NAME = "standard_reference_images";
 const STANDARD_REF_IMAGE_KEY = "current";
 
+// =====================================================
+// 細部設定：日本語表示値 → Leonardo送信用英語値 変換
+// =====================================================
+
+function convertDetailSettingsToEnglish(detailSettings = {}) {
+    const maps = {
+        view: {
+            "顔アップ": "close-up portrait",
+            "バストアップ": "upper body portrait",
+            "上半身": "upper body portrait",
+            "膝上": "knees-up character view",
+            "全身": "full body view",
+            "少し離れた全身": "full body view from a slight distance",
+            "遠景の人物": "distant character view"
+        },
+
+        age: {
+            "幼少期": "childlike appearance while preserving identity",
+            "少年・少女": "young boy or girl appearance while preserving identity",
+            "10代前半": "early teenage appearance while preserving identity",
+            "10代後半": "late teenage appearance while preserving identity",
+            "20代前半": "appears in their early 20s while preserving identity",
+            "20代後半": "appears in their late 20s while preserving identity",
+            "30代": "appears in their 30s while preserving identity",
+            "40代": "appears in their 40s while preserving identity",
+            "50代以上": "appears over 50 while preserving identity",
+            "年齢不詳": "ambiguous age while preserving identity"
+        },
+
+        expression: {
+            "無表情": "neutral expression",
+            "微笑み": "subtle smile",
+            "喜び": "happy expression",
+            "悲しげ": "sad expression",
+            "真面目": "serious expression",
+            "怒り": "angry expression",
+            "疲れ": "tired expression",
+            "照れ": "shy expression",
+            "緊張": "tense expression",
+            "決意": "determined expression"
+        },
+
+        pose: {
+            "正面立ち": "front-facing standing pose",
+            "斜め立ち": "three-quarter standing pose",
+            "座る": "sitting pose",
+            "振り返る": "turning back pose",
+            "歩く": "walking pose",
+            "手を胸に当てる": "hand placed on chest",
+            "武器を構える": "holding a weapon pose",
+            "本を持つ": "holding a book",
+            "祈る": "praying pose",
+            "見上げる": "looking up"
+        },
+
+        outfit: {
+            "ドレス": "dress outfit",
+            "スーツ": "suit outfit",
+            "甲冑": "armor outfit",
+            "冒険者マント": "adventurer cloak outfit",
+            "和服": "traditional Japanese clothing",
+            "制服": "school uniform",
+            "ローブ": "robe outfit",
+            "旅装": "traveler outfit",
+            "貴族服": "noble clothing",
+            "カジュアル服": "casual outfit"
+        },
+
+        parts: {
+            "角": "horns",
+            "翼": "wings",
+            "獣耳": "animal ears",
+            "尻尾": "tail",
+            "宝石装飾": "jewel ornaments",
+            "髪飾り": "hair ornament",
+            "眼帯": "eyepatch",
+            "仮面": "mask",
+            "非人間的な瞳": "inhuman eyes",
+            "魔法紋": "magic markings"
+        },
+
+        background: {
+            "無地": "plain background",
+            "和風": "simple Japanese-style background",
+            "西洋風": "simple western-style background",
+            "現代風": "simple modern background",
+            "自然": "simple natural background",
+            "城内": "simple castle interior background",
+            "路地": "simple alley background",
+            "森": "simple forest background",
+            "室内": "simple indoor background",
+            "幻想空間": "simple fantasy space background"
+        },
+
+        lighting_mood: {
+            "明るい": "bright mood",
+            "暗い": "dark mood",
+            "逆光": "backlit mood",
+            "柔らかい光": "soft light",
+            "強い影": "strong shadows",
+            "シリアス": "serious mood",
+            "ポップ": "pop mood",
+            "透明感": "clear and delicate mood",
+            "神秘的": "mystical mood",
+            "静かな雰囲気": "quiet mood"
+        }
+    };
+
+    const result = {};
+
+    for (const key of Object.keys(detailSettings || {})) {
+        const value = detailSettings[key];
+
+        if (!value) {
+            result[key] = "";
+            continue;
+        }
+
+        result[key] = maps[key]?.[value] || value;
+    }
+
+    return result;
+}
+
 // 1. 初期化関数
 async function init() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1178,9 +1302,6 @@ function updateTemplateDisplay() {
                 "明るい", "暗い", "逆光", "柔らかい光", "強い影", "シリアス", "ポップ", "透明感", "神秘的", "静かな雰囲気"
             ])}
 
-            ${buildTemplateSelect("質感", "tpl_character_texture", [
-                "アニメ風", "ラノベ挿絵風", "鉛筆線画風", "インク画風", "繊細", "荒い線", "淡い陰影", "強いコントラスト"
-            ])}
         `;
         return;
     }
@@ -1286,6 +1407,36 @@ function collectTemplatePayload() {
     };
 }
 
+// =====================================================
+// キャラテンプレート入力 → Leonardo送信用 detail_settings 作成
+// =====================================================
+
+function buildLeonardoReferenceDetailSettings(templatePayload = {}) {
+    const fields = templatePayload.template_fields || {};
+
+    const getFieldValue = (fieldId) => {
+        const field = fields[fieldId];
+        if (!field) return "";
+
+        return String(field.value || "").trim();
+    };
+
+    // 現在はキャラテンプレート用を優先して作る
+    const detailSettingsJa = {
+        view: getFieldValue("tpl_character_view"),
+        age: getFieldValue("tpl_character_age"),
+        expression: getFieldValue("tpl_character_expression"),
+        pose: getFieldValue("tpl_character_pose"),
+        outfit: getFieldValue("tpl_character_outfit"),
+        parts: getFieldValue("tpl_character_parts"),
+        background: getFieldValue("tpl_character_background"),
+        lighting_mood: getFieldValue("tpl_character_lighting")
+    };
+
+    // 日本語表示値をLeonardo向け英語値へ変換
+    return convertDetailSettingsToEnglish(detailSettingsJa);
+}
+
 function standardizeFromAsset() {
     assetModalMode = "standardize";
     openAssetModal();
@@ -1310,123 +1461,126 @@ function updatePromptSource() {
     }
 }
 
-// 4. 画像生成ロジック（重複を削除し、ローディングと優先順位を実装）
+// 4. 画像生成ロジック
 async function generateImage(type) {
     const charSelect = document.getElementById("charSelect");
-    const charId = charSelect.value;
+    const charId = charSelect ? charSelect.value : "text";
     const urlParams = new URLSearchParams(window.location.search);
     const loadingOverlay = document.getElementById("loadingOverlay");
 
     // --- プレミアムの場合 ---
-    if (type === 'premium') {
+    if (type === "premium") {
         if (charId === "text") {
             alert("プレミアム生成にはキャラクターを選択してください。");
             return;
         }
-        location.href = `premium_generate.html?char_id=${charId}&novel_id=${novelData.id}&page=${currentPage}&cIdx=${urlParams.get('cIdx')}&eIdx=${urlParams.get('eIdx')}`;
+
+        location.href = `premium_generate.html?char_id=${charId}&novel_id=${novelData.id}&page=${currentPage}&cIdx=${urlParams.get("cIdx")}&eIdx=${urlParams.get("eIdx")}`;
         return;
     }
 
-    // --- スタンダードの場合 ---
+    // --- スタンダードの場合：まずはdebug_prompt_only確認 ---
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
-        const { data: profile } = await supabaseClient.from('profiles').select('np_balance').eq('id', user.id).single();
 
-        if (!profile || profile.np_balance < 10) {
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        const { data: profile, error: profileError } = await supabaseClient
+            .from("profiles")
+            .select("np_balance")
+            .eq("id", user.id)
+            .single();
+
+        if (profileError) {
+            throw profileError;
+        }
+
+        // 今回はNPを消費しないが、本番生成前の残高チェックだけ残す
+        if (!profile || Number(profile.np_balance || 0) < 10) {
             alert("NP残高が不足しています（必要: 10 NP）。");
             return;
         }
 
-        if (!confirm("スタンダード生成を実行しますか？ (費用: 10 NP / モノクロ固定)")) return;
-
-        // 🌟 画面をロックしてローディング表示
-        if (loadingOverlay) loadingOverlay.style.display = "flex";
-
-        // 決済処理
-        await supabaseClient.from('profiles').update({ np_balance: profile.np_balance - 10 }).eq('id', user.id);
-        document.getElementById("myNp").innerText = profile.np_balance - 10;
-
-        // 🌟 ここから差し替え 🌟
-        // プロンプト作成と送信データの構築
         const templatePayload = collectTemplatePayload();
 
-let standardRef = null;
-try {
-    const raw = localStorage.getItem(STANDARD_REF_KEY);
-    standardRef = raw ? JSON.parse(raw) : null;
-} catch {
-    standardRef = null;
-}
+        if (templatePayload.template_type !== "character") {
+            alert("現在の参照画像生成テストは、キャラテンプレートのみ対応です。");
+            return;
+        }
 
-const requestPayload = {
-    mode: "template",
-    template_type: templatePayload.template_type,
-    template_fields: templatePayload.template_fields,
-    reference_features: standardRef?.features || null,
-    fixed_style: {
-        monochrome: true,
-        hand_drawn: true,
-        novet_illustration: true
-    },
-    debug: true,
-    debug_prompt_only: false
-};
+        let standardRef = null;
 
-console.log("🧪 新方式生成payload確認:", {
-    mode: requestPayload.mode,
-    template_type: requestPayload.template_type,
-    template_fields: requestPayload.template_fields,
-    has_reference_features: !!requestPayload.reference_features,
-    fixed_style: requestPayload.fixed_style
-});
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            standardRef = raw ? JSON.parse(raw) : null;
+        } catch {
+            standardRef = null;
+        }
 
-console.log("🧪 送信payload確認:", {
-    mode: requestPayload.mode,
-    template_type: requestPayload.template_type,
-    template_fields: requestPayload.template_fields,
-    has_reference_features: !!requestPayload.reference_features,
-    fixed_style: requestPayload.fixed_style
-});
+        if (!standardRef || !standardRef.image_url) {
+            alert("先に『基準化』で、イラスト保管庫から基準画像を選択してください。");
+            return;
+        }
 
-        // サーバー通信：全年齢用の関数（Leonardo）を直接叩く
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-safe`, {
+        const detailSettings = buildLeonardoReferenceDetailSettings(templatePayload);
+
+        const requestPayload = {
+            reference_image_url: standardRef.image_url,
+            detail_settings: detailSettings,
+
+            // 重要：今回は画像生成しない
+            debug_prompt_only: true
+        };
+
+        console.log("🧪 Leonardo参照画像Functionへ送るpayload:", {
+            reference_image_url: requestPayload.reference_image_url,
+            detail_settings: requestPayload.detail_settings,
+            debug_prompt_only: requestPayload.debug_prompt_only
+        });
+
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-leonardo-reference`, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${SUPABASE_KEY}` 
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": `Bearer ${SUPABASE_KEY}`
             },
-            body: JSON.stringify(requestPayload) // 修正：プロンプトだけでなくPayload全体を送る
+            body: JSON.stringify(requestPayload)
         });
-        // 🌟 ここまで差し替え 🌟
 
-        if (!response.ok) throw new Error("サーバー通信エラー");
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`サーバー通信エラー: ${response.status} ${errorText}`);
+        }
 
         const data = await response.json();
 
-console.log("🧪 Leonardoへ渡す予定の最終prompt:", data.prompt);
+        console.log("🧪 Leonardo参照画像Function debug結果:", data);
+        console.log("🧪 finalPrompt:", data.finalPrompt);
+        console.log("🧪 negativePrompt:", data.negativePrompt);
+        console.log("🧪 detailSettings:", data.detailSettings);
+        console.log("🧪 referenceImageUrl:", data.referenceImageUrl);
 
-if (data.status === "prompt_only") {
-    if (loadingOverlay) loadingOverlay.style.display = "none";
-    alert("プロンプト確認モードです。画像生成は実行していません。Consoleで最終promptを確認してください。");
-    return;
-}
-
-const imageUrl = data.imageUrl;
-
-        if (imageUrl) {
-            pageAssets[currentPage] = imageUrl;
-            isEdited = true; // ✨ 追加：画像を生成した時も「未保存」状態にする！
-            renderPage();
-            if (loadingOverlay) loadingOverlay.style.display = "none"; // ロック解除
-            alert("スタンダード生成が完了しました！内容を保存してください。");
-        } else {
-            throw new Error("画像URLの取得に失敗しました");
+        if (!data || data.ok !== true) {
+            throw new Error(data?.error || "debug_prompt_only確認に失敗しました。");
         }
 
+        if (loadingOverlay) {
+            loadingOverlay.style.display = "none";
+        }
+
+        alert("debug_prompt_only確認が完了しました。\n画像生成は実行していません。\nNPも消費していません。\nConsoleでfinalPromptを確認してください。");
+
     } catch (err) {
-        console.error("Standard Generation Error:", err);
-        if (loadingOverlay) loadingOverlay.style.display = "none"; // エラー時もロック解除
-        alert("エラー: " + err.message);
+        console.error("Leonardo Reference Debug Error:", err);
+
+        if (loadingOverlay) {
+            loadingOverlay.style.display = "none";
+        }
+
+        alert("エラー: " + (err.message || String(err)));
     }
 }
 
