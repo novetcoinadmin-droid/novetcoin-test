@@ -301,37 +301,85 @@ async function handleUpload(event) {
 }
 
 async function fetchAssets() {
+    await fetchIllustrationAssets();
+    await fetchSceneImageAssets();
+}
+
+function renderAssetCards(assets) {
+    if (!assets || assets.length === 0) {
+        return "";
+    }
+
+    return assets.map(asset => `
+        <div class="asset-card" id="card_${asset.id}">
+            <div class="asset-img-wrapper">
+                <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
+            </div>
+            <div class="asset-info">
+                <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
+                <div class="asset-actions">
+                    <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
+                    <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function fetchIllustrationAssets() {
     const grid = document.getElementById('galleryGrid');
-    
-    // 🌟 DBからの取得 (window.supabaseClient)
+
     const { data: assets, error } = await window.supabaseClient
         .from('user_assets')
         .select('*')
         .eq('user_id', currentUser.id)
+        .eq('asset_type', 'illustration')
         .order('created_at', { ascending: false });
 
-    if (error) { 
-        grid.innerHTML = `<p>エラーが発生しました</p>`; 
-        return; 
+    if (error) {
+        grid.innerHTML = `<p>エラーが発生しました</p>`;
+        return;
     }
 
     if (assets && assets.length > 0) {
-        grid.innerHTML = assets.map(asset => `
-            <div class="asset-card" id="card_${asset.id}">
-                <div class="asset-img-wrapper">
-                    <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
-                </div>
-                <div class="asset-info">
-                    <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
-                    <div class="asset-actions">
-                        <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
-                        <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        grid.innerHTML = renderAssetCards(assets);
     } else {
-        grid.innerHTML = `<p style="color:#999; font-size:13px; grid-column: 1 / -1; text-align:center; padding: 40px 0;">まだ素材がありません。上のボタンからアップロードしてください。</p>`;
+        grid.innerHTML = `
+            <p style="color:#999; font-size:13px; grid-column: 1 / -1; text-align:center; padding: 40px 0;">
+                まだイラスト素材がありません。上のボタンからアップロードしてください。
+            </p>
+        `;
+    }
+}
+
+async function fetchSceneImageAssets() {
+    const panel = document.getElementById('sceneImagePanel');
+
+    const { data: assets, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('asset_type', 'scene')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        panel.innerHTML = `<p>風景画像の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (assets && assets.length > 0) {
+        panel.innerHTML = `
+            <div class="gallery-grid">
+                ${renderAssetCards(assets)}
+            </div>
+        `;
+    } else {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだ風景画像はありません。<br>
+                今後、風景生成後に保存した画像がここに表示されます。
+            </p>
+        `;
     }
 }
 
