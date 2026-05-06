@@ -62,7 +62,15 @@
 
 <div class="layout">
     <div class="main-content">
-        <h1>🎨 イラスト保管庫</h1>
+        <h1 style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <span>🎨 イラスト保管庫</span>
+    <span
+        id="assetStorageCount"
+        style="font-size:13px; color:#666; font-weight:bold; background:#f7f7f7; border:1px solid #ddd; border-radius:999px; padding:6px 12px; white-space:nowrap;"
+    >
+        保存庫 -- / 50
+    </span>
+</h1>
 
         <div style="display:flex; gap:10px; margin-bottom:20px;">
     <button
@@ -173,6 +181,43 @@
 // Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 
 let currentUser = null;
+const ASSET_STORAGE_LIMIT = 50;
+
+function updateAssetStorageCountDisplay(count) {
+    const el = document.getElementById("assetStorageCount");
+    if (!el) return;
+
+    const safeCount = Number(count || 0);
+
+    el.innerText = `保存庫 ${safeCount} / ${ASSET_STORAGE_LIMIT}`;
+
+    if (safeCount >= ASSET_STORAGE_LIMIT) {
+        el.style.color = "#e74c3c";
+        el.style.borderColor = "#e74c3c";
+        el.style.background = "#fff5f5";
+    } else {
+        el.style.color = "#666";
+        el.style.borderColor = "#ddd";
+        el.style.background = "#f7f7f7";
+    }
+}
+
+async function fetchAssetStorageCount() {
+    if (!currentUser) return;
+
+    const { count, error } = await window.supabaseClient
+        .from("user_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        console.error("保管庫枚数カウントエラー:", error);
+        updateAssetStorageCountDisplay(0);
+        return;
+    }
+
+    updateAssetStorageCountDisplay(count || 0);
+}
 let currentAssetTab = "images";
 
 function switchAssetTab(tabName) {
@@ -406,6 +451,7 @@ async function fetchAssets() {
     await fetchSceneImageAssets();
     await fetchOtherImageAssets();
     await fetchScenePresets();
+    await fetchAssetStorageCount();
 }
 
 function renderAssetCards(assets) {
