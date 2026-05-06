@@ -1002,45 +1002,36 @@ async function extractStandardReferenceFeatures() {
 async function runStandardizeExtraction() {
     try {
         const raw = localStorage.getItem(STANDARD_REF_KEY);
+
         if (!raw) {
             alert("先にイラスト保管庫から基準化用の画像を選択してください。");
             return;
         }
 
         const ref = JSON.parse(raw);
-        ref.extracting = true;
-        ref.extracted = false;
-        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+
+        if (!ref.image_url) {
+            alert("基準化画像のURLが見つかりません。");
+            return;
+        }
+
+        const updatedRef = {
+            ...ref,
+            extracted: true,
+            extracting: false,
+            standard_ready: true,
+            standard_method: "leonardo_reference_image",
+            standardized_at: new Date().toISOString()
+        };
+
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(updatedRef));
         renderStandardReferenceCard();
 
-        const statusBox = document.getElementById("standardStatus");
-        if (statusBox) {
-            const loadingText = document.createElement("div");
-            loadingText.id = "standardLoadingText";
-            loadingText.style = "font-size:11px; color:#6a0dad; margin-top:8px; font-weight:bold;";
-            loadingText.innerText = "プロンプトデータを読み込んでいます...";
-            statusBox.appendChild(loadingText);
-        }
+        alert("基準化が完了しました。\nこの画像を参照画像として使用します。");
 
-        await extractStandardReferenceFeatures();
-
-        alert("基準化が完了しました。");
     } catch (err) {
         console.error("基準化エラー:", err);
-
-        const raw = localStorage.getItem(STANDARD_REF_KEY);
-        if (raw) {
-            try {
-                const ref = JSON.parse(raw);
-                ref.extracting = false;
-                ref.extracted = false;
-                ref.extraction_error = err instanceof Error ? err.message : String(err);
-                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-                renderStandardReferenceCard();
-            } catch {}
-        }
-
-        alert("基準化に失敗しました。プロンプトデータの読み込みで問題が発生しています。");
+        alert("基準化に失敗しました。参照画像の設定を確認してください。");
     }
 }
 
@@ -1078,7 +1069,7 @@ async function saveStandardReference(asset) {
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
 
-        alert("参照画像を選択しました。\nこの画像をLeonardo参照画像生成に使用します。");
+        alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、この画像を参照画像として確定します。");
     } catch (err) {
         console.error("基準化画像の保存エラー:", err);
         alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
@@ -1151,10 +1142,10 @@ function renderStandardReferenceCard() {
                 <div style="display:flex; gap:6px; margin-top:8px;">
                     <button
                         type="button"
-                        onclick="standardizeFromAsset()"
+                        onclick="runStandardizeExtraction()"
                         style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;"
                     >
-                        画像を変更
+                        基準化
                     </button>
 
                     <button
