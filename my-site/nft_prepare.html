@@ -2391,20 +2391,40 @@ if (templatePayload.template_type === "other") {
         loadingOverlay.style.display = "flex";
     }
 
-    console.log("🧩 その他生成Functionへ送るpayload:", {
-        other_text: otherText,
-        debug_prompt_only: false
-    });
+    let otherStandardRef = null;
 
-    const { data, error } = await supabaseClient.functions.invoke(
-        "generate-nft-other-image-leonardo",
-        {
-            body: {
-                other_text: otherText,
-                debug_prompt_only: false
-            }
+try {
+    const raw = localStorage.getItem(STANDARD_REF_KEY);
+    otherStandardRef = raw ? JSON.parse(raw) : null;
+} catch {
+    otherStandardRef = null;
+}
+
+const otherReferenceEnabled = !!(
+    otherStandardRef &&
+    otherStandardRef.image_url &&
+    otherStandardRef.standard_ready === true
+);
+
+console.log("🧩 その他生成Functionへ送るpayload:", {
+    other_text: otherText,
+    reference_enabled: otherReferenceEnabled,
+    has_reference_image_url: !!otherStandardRef?.image_url,
+    debug_prompt_only: false
+});
+
+const { data, error } = await supabaseClient.functions.invoke(
+    "generate-nft-other-image-leonardo",
+    {
+        body: {
+            other_text: otherText,
+            reference_enabled: otherReferenceEnabled,
+            reference_image_url: otherReferenceEnabled ? otherStandardRef.image_url : null,
+            reference_asset_id: otherReferenceEnabled ? (otherStandardRef.asset_id || null) : null,
+            debug_prompt_only: false
         }
-    );
+    }
+);
 
     if (error) {
         console.error("その他生成Function Error:", error);
