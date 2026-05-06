@@ -1497,6 +1497,24 @@ function updateTemplateDisplay() {
             ${buildTemplateSelect("感情トーン・演出", "tpl_scenery_mood", [
                 "驚き", "畏怖", "静けさ", "希望", "孤独", "神秘的", "不穏", "冒険感", "夢のような雰囲気", "霧", "光のにじみ", "被写界深度風"
             ])}
+
+                        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #ddd;">
+                <button
+                    type="button"
+                    onclick="saveCurrentScenePreset()"
+                    style="width:100%; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold;"
+                >
+                    風景設定を保存
+                </button>
+
+                <button
+                    type="button"
+                    onclick="openScenePresetLoadModal()"
+                    style="width:100%; padding:10px; border:1px solid #ccc; background:#f7f7f7; color:#555; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold; margin-top:8px;"
+                >
+                    保存済み風景設定を読み込む
+                </button>
+            </div>
         `;
         return;
     }
@@ -1551,6 +1569,124 @@ function collectTemplatePayload() {
         template_type: templateType,
         template_fields: fields
     };
+}
+
+// =====================================================
+// 風景設定プリセット保存
+// =====================================================
+
+function getTemplateFieldValue(fieldId) {
+    const selectEl = document.getElementById(fieldId);
+    if (!selectEl) return "";
+
+    const value = selectEl.value;
+
+    if (!value) return "";
+
+    if (value === "__custom__") {
+        const customEl = document.getElementById(fieldId + "_custom");
+        return customEl?.value?.trim() || "";
+    }
+
+    return value;
+}
+
+function collectCurrentSceneSettings() {
+    return {
+        pov: getTemplateFieldValue("tpl_scenery_pov"),
+        composition: getTemplateFieldValue("tpl_scenery_composition"),
+        scale: getTemplateFieldValue("tpl_scenery_scale"),
+        place: getTemplateFieldValue("tpl_scenery_place"),
+        world: getTemplateFieldValue("tpl_scenery_world"),
+        detail: getTemplateFieldValue("tpl_scenery_detail"),
+        light: getTemplateFieldValue("tpl_scenery_light"),
+        tone: getTemplateFieldValue("tpl_scenery_tone"),
+        person: getTemplateFieldValue("tpl_scenery_person"),
+        mood: getTemplateFieldValue("tpl_scenery_mood")
+    };
+}
+
+function hasAnySceneSetting(sceneSettings) {
+    return Object.values(sceneSettings || {}).some(value => String(value || "").trim() !== "");
+}
+
+async function saveCurrentScenePreset() {
+    try {
+        const templateType = document.getElementById("templateType")?.value || "";
+
+        if (templateType !== "scenery") {
+            alert("風景テンプレートを選択してから保存してください。");
+            return;
+        }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        const sceneSettings = collectCurrentSceneSettings();
+
+        if (!hasAnySceneSetting(sceneSettings)) {
+            alert("保存する風景設定がありません。少なくとも1つ項目を選択してください。");
+            return;
+        }
+
+        const placeType = sceneSettings.place || "";
+        const customPlace = sceneSettings.detail || "";
+
+        const defaultName = placeType
+            ? `${placeType}の風景設定`
+            : "風景設定";
+
+        const presetName = prompt("保存する風景設定の名前を入力してください。", defaultName);
+
+        if (!presetName || !presetName.trim()) {
+            return;
+        }
+
+        let standardRef = null;
+
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            standardRef = raw ? JSON.parse(raw) : null;
+        } catch {
+            standardRef = null;
+        }
+
+        const referenceEnabled = !!(standardRef && standardRef.image_url);
+
+        const { error } = await supabaseClient
+            .from("scene_presets")
+            .insert({
+                user_id: user.id,
+                preset_name: presetName.trim(),
+                template_type: "scenery",
+                place_type: placeType || null,
+                custom_place: customPlace || null,
+                scene_settings: sceneSettings,
+                reference_enabled: referenceEnabled,
+                reference_asset_id: standardRef?.asset_id || null,
+                reference_image_url: standardRef?.image_url || null
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        alert("風景設定を保存しました。");
+
+    } catch (err) {
+        console.error("風景設定保存エラー:", err);
+        alert("風景設定の保存に失敗しました: " + (err.message || String(err)));
+    }
+}
+
+// 読み込み処理は次のステップで実装する。
+// 先にボタンを押してもエラーにならないよう、仮の案内だけ置いておく。
+function openScenePresetLoadModal() {
+    alert("保存済み風景設定の読み込み機能は、次のステップで実装します。");
 }
 
 // =====================================================
