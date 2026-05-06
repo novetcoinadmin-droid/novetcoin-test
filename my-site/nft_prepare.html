@@ -1078,7 +1078,7 @@ async function saveStandardReference(asset) {
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
 
-        alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、プロンプトデータを読み込みます。");
+        alert("参照画像を選択しました。\nこの画像をLeonardo参照画像生成に使用します。");
     } catch (err) {
         console.error("基準化画像の保存エラー:", err);
         alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
@@ -1114,6 +1114,7 @@ function renderStandardReferenceCard() {
     }
 
     let ref = null;
+
     try {
         ref = JSON.parse(raw);
     } catch {
@@ -1130,18 +1131,37 @@ function renderStandardReferenceCard() {
     box.innerHTML = `
         <div style="margin-top:10px; border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff;">
             <img src="${ref.image_url}" style="width:100%; height:120px; object-fit:cover; display:block;">
+
             <div style="padding:8px;">
-                <div style="font-size:11px; color:#666;">現在の基準化</div>
-                <div style="font-size:12px; font-weight:bold; margin-top:3px;">${ref.title || "無題"}</div>
-                <div style="font-size:11px; color:#6a0dad; margin-top:4px;">種別：${typeLabel}</div>
-                <div style="font-size:10px; color:#999; margin-top:4px;">
-                    特徴抽出：${ref.extracted ? "完了" : "未実行"}
+                <div style="font-size:11px; color:#666;">現在の参照画像</div>
+
+                <div style="font-size:12px; font-weight:bold; margin-top:3px;">
+                    ${ref.title || "無題"}
                 </div>
+
+                <div style="font-size:11px; color:#6a0dad; margin-top:4px;">
+                    種別：${typeLabel}
+                </div>
+
+                <div style="font-size:10px; color:#2ecc71; margin-top:6px; line-height:1.5;">
+                    参照画像：設定済み<br>
+                    この画像URLをLeonardo参照画像生成に使用します。特徴抽出は現在使いません。
+                </div>
+
                 <div style="display:flex; gap:6px; margin-top:8px;">
-                    <button type="button" onclick="runStandardizeExtraction()" style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;">
-                        基準化
+                    <button
+                        type="button"
+                        onclick="standardizeFromAsset()"
+                        style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;"
+                    >
+                        画像を変更
                     </button>
-                    <button type="button" onclick="clearStandardReference()" style="flex:1; padding:6px; border:1px solid #999; color:#666; background:#f5f5f5; border-radius:5px; cursor:pointer; font-size:11px;">
+
+                    <button
+                        type="button"
+                        onclick="clearStandardReference()"
+                        style="flex:1; padding:6px; border:1px solid #999; color:#666; background:#f5f5f5; border-radius:5px; cursor:pointer; font-size:11px;"
+                    >
                         解除
                     </button>
                 </div>
