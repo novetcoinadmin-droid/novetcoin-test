@@ -400,6 +400,15 @@ body {
                 スタンダード生成（10 NP）
             </button>
 
+            <button
+                id="saveGeneratedAssetBtn"
+                class="btn"
+                style="background:#fff; color:#6a0dad; border:1px solid #6a0dad; font-size:13px; margin-top:8px;"
+                onclick="saveCurrentGeneratedImageToAssets()"
+            >
+                生成したイラストを保管庫に保存
+            </button>
+
             <p style="font-size:10px; color:#999; margin-top:8px; line-height:1.5;">
                 ※配色はモノクロ固定。プレミアム生成は現在停止中です。
             </p>
@@ -840,6 +849,133 @@ function selectAsset(imageUrl) {
     alert("イラストを挿入しました！\n（※忘れずに「保存」ボタンを押してください）");
 }
 
+// =====================================================
+// 生成済みイラストをイラスト保管庫へ保存
+// =====================================================
+
+function loadImageFromBlob(blob) {
+    return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const img = new Image();
+
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(img);
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error("画像の読み込みに失敗しました。"));
+        };
+
+        img.src = objectUrl;
+    });
+}
+
+async function convertImageUrlToWebpBlob(imageUrl) {
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+        throw new Error("生成画像の取得に失敗しました。");
+    }
+
+    const originalBlob = await response.blob();
+    const img = await loadImageFromBlob(originalBlob);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+        throw new Error("Canvasの初期化に失敗しました。");
+    }
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const webpBlob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, "image/webp", 0.85);
+    });
+
+    if (!webpBlob) {
+        throw new Error("WebP変換に失敗しました。");
+    }
+
+    return webpBlob;
+}
+
+async function saveCurrentGeneratedImageToAssets() {
+    const imageUrl = pageAssets[currentPage];
+
+    if (!imageUrl) {
+        alert("このページには保存できる生成イラストがありません。");
+        return;
+    }
+
+    const btn = document.getElementById("saveGeneratedAssetBtn");
+    const originalText = btn ? btn.innerText : "";
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "保存中...";
+        }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            throw new Error("ログインが必要です。");
+        }
+
+        const webpBlob = await convertImageUrlToWebpBlob(imageUrl);
+
+        const fileName = `generated_${user.id}_${Date.now()}.webp`;
+
+        const { error: uploadError } = await supabaseClient.storage
+            .from("illustrations")
+            .upload(fileName, webpBlob, {
+                contentType: "image/webp",
+                upsert: false
+            });
+
+        if (uploadError) {
+            throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabaseClient.storage
+            .from("illustrations")
+            .getPublicUrl(fileName);
+
+        const finalUrl = publicUrlData.publicUrl;
+
+        const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
+
+        const { error: insertError } = await supabaseClient
+            .from("user_assets")
+            .insert({
+                user_id: user.id,
+                file_url: finalUrl,
+                file_name: defaultName
+            });
+
+        if (insertError) {
+            throw insertError;
+        }
+
+        alert("生成したイラストをイラスト保管庫に保存しました。");
+
+    } catch (err) {
+        console.error("生成イラスト保管庫保存エラー:", err);
+        alert("保管庫への保存に失敗しました: " + (err.message || String(err)));
+
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText || "生成したイラストを保管庫に保存";
+        }
+    }
+}
+
 function openStandardReferenceDb() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(STANDARD_REF_DB_NAME, 1);
@@ -1135,8 +1271,7 @@ function renderStandardReferenceCard() {
                 </div>
 
                 <div style="font-size:10px; color:#2ecc71; margin-top:6px; line-height:1.5;">
-                    参照画像：設定済み<br>
-                    この画像URLをLeonardo参照画像生成に使用します。特徴抽出は現在使いません。
+                    参照画像：設定済み
                 </div>
 
                 <div style="display:flex; gap:6px; margin-top:8px;">
