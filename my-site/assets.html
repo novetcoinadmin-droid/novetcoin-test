@@ -65,33 +65,42 @@
         <h1>🎨 イラスト保管庫</h1>
 
         <div style="display:flex; gap:10px; margin-bottom:20px;">
-            <button
-                id="assetImageTabBtn"
-                type="button"
-                onclick="switchAssetTab('images')"
-                style="flex:1; padding:10px; border:1px solid #6a0dad; background:#6a0dad; color:white; border-radius:6px; font-weight:bold; cursor:pointer;"
-            >
-                イラスト
-            </button>
+    <button
+        id="assetImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('images')"
+        style="flex:1; padding:10px; border:1px solid #6a0dad; background:#6a0dad; color:white; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        イラスト
+    </button>
 
-            <button
-                id="assetSceneImageTabBtn"
-                type="button"
-                onclick="switchAssetTab('sceneImages')"
-                style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
-            >
-                風景
-            </button>
+    <button
+        id="assetSceneImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('sceneImages')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景
+    </button>
 
-            <button
-                id="assetScenePresetTabBtn"
-                type="button"
-                onclick="switchAssetTab('scenePresets')"
-                style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
-            >
-                風景設定
-            </button>
-        </div>
+    <button
+        id="assetOtherImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('otherImages')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        その他
+    </button>
+
+    <button
+        id="assetScenePresetTabBtn"
+        type="button"
+        onclick="switchAssetTab('scenePresets')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景設定
+    </button>
+</div>
 
         <div class="upload-area">
             <p id="uploadAreaDescription" style="font-size: 13px; color: #666; margin-bottom: 15px;">
@@ -111,6 +120,12 @@
         <div id="sceneImagePanel" style="display:none;">
             <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
                 風景画像を読み込み中...
+            </p>
+        </div>
+
+        <div id="otherImagePanel" style="display:none;">
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                その他画像を読み込み中...
             </p>
         </div>
 
@@ -165,6 +180,7 @@ function switchAssetTab(tabName) {
 
     const imageTabBtn = document.getElementById("assetImageTabBtn");
     const sceneImageTabBtn = document.getElementById("assetSceneImageTabBtn");
+    const otherImageTabBtn = document.getElementById("assetOtherImageTabBtn");
     const scenePresetTabBtn = document.getElementById("assetScenePresetTabBtn");
 
     const uploadArea = document.querySelector(".upload-area");
@@ -173,6 +189,7 @@ function switchAssetTab(tabName) {
 
     const galleryGrid = document.getElementById("galleryGrid");
     const sceneImagePanel = document.getElementById("sceneImagePanel");
+    const otherImagePanel = document.getElementById("otherImagePanel");
     const scenePresetPanel = document.getElementById("scenePresetPanel");
 
     const setButtonStyle = (btn, active) => {
@@ -185,15 +202,16 @@ function switchAssetTab(tabName) {
 
     const isImages = tabName === "images";
     const isSceneImages = tabName === "sceneImages";
+    const isOtherImages = tabName === "otherImages";
     const isScenePresets = tabName === "scenePresets";
 
     setButtonStyle(imageTabBtn, isImages);
     setButtonStyle(sceneImageTabBtn, isSceneImages);
+    setButtonStyle(otherImageTabBtn, isOtherImages);
     setButtonStyle(scenePresetTabBtn, isScenePresets);
 
-    // アップロード欄は「イラスト」「風景」で表示、「風景設定」では非表示
     if (uploadArea) {
-        uploadArea.style.display = (isImages || isSceneImages) ? "block" : "none";
+        uploadArea.style.display = (isImages || isSceneImages || isOtherImages) ? "block" : "none";
     }
 
     if (uploadDesc && uploadBtnText) {
@@ -212,6 +230,14 @@ function switchAssetTab(tabName) {
             `;
             uploadBtnText.innerText = "＋ 風景用画像をアップロード（複数選択可）";
         }
+
+        if (isOtherImages) {
+            uploadDesc.innerHTML = `
+                装備・アイテム・魔法・スキルなど、その他素材用の画像をアップロードします。<br>
+                ※その他タブに保存され、後から挿絵素材として使えます。
+            `;
+            uploadBtnText.innerText = "＋ その他用画像をアップロード（複数選択可）";
+        }
     }
 
     if (galleryGrid) {
@@ -220,6 +246,10 @@ function switchAssetTab(tabName) {
 
     if (sceneImagePanel) {
         sceneImagePanel.style.display = isSceneImages ? "block" : "none";
+    }
+
+    if (otherImagePanel) {
+        otherImagePanel.style.display = isOtherImages ? "block" : "none";
     }
 
     if (scenePresetPanel) {
@@ -263,10 +293,20 @@ async function handleUpload(event) {
     if (!files || files.length === 0) return;
 
     const isSceneUpload = currentAssetTab === "sceneImages";
+    const isOtherUpload = currentAssetTab === "otherImages";
 
-    const assetType = isSceneUpload ? "scene" : "illustration";
+    let assetType = "illustration";
+
+    if (isSceneUpload) {
+        assetType = "scene";
+        }
+
+    if (isOtherUpload) {
+        assetType = "other";
+    }
+
     const assetSource = "uploaded";
-
+    
     const btn = document.getElementById('uploadBtnText');
     const originalBtnText = btn ? btn.innerText : "";
 
@@ -307,7 +347,7 @@ async function handleUpload(event) {
                 throw new Error("WebP変換に失敗しました。");
             }
 
-            const prefix = isSceneUpload ? "scene" : "asset";
+            const prefix = isSceneUpload ? "scene" : (isOtherUpload ? "other" : "asset");
             const fileName = `${prefix}_${currentUser.id}_${Date.now()}_${i}.webp`;
 
             const { error: uploadErr } = await window.supabaseClient.storage
@@ -364,6 +404,7 @@ async function handleUpload(event) {
 async function fetchAssets() {
     await fetchIllustrationAssets();
     await fetchSceneImageAssets();
+    await fetchOtherImageAssets();
     await fetchScenePresets();
 }
 
@@ -440,6 +481,37 @@ async function fetchSceneImageAssets() {
             <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
                 まだ風景画像はありません。<br>
                 今後、風景生成後に保存した画像がここに表示されます。
+            </p>
+        `;
+    }
+}
+
+async function fetchOtherImageAssets() {
+    const panel = document.getElementById('otherImagePanel');
+
+    const { data: assets, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('asset_type', 'other')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        panel.innerHTML = `<p>その他画像の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (assets && assets.length > 0) {
+        panel.innerHTML = `
+            <div class="gallery-grid">
+                ${renderAssetCards(assets)}
+            </div>
+        `;
+    } else {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだその他画像はありません。<br>
+                装備・アイテム・魔法・スキルなどの素材がここに表示されます。
             </p>
         `;
     }
