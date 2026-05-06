@@ -61,9 +61,7 @@
 </nav>
 
 <div class="layout">
-    <div class="main-content">
-        <h1>🎨 イラスト保管庫</h1>
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
     <button
         id="assetImageTabBtn"
         type="button"
@@ -74,9 +72,18 @@
     </button>
 
     <button
-        id="assetSceneTabBtn"
+        id="assetSceneImageTabBtn"
         type="button"
-        onclick="switchAssetTab('scenes')"
+        onclick="switchAssetTab('sceneImages')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景
+    </button>
+
+    <button
+        id="assetScenePresetTabBtn"
+        type="button"
+        onclick="switchAssetTab('scenePresets')"
         style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
     >
         風景設定
@@ -96,11 +103,16 @@
         <div class="gallery-grid" id="galleryGrid">
             <p style="color: #999; font-size: 13px;">読み込み中...</p>
         </div>
+        <div id="sceneImagePanel" style="display:none;">
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+            風景画像を読み込み中...
+            </p>
+        </div>
         <div id="scenePresetPanel" style="display:none;">
-    <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
-        風景設定を読み込み中...
-    </p>
-</div>
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+            風景設定を読み込み中...
+            </p>
+        </div>
     </div>
 
     <div class="right-panel">
@@ -146,24 +158,29 @@ function switchAssetTab(tabName) {
     currentAssetTab = tabName;
 
     const imageTabBtn = document.getElementById("assetImageTabBtn");
-    const sceneTabBtn = document.getElementById("assetSceneTabBtn");
+    const sceneImageTabBtn = document.getElementById("assetSceneImageTabBtn");
+    const scenePresetTabBtn = document.getElementById("assetScenePresetTabBtn");
+
     const uploadArea = document.querySelector(".upload-area");
     const galleryGrid = document.getElementById("galleryGrid");
+    const sceneImagePanel = document.getElementById("sceneImagePanel");
     const scenePresetPanel = document.getElementById("scenePresetPanel");
 
+    const setButtonStyle = (btn, active) => {
+        if (!btn) return;
+
+        btn.style.background = active ? "#6a0dad" : "#fff";
+        btn.style.color = active ? "#fff" : "#555";
+        btn.style.borderColor = active ? "#6a0dad" : "#ccc";
+    };
+
     const isImages = tabName === "images";
+    const isSceneImages = tabName === "sceneImages";
+    const isScenePresets = tabName === "scenePresets";
 
-    if (imageTabBtn) {
-        imageTabBtn.style.background = isImages ? "#6a0dad" : "#fff";
-        imageTabBtn.style.color = isImages ? "#fff" : "#555";
-        imageTabBtn.style.borderColor = isImages ? "#6a0dad" : "#ccc";
-    }
-
-    if (sceneTabBtn) {
-        sceneTabBtn.style.background = isImages ? "#fff" : "#6a0dad";
-        sceneTabBtn.style.color = isImages ? "#555" : "#fff";
-        sceneTabBtn.style.borderColor = isImages ? "#ccc" : "#6a0dad";
-    }
+    setButtonStyle(imageTabBtn, isImages);
+    setButtonStyle(sceneImageTabBtn, isSceneImages);
+    setButtonStyle(scenePresetTabBtn, isScenePresets);
 
     if (uploadArea) {
         uploadArea.style.display = isImages ? "block" : "none";
@@ -173,8 +190,12 @@ function switchAssetTab(tabName) {
         galleryGrid.style.display = isImages ? "grid" : "none";
     }
 
+    if (sceneImagePanel) {
+        sceneImagePanel.style.display = isSceneImages ? "block" : "none";
+    }
+
     if (scenePresetPanel) {
-        scenePresetPanel.style.display = isImages ? "none" : "block";
+        scenePresetPanel.style.display = isScenePresets ? "block" : "none";
     }
 }
 
