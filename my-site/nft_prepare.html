@@ -1685,8 +1685,240 @@ async function saveCurrentScenePreset() {
 
 // 読み込み処理は次のステップで実装する。
 // 先にボタンを押してもエラーにならないよう、仮の案内だけ置いておく。
-function openScenePresetLoadModal() {
-    alert("保存済み風景設定の読み込み機能は、次のステップで実装します。");
+// =====================================================
+// 保存済み風景設定プリセット読込
+// =====================================================
+
+function closeScenePresetLoadModal() {
+    const overlay = document.getElementById("scenePresetLoadOverlay");
+    if (overlay) overlay.remove();
+}
+
+function setTemplateFieldValue(fieldId, value) {
+    const selectEl = document.getElementById(fieldId);
+    if (!selectEl) return;
+
+    const normalizedValue = String(value || "").trim();
+
+    if (!normalizedValue) {
+        selectEl.value = "";
+        toggleTemplateCustomInput(selectEl);
+        return;
+    }
+
+    const hasOption = Array.from(selectEl.options).some(option => option.value === normalizedValue);
+
+    if (hasOption) {
+        selectEl.value = normalizedValue;
+        toggleTemplateCustomInput(selectEl);
+        return;
+    }
+
+    // 保存値が既存選択肢にない場合は、自由入力へ戻す
+    selectEl.value = "__custom__";
+    toggleTemplateCustomInput(selectEl);
+
+    const customEl = document.getElementById(fieldId + "_custom");
+    if (customEl) {
+        customEl.value = normalizedValue;
+    }
+}
+
+function applyScenePresetToForm(preset) {
+    if (!preset) return;
+
+    const templateTypeEl = document.getElementById("templateType");
+    if (templateTypeEl) {
+        templateTypeEl.value = "scenery";
+        updateTemplateDisplay();
+    }
+
+    const settings = preset.scene_settings || {};
+
+    setTemplateFieldValue("tpl_scenery_pov", settings.pov);
+    setTemplateFieldValue("tpl_scenery_composition", settings.composition);
+    setTemplateFieldValue("tpl_scenery_scale", settings.scale);
+    setTemplateFieldValue("tpl_scenery_place", settings.place);
+    setTemplateFieldValue("tpl_scenery_world", settings.world);
+    setTemplateFieldValue("tpl_scenery_detail", settings.detail);
+    setTemplateFieldValue("tpl_scenery_light", settings.light);
+    setTemplateFieldValue("tpl_scenery_tone", settings.tone);
+    setTemplateFieldValue("tpl_scenery_person", settings.person);
+    setTemplateFieldValue("tpl_scenery_mood", settings.mood);
+
+    // 背景基準化画像が保存されている場合は、現在の基準化として復元する
+    if (preset.reference_enabled && preset.reference_image_url) {
+        const ref = {
+            type: "scenery",
+            asset_id: preset.reference_asset_id || null,
+            title: preset.preset_name || "風景基準化",
+            image_url: preset.reference_image_url,
+            extracted: true,
+            extracting: false,
+            standard_ready: true,
+            standard_method: "scene_reference_image",
+            saved_at: new Date().toISOString()
+        };
+
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+        renderStandardReferenceCard();
+    }
+
+    closeScenePresetLoadModal();
+    alert("保存済み風景設定を読み込みました。");
+}
+
+async function openScenePresetLoadModal() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        const { data: presets, error } = await supabaseClient
+            .from("scene_presets")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const existing = document.getElementById("scenePresetLoadOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "scenePresetLoadOverlay";
+        overlay.style = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 10002;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: sans-serif;
+        `;
+
+        const listHtml = presets && presets.length > 0
+            ? presets.map((preset, index) => {
+                const settings = preset.scene_settings || {};
+                const summaryParts = [
+                    settings.place,
+                    settings.world,
+                    settings.light,
+                    settings.mood
+                ].filter(Boolean);
+
+                const summary = summaryParts.length > 0
+                    ? summaryParts.join(" / ")
+                    : "詳細設定あり";
+
+                return `
+                    <div style="
+                        border:1px solid #eee;
+                        border-radius:8px;
+                        padding:10px;
+                        margin-bottom:8px;
+                        background:#fff;
+                    ">
+                        <div style="font-size:13px; font-weight:bold; color:#333;">
+                            ${preset.preset_name || "無題の風景設定"}
+                        </div>
+
+                        <div style="font-size:11px; color:#777; margin-top:4px; line-height:1.5;">
+                            ${summary}
+                        </div>
+
+                        <div style="font-size:10px; color:#999; margin-top:4px;">
+                            基準化画像：${preset.reference_enabled ? "あり" : "なし"}
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="applyScenePresetToForm(window.scenePresetList[${index}])"
+                            style="
+                                width:100%;
+                                padding:8px;
+                                margin-top:8px;
+                                border:1px solid #6a0dad;
+                                background:#6a0dad;
+                                color:white;
+                                border-radius:6px;
+                                cursor:pointer;
+                                font-size:12px;
+                                font-weight:bold;
+                            "
+                        >
+                            この風景設定を読み込む
+                        </button>
+                    </div>
+                `;
+            }).join("")
+            : `
+                <p style="font-size:13px; color:#999; text-align:center; padding:30px 0;">
+                    保存済みの風景設定はまだありません。
+                </p>
+            `;
+
+        window.scenePresetList = presets || [];
+
+        overlay.innerHTML = `
+            <div style="
+                width: 92%;
+                max-width: 620px;
+                max-height: 80vh;
+                background:#fff;
+                border-radius:12px;
+                overflow:hidden;
+                box-shadow:0 10px 30px rgba(0,0,0,0.3);
+                display:flex;
+                flex-direction:column;
+            ">
+                <div style="
+                    padding:14px 18px;
+                    border-bottom:1px solid #eee;
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    flex:0 0 auto;
+                ">
+                    <div style="font-size:17px; font-weight:bold; color:#6a0dad;">
+                        保存済み風景設定
+                    </div>
+
+                    <button
+                        type="button"
+                        onclick="closeScenePresetLoadModal()"
+                        style="background:none; border:none; font-size:24px; color:#999; cursor:pointer;"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div style="
+                    padding:16px;
+                    overflow-y:auto;
+                    flex:1 1 auto;
+                    background:#fafafa;
+                ">
+                    ${listHtml}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+    } catch (err) {
+        console.error("風景設定読込エラー:", err);
+        alert("風景設定の読み込みに失敗しました: " + (err.message || String(err)));
+    }
 }
 
 // =====================================================
