@@ -948,10 +948,10 @@ async function saveCurrentGeneratedImageToAssets() {
         const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
 
         const currentTemplateType =
-    String(templatePayload?.template_type || "").toLowerCase();
+            String(document.getElementById("templateType")?.value || "").toLowerCase();
 
-const savedAssetType =
-    currentTemplateType === "scenery" ? "scene" : "illustration";
+        const savedAssetType =
+            currentTemplateType === "scenery" ? "scene" : "illustration";
 
 const { error: insertError } = await supabaseClient
     .from("user_assets")
