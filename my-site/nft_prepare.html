@@ -323,38 +323,53 @@ body {
     <div class="control-panel">
 
         <div class="section-card" style="border-left: 4px solid #6a0dad;">
-            <button class="btn" style="background:#444; color:white;" onclick="toggleMobileView()" id="viewToggleBtn">
-                📱 スマホ風表示
-            </button>
+    <button class="btn" style="background:#444; color:white;" onclick="toggleMobileView()" id="viewToggleBtn">
+        📱 スマホ風表示
+    </button>
 
-            <button class="btn" style="background:#eee; color:#666;" onclick="backToMint()">
-                ← 作品選択に戻る
-            </button>
+    <button class="btn" style="background:#eee; color:#666;" onclick="backToMint()">
+        ← 作品選択に戻る
+    </button>
 
-            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #eee;">
-                <label style="font-size:12px; color:#666;">作品名</label>
-                <div id="metaTitle" style="font-weight:bold; font-size:14px; margin-top:4px;">--</div>
-            </div>
+    <div style="
+        margin-top:10px;
+        padding-top:10px;
+        border-top:1px solid #eee;
+        font-size:11px;
+        color:#666;
+        line-height:1.6;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    ">
+        作品名：<strong id="metaTitle" style="color:#333;">--</strong>
+        <span style="color:#aaa; margin:0 4px;">|</span>
+        保有NP：<strong style="color:#6a0dad;"><span id="myNp">--</span> NP</strong>
+    </div>
+</div>
 
-            <div style="margin-top: 12px;">
-                <label style="font-size:12px; color:#666;">保有NP</label>
-                <div style="font-weight:bold; font-size:18px; color:#6a0dad; margin-top:4px;">
-                    <span id="myNp">--</span> NP
-                </div>
-            </div>
-        </div>
+<div class="section-card" style="border-left: 4px solid #6a0dad;">
+    <label style="font-size:13px; font-weight:bold;">挿絵選択</label>
 
-        <div class="section-card" style="border-left: 4px solid #6a0dad;">
-            <button
-                id="openInsertIllustrationBtn"
-                type="button"
-                class="btn"
-                onclick="openInsertAssetModal()"
-                style="background:#fff; border:1px solid #6a0dad; color:#6a0dad;"
+    <select
+        id="insertAssetTypeSelect"
+        style="width:100%; margin-top:8px; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
     >
-                🖼️ イラスト保管庫から挿絵選択
-            </button>
-        </div>
+        <option value="illustration">イラストから挿絵へ</option>
+        <option value="scene">風景から挿絵へ</option>
+        <option value="other">その他から挿絵へ</option>
+    </select>
+
+    <button
+        id="openInsertIllustrationBtn"
+        type="button"
+        class="btn"
+        onclick="openInsertAssetModal()"
+        style="background:#fff; border:1px solid #6a0dad; color:#6a0dad; margin-top:8px;"
+    >
+        選択した保管庫から挿絵を選ぶ
+    </button>
+</div>
 
         <div class="section-card" style="border-left: 4px solid #333;">
             <label style="font-size:13px; font-weight:bold;">基準化</label>
@@ -675,11 +690,17 @@ async function openAssetModal() {
         if (!user) return alert("ログインが必要です");
 
         // 自分の素材を新しい順に取得
-        const { data: assets, error } = await supabaseClient
-            .from('user_assets')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+let assetQuery = supabaseClient
+    .from('user_assets')
+    .select('*')
+    .eq('user_id', user.id);
+
+if (assetModalMode === "insert" && assetModalFilterType) {
+    assetQuery = assetQuery.eq('asset_type', assetModalFilterType);
+}
+
+const { data: assets, error } = await assetQuery
+    .order('created_at', { ascending: false });
 
         if (error) throw error;
 
@@ -716,8 +737,12 @@ function closeAssetModal() {
 }
 
 let skipInsertCopyrightWarningThisOpen = false;
+let assetModalFilterType = "illustration";
 
 function openInsertAssetModal() {
+    const selectEl = document.getElementById("insertAssetTypeSelect");
+    assetModalFilterType = selectEl?.value || "illustration";
+
     assetModalMode = "insert";
     openAssetModal();
 }
