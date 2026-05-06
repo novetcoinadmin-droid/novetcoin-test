@@ -409,9 +409,6 @@ body {
                 生成したイラストを保管庫に保存
             </button>
 
-            <p style="font-size:10px; color:#999; margin-top:8px; line-height:1.5;">
-                ※配色はモノクロ固定。プレミアム生成は現在停止中です。
-            </p>
         </div>
 
         <button class="btn btn-save" onclick="saveNftDraft()">編集内容を保存する</button>
@@ -950,16 +947,22 @@ async function saveCurrentGeneratedImageToAssets() {
 
         const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
 
-        const { error: insertError } = await supabaseClient
+        const currentTemplateType =
+    String(templatePayload?.template_type || "").toLowerCase();
+
+const savedAssetType =
+    currentTemplateType === "scenery" ? "scene" : "illustration";
+
+const { error: insertError } = await supabaseClient
     .from("user_assets")
     .insert({
         user_id: user.id,
         file_url: finalUrl,
         file_name: defaultName,
-        asset_type: "illustration",
+        asset_type: savedAssetType,
         asset_source: "generated"
     });
-
+        
         if (insertError) {
             throw insertError;
         }
