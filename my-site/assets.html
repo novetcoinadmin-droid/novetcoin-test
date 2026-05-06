@@ -303,6 +303,7 @@ async function handleUpload(event) {
 async function fetchAssets() {
     await fetchIllustrationAssets();
     await fetchSceneImageAssets();
+    await fetchScenePresets();
 }
 
 function renderAssetCards(assets) {
@@ -381,6 +382,123 @@ async function fetchSceneImageAssets() {
             </p>
         `;
     }
+}
+
+async function fetchScenePresets() {
+    const panel = document.getElementById("scenePresetPanel");
+
+    const { data: presets, error } = await window.supabaseClient
+        .from("scene_presets")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("updated_at", { ascending: false });
+
+    if (error) {
+        console.error("風景設定読み込みエラー:", error);
+        panel.innerHTML = `<p>風景設定の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (!presets || presets.length === 0) {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだ保存済みの風景設定はありません。<br>
+                nft_prepare.html の風景テンプレートから保存できます。
+            </p>
+        `;
+        return;
+    }
+
+    panel.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px;">
+            ${presets.map(preset => {
+                const settings = preset.scene_settings || {};
+                const summary = [
+                    settings.place,
+                    settings.world,
+                    settings.light,
+                    settings.mood
+                ].filter(Boolean).join(" / ") || "詳細設定あり";
+
+                return `
+                    <div style="background:#fff; border:1px solid #eee; border-radius:8px; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <input
+                            type="text"
+                            id="scene_name_${preset.id}"
+                            value="${preset.preset_name || "無題の風景設定"}"
+                            style="width:100%; padding:8px; font-size:13px; border:1px solid #ccc; border-radius:4px; margin-bottom:8px;"
+                        >
+
+                        <div style="font-size:12px; color:#666; line-height:1.6; margin-bottom:8px;">
+                            ${summary}
+                        </div>
+
+                        <div style="font-size:11px; color:${preset.reference_enabled ? "#2ecc71" : "#999"}; margin-bottom:10px;">
+                            基準化画像：${preset.reference_enabled ? "あり" : "なし"}
+                        </div>
+
+                        <div style="display:flex; gap:6px;">
+                            <button
+                                onclick="updateScenePresetName('${preset.id}')"
+                                style="flex:1; background:#6a0dad; color:white; border:none; padding:7px; border-radius:4px; font-size:11px; cursor:pointer;"
+                            >
+                                💾 名前を保存
+                            </button>
+
+                            <button
+                                onclick="deleteScenePreset('${preset.id}')"
+                                style="background:#ff4d4f; color:white; border:none; padding:7px 10px; border-radius:4px; font-size:11px; cursor:pointer;"
+                            >
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("")}
+        </div>
+    `;
+}
+
+async function updateScenePresetName(id) {
+    const input = document.getElementById(`scene_name_${id}`);
+    const newName = input ? input.value.trim() : "";
+
+    if (!newName) {
+        alert("名前を入力してください。");
+        return;
+    }
+
+    const { error } = await window.supabaseClient
+        .from("scene_presets")
+        .update({ preset_name: newName })
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        alert("風景設定名の保存に失敗しました。");
+        return;
+    }
+
+    alert("風景設定名を保存しました。");
+    await fetchScenePresets();
+}
+
+async function deleteScenePreset(id) {
+    if (!confirm("この風景設定を削除しますか？")) return;
+
+    const { error } = await window.supabaseClient
+        .from("scene_presets")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        alert("風景設定の削除に失敗しました。");
+        return;
+    }
+
+    alert("風景設定を削除しました。");
+    await fetchScenePresets();
 }
 
 async function updateAssetName(id) {
