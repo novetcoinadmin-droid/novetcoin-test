@@ -1473,6 +1473,7 @@ function updatePromptSource() {
 }
 
 // 4. 画像生成ロジック
+// Leonardo参照画像Function 本実行版
 async function generateImage(type) {
     const charSelect = document.getElementById("charSelect");
     const charId = charSelect ? charSelect.value : "text";
@@ -1490,7 +1491,7 @@ async function generateImage(type) {
         return;
     }
 
-    // --- スタンダードの場合：まずはdebug_prompt_only確認 ---
+    // --- スタンダード生成 ---
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
 
@@ -1509,8 +1510,9 @@ async function generateImage(type) {
             throw profileError;
         }
 
-        // 今回はNPを消費しないが、本番生成前の残高チェックだけ残す
-        if (!profile || Number(profile.np_balance || 0) < 10) {
+        const currentNp = Number(profile?.np_balance || 0);
+
+        if (currentNp < 10) {
             alert("NP残高が不足しています（必要: 10 NP）。");
             return;
         }
@@ -1518,7 +1520,7 @@ async function generateImage(type) {
         const templatePayload = collectTemplatePayload();
 
         if (templatePayload.template_type !== "character") {
-            alert("現在の参照画像生成テストは、キャラテンプレートのみ対応です。");
+            alert("現在の参照画像生成は、キャラテンプレートのみ対応です。");
             return;
         }
 
@@ -1532,60 +1534,103 @@ async function generateImage(type) {
         }
 
         if (!standardRef || !standardRef.image_url) {
-            alert("先に『基準化』で、イラスト保管庫から基準画像を選択してください。");
+            alert("先にイラスト保管庫から基準化用の画像を選択してください。");
+            return;
+        }
+
+        if (standardRef.standard_ready !== true) {
+            alert("基準化用の画像は選択済みです。\n続けて「基準化」ボタンを押してから生成してください。");
             return;
         }
 
         const detailSettings = buildLeonardoReferenceDetailSettings(templatePayload);
 
+        const hasAnyDetail = Object.values(detailSettings).some(value => String(value || "").trim() !== "");
+
+        if (!hasAnyDetail) {
+            alert("キャラテンプレートの細部設定を1つ以上選択してください。");
+            return;
+        }
+
+        if (!confirm("スタンダード生成を実行しますか？\n費用: 10 NP")) {
+            return;
+        }
+
+        if (loadingOverlay) {
+            loadingOverlay.style.display = "flex";
+        }
+
         const requestPayload = {
             reference_image_url: standardRef.image_url,
             detail_settings: detailSettings,
-
-            // 重要：今回は画像生成しない
-            debug_prompt_only: true
+            debug_prompt_only: false
         };
 
-        console.log("🧪 Leonardo参照画像Functionへ送るpayload:", {
-            reference_image_url: requestPayload.reference_image_url,
+        console.log("🎨 Leonardo参照画像Functionへ送るpayload:", {
+            has_reference_image_url: !!requestPayload.reference_image_url,
             detail_settings: requestPayload.detail_settings,
             debug_prompt_only: requestPayload.debug_prompt_only
         });
 
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-nft-image-leonardo-reference`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json; charset=utf-8",
-                "Authorization": `Bearer ${SUPABASE_KEY}`
-            },
-            body: JSON.stringify(requestPayload)
-        });
+        const { data, error } = await supabaseClient.functions.invoke(
+            "generate-nft-image-leonardo-reference",
+            {
+                body: requestPayload
+            }
+        );
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`サーバー通信エラー: ${response.status} ${errorText}`);
+        if (error) {
+            console.error("Leonardo参照画像Function Error:", error);
+            throw new Error(error.message || "Leonardo参照画像Functionの呼び出しに失敗しました。");
         }
 
-        const data = await response.json();
-
-        console.log("🧪 Leonardo参照画像Function debug結果:", data);
-        console.log("🧪 finalPrompt:", data.finalPrompt);
-        console.log("🧪 negativePrompt:", data.negativePrompt);
-        console.log("🧪 detailSettings:", data.detailSettings);
-        console.log("🧪 referenceImageUrl:", data.referenceImageUrl);
+        console.log("🎨 Leonardo参照画像Function 結果:", data);
 
         if (!data || data.ok !== true) {
-            throw new Error(data?.error || "debug_prompt_only確認に失敗しました。");
+            throw new Error(data?.error || "画像URLの取得に失敗しました。");
+        }
+
+        const imageUrl =
+            data.imageUrl ||
+            data.image_url ||
+            data.generatedImageUrl ||
+            data.generated_image_url ||
+            data.url ||
+            "";
+
+        if (!imageUrl) {
+            throw new Error("画像URLが返ってきませんでした。");
+        }
+
+        pageAssets[currentPage] = imageUrl;
+        isEdited = true;
+        renderPage();
+
+        const newNp = currentNp - 10;
+
+        const { error: updateError } = await supabaseClient
+            .from("profiles")
+            .update({ np_balance: newNp })
+            .eq("id", user.id);
+
+        if (updateError) {
+            console.error("NP更新エラー:", updateError);
+            alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+        } else {
+            const myNpEl = document.getElementById("myNp");
+            if (myNpEl) {
+                myNpEl.innerText = newNp;
+            }
         }
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "none";
         }
 
-        alert("debug_prompt_only確認が完了しました。\n画像生成は実行していません。\nNPも消費していません。\nConsoleでfinalPromptを確認してください。");
+        alert("スタンダード生成が完了しました。\n内容を保存してください。");
 
     } catch (err) {
-        console.error("Leonardo Reference Debug Error:", err);
+        console.error("Standard Generation Error:", err);
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "none";
