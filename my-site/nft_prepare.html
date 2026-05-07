@@ -1345,6 +1345,37 @@ function renderStandardReferenceCard() {
     `;
 }
 
+async function recordNpUsageTransaction({
+    userId,
+    type,
+    productName,
+    amountNp,
+    balanceBeforeNp,
+    balanceAfterNp,
+    relatedTable = null,
+    relatedId = null
+}) {
+    const { error } = await supabaseClient
+        .from("transactions")
+        .insert({
+            user_id: userId,
+            tx_type: "np_use",
+            type: type,
+            product_name: productName,
+            amount_nvt: 0,
+            amount_np: -Math.abs(Number(amountNp || 0)),
+            balance_before_np: balanceBeforeNp,
+            balance_after_np: balanceAfterNp,
+            related_table: relatedTable,
+            related_id: relatedId
+        });
+
+    if (error) {
+        console.error("NP利用履歴保存エラー:", error);
+        throw error;
+    }
+}
+
 // 2. キャラクター読込関数
 async function loadCharacters(userId) {
     const charSelect = document.getElementById("charSelect");
@@ -2369,14 +2400,25 @@ if (templatePayload.template_type === "scenery") {
         .eq("id", user.id);
 
     if (updateError) {
-        console.error("NP更新エラー:", updateError);
-        alert("風景画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
-    } else {
-        const myNpEl = document.getElementById("myNp");
-        if (myNpEl) {
-            myNpEl.innerText = newNp;
-        }
+    console.error("NP更新エラー:", updateError);
+    alert("風景画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+} else {
+    await recordNpUsageTransaction({
+        userId: user.id,
+        type: "ai_illustration_generation",
+        productName: "AIイラスト生成（風景）",
+        amountNp: 10,
+        balanceBeforeNp: currentNp,
+        balanceAfterNp: newNp,
+        relatedTable: "novels",
+        relatedId: novelData?.id || null
+    });
+
+    const myNpEl = document.getElementById("myNp");
+    if (myNpEl) {
+        myNpEl.innerText = newNp;
     }
+}
 
     if (loadingOverlay) {
         loadingOverlay.style.display = "none";
@@ -2473,14 +2515,25 @@ const { data, error } = await supabaseClient.functions.invoke(
         .eq("id", user.id);
 
     if (updateError) {
-        console.error("NP更新エラー:", updateError);
-        alert("その他画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
-    } else {
-        const myNpEl = document.getElementById("myNp");
-        if (myNpEl) {
-            myNpEl.innerText = newNp;
-        }
+    console.error("NP更新エラー:", updateError);
+    alert("その他画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+} else {
+    await recordNpUsageTransaction({
+        userId: user.id,
+        type: "ai_illustration_generation",
+        productName: "AIイラスト生成（その他）",
+        amountNp: 10,
+        balanceBeforeNp: currentNp,
+        balanceAfterNp: newNp,
+        relatedTable: "novels",
+        relatedId: novelData?.id || null
+    });
+
+    const myNpEl = document.getElementById("myNp");
+    if (myNpEl) {
+        myNpEl.innerText = newNp;
     }
+}
 
     if (loadingOverlay) {
         loadingOverlay.style.display = "none";
@@ -2586,14 +2639,25 @@ if (templatePayload.template_type !== "character") {
             .eq("id", user.id);
 
         if (updateError) {
-            console.error("NP更新エラー:", updateError);
-            alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
-        } else {
-            const myNpEl = document.getElementById("myNp");
-            if (myNpEl) {
-                myNpEl.innerText = newNp;
-            }
-        }
+    console.error("NP更新エラー:", updateError);
+    alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+} else {
+    await recordNpUsageTransaction({
+        userId: user.id,
+        type: "ai_illustration_generation",
+        productName: "AIイラスト生成（キャラ）",
+        amountNp: 10,
+        balanceBeforeNp: currentNp,
+        balanceAfterNp: newNp,
+        relatedTable: "novels",
+        relatedId: novelData?.id || null
+    });
+
+    const myNpEl = document.getElementById("myNp");
+    if (myNpEl) {
+        myNpEl.innerText = newNp;
+    }
+}
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "none";
