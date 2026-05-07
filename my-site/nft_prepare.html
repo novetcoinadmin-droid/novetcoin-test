@@ -689,18 +689,18 @@ async function openAssetModal() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return alert("ログインが必要です");
 
-        // 自分の素材を新しい順に取得
-let assetQuery = supabaseClient
-    .from('user_assets')
-    .select('*')
-    .eq('user_id', user.id);
+    // 現在の保管庫上限内で、挿絵・基準化に使える素材だけ取得
+const selectableAssetType =
+    assetModalMode === "insert" && assetModalFilterType
+        ? assetModalFilterType
+        : null;
 
-if (assetModalMode === "insert" && assetModalFilterType) {
-    assetQuery = assetQuery.eq('asset_type', assetModalFilterType);
-}
-
-const { data: assets, error } = await assetQuery
-    .order('created_at', { ascending: false });
+const { data: assets, error } = await supabaseClient.rpc(
+    "get_selectable_user_assets",
+    {
+        p_asset_type: selectableAssetType
+    }
+);
 
         if (error) throw error;
 
