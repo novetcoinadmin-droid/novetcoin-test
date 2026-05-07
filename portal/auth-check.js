@@ -1,7 +1,7 @@
 // auth-check.js
 
 const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJicmdheWt4eWZneWx6eXVqcmpicCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc0NjI0MTQ1LCJleHAiOjIwOTAyMDAxNDV9.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
 
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
