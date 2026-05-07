@@ -181,17 +181,20 @@
 // Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 
 let currentUser = null;
-const ASSET_STORAGE_LIMIT = 50;
+let currentAssetStorageLimit = 50;
 
-function updateAssetStorageCountDisplay(count) {
+function updateAssetStorageCountDisplay(count, limit = currentAssetStorageLimit) {
     const el = document.getElementById("assetStorageCount");
     if (!el) return;
 
     const safeCount = Number(count || 0);
+    const safeLimit = Number(limit || 50);
 
-    el.innerText = `保存庫 ${safeCount} / ${ASSET_STORAGE_LIMIT}`;
+    currentAssetStorageLimit = safeLimit;
 
-    if (safeCount >= ASSET_STORAGE_LIMIT) {
+    el.innerText = `保存庫 ${safeCount} / ${safeLimit}`;
+
+    if (safeCount >= safeLimit) {
         el.style.color = "#e74c3c";
         el.style.borderColor = "#e74c3c";
         el.style.background = "#fff5f5";
@@ -205,6 +208,18 @@ function updateAssetStorageCountDisplay(count) {
 async function fetchAssetStorageCount() {
     if (!currentUser) return;
 
+    const { data: limitData, error: limitError } = await window.supabaseClient
+        .rpc("get_user_asset_storage_limit", {
+            p_user_id: currentUser.id
+        });
+
+    if (limitError) {
+        console.error("保管庫上限取得エラー:", limitError);
+        currentAssetStorageLimit = 50;
+    } else {
+        currentAssetStorageLimit = Number(limitData || 50);
+    }
+
     const { count, error } = await window.supabaseClient
         .from("user_assets")
         .select("id", { count: "exact", head: true })
@@ -212,12 +227,13 @@ async function fetchAssetStorageCount() {
 
     if (error) {
         console.error("保管庫枚数カウントエラー:", error);
-        updateAssetStorageCountDisplay(0);
+        updateAssetStorageCountDisplay(0, currentAssetStorageLimit);
         return;
     }
 
-    updateAssetStorageCountDisplay(count || 0);
+    updateAssetStorageCountDisplay(count || 0, currentAssetStorageLimit);
 }
+
 let currentAssetTab = "images";
 
 function switchAssetTab(tabName) {
