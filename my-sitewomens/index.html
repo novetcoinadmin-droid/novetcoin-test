@@ -156,47 +156,80 @@
       </div>
   </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
-let currentUser = null;
+// ★ Web3Authとユーザー情報用の変数 (window にアタッチして auth-check.js からも触れるようにします)
+window.web3auth = null;
+let currentProfile = null; 
 
-// --- 1. アプリの初期化と一括制御 ---
+// --- アプリの初期化とログイン状態の確認 ---
 async function initApp() {
-  const overlay = document.getElementById("ageVerificationOverlay");
-  if (sessionStorage.getItem("adult_agreed") === "true") {
-    if (overlay) overlay.style.display = "none";
-  }
+  try {
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
+    const chainConfig = {
+      chainNamespace: "eip155",
+      chainId: "0x89", 
+      rpcTarget: "https://polygon.drpc.org", 
+      displayName: "Polygon Mainnet",
+      blockExplorerUrl: "https://polygonscan.com/",
+      ticker: "MATIC",
+      tickerName: "Matic",
+    };
 
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  currentUser = user;
+    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+      config: { chainConfig: chainConfig }
+    });
 
-  if (user) {
-    const { data: profile } = await window.supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    window.web3auth = new window.Modal.Web3Auth({
+      clientId: clientId,
+      web3AuthNetwork: "sapphire_devnet", 
+      privateKeyProvider: privateKeyProvider,
+      uiConfig: { uxMode: "redirect", appName: "Novetcoin", theme: "light" }
+    });
 
-    if (profile && profile.is_frozen) {
-      window.location.replace('../portal/penalty.html');
-      return;
+    await window.web3auth.initModal();
+
+    // ★ ログイン判定を Supabase (auth-check.jsと同じ基準) に合わせる
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        currentProfile = profile;
+        
+        // アカウント凍結チェック
+        if (currentProfile.is_frozen) {
+          window.location.replace('../portal/penalty.html');
+          return;
+        }
+      }
     }
 
-    currentProfile = profile || null;
-  } else {
-    currentProfile = null;
-  }
+    // 画面の描画を実行
+if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
+renderNewArrivals();
+renderRanking();
 
-  renderRightPanel();
-  renderNewArrivals();
-  renderRanking();
+  } catch (error) {
+    console.error("初期化エラー:", error);
+    if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
+  }
 }
 
-// --- 2. 右パネルの描画（index.html専用） ---
+// --- 右パネルの描画 ---
 async function renderRightPanel() {
-  const panel = document.getElementById("indexRightPanel");
-  if (!panel) return;
+  const panel = document.getElementById("rightPanel");
 
+  // ログインしていない場合（ゲスト）
   if (!currentProfile) {
     panel.innerHTML = `
       <h3>ゲストさん</h3>
@@ -206,33 +239,37 @@ async function renderRightPanel() {
     return;
   }
 
-  // ログイン済みの場合
+  // ログインしている場合（ユーザー情報表示）
   try {
-    const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-    const { data: myNovels } = await window.supabaseClient.from('novels').select('char_count').eq('user_id', currentUser.id).eq('published', true);
+    const { data: myNovels } = await window.supabaseClient
+      .from('novels')
+      .select('char_count')
+      .eq('user_id', currentProfile.id)
+      .eq('published', true);
 
     const wCount = myNovels ? myNovels.length : 0;
     const tChars = myNovels ? myNovels.reduce((sum, n) => sum + (n.char_count || 0), 0) : 0;
 
     panel.innerHTML = `
-      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
-      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
+       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+      
+      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${currentProfile.username || "名称未設定"}</p>
       
       <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
         <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
           <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
           <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
             <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-            <span style="font-size:13px; font-weight:bold; color:#333;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-<span style="font-size:13px; font-weight:bold; color:#333;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
           </div>
         </div>
       </a>
 
-      <div style="font-size:12px; color:#eee; border-top:1px solid #555; padding-top:10px;">
+      <div style="font-size:12px; color:#444; border-top:1px solid #eee; padding-top:10px;">
         <p><b>作品数：</b>${wCount} 作品</p>
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
