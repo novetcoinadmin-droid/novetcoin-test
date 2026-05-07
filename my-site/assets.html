@@ -409,13 +409,31 @@ async function handleUpload(event) {
 
             const originalName = file.name.split('.')[0];
 
-            await window.supabaseClient.from('user_assets').insert({
-                user_id: currentUser.id,
-                file_url: finalUrl,
-                file_name: originalName,
-                asset_type: assetType,
-                asset_source: assetSource
-            });
+            const { error: assetInsertError } = await window.supabaseClient
+    .from('user_assets')
+    .insert({
+        user_id: currentUser.id,
+        file_url: finalUrl,
+        file_name: originalName,
+        asset_type: assetType,
+        asset_source: assetSource
+    });
+
+if (assetInsertError) {
+    // DB保存に失敗した場合、先にStorageへ上がった画像だけ残らないよう削除する
+    await window.supabaseClient.storage
+        .from('illustrations')
+        .remove([fileName]);
+
+    if (
+        assetInsertError.message &&
+        assetInsertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
+    ) {
+        throw new Error("保存庫は50枚までです。不要な画像を削除してから再度アップロードしてください。");
+    }
+
+    throw assetInsertError;
+}
         }
 
         alert(isSceneUpload
@@ -703,7 +721,9 @@ async function deleteAsset(id, url) {
         await window.supabaseClient.storage.from('illustrations').remove([fileName]);
 
         const el = document.getElementById(`card_${id}`);
-        if (el) el.remove();
+if (el) el.remove();
+
+await fetchAssetStorageCount();
     } catch (err) {
         alert("削除に失敗しました");
     }
