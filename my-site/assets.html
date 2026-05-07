@@ -218,6 +218,25 @@
 
 let currentUser = null;
 let currentAssetStorageLimit = 50;
+let currentSelectableAssetIds = new Set();
+
+async function fetchSelectableAssetIds() {
+    currentSelectableAssetIds = new Set();
+
+    const { data, error } = await window.supabaseClient.rpc(
+        "get_selectable_user_assets",
+        {
+            p_asset_type: null
+        }
+    );
+
+    if (error) {
+        console.error("利用可能素材一覧の取得エラー:", error);
+        return;
+    }
+
+    currentSelectableAssetIds = new Set((data || []).map(asset => asset.id));
+}
 
 function updateAssetStorageCountDisplay(count, limit = currentAssetStorageLimit) {
     const el = document.getElementById("assetStorageCount");
@@ -576,11 +595,13 @@ if (assetInsertError) {
 }
 
 async function fetchAssets() {
+    await fetchAssetStorageCount();
+    await fetchSelectableAssetIds();
+
     await fetchIllustrationAssets();
     await fetchSceneImageAssets();
     await fetchOtherImageAssets();
     await fetchScenePresets();
-    await fetchAssetStorageCount();
 }
 
 function renderAssetCards(assets) {
@@ -588,20 +609,59 @@ function renderAssetCards(assets) {
         return "";
     }
 
-    return assets.map(asset => `
-        <div class="asset-card" id="card_${asset.id}">
-            <div class="asset-img-wrapper">
-                <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
-            </div>
-            <div class="asset-info">
-                <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
-                <div class="asset-actions">
-                    <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
-                    <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
+    return assets.map(asset => {
+        const isSelectable = currentSelectableAssetIds.has(asset.id);
+
+        const limitBadge = isSelectable
+            ? `
+                <div style="font-size:11px; color:#2ecc71; margin-bottom:6px;">
+                    挿絵・基準化に利用可能
+                </div>
+            `
+            : `
+                <div style="font-size:11px; color:#e74c3c; margin-bottom:6px; font-weight:bold;">
+                    上限超過中：挿絵・基準化には利用できません
+                </div>
+            `;
+
+        const cardOpacity = isSelectable ? "1" : "0.65";
+
+        return `
+            <div class="asset-card" id="card_${asset.id}" style="opacity:${cardOpacity};">
+                <div class="asset-img-wrapper" style="position:relative;">
+                    <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
+
+                    ${!isSelectable ? `
+                        <div style="
+                            position:absolute;
+                            left:0;
+                            right:0;
+                            bottom:0;
+                            background:rgba(231,76,60,0.9);
+                            color:white;
+                            font-size:11px;
+                            text-align:center;
+                            padding:5px;
+                            font-weight:bold;
+                        ">
+                            上限超過中
+                        </div>
+                    ` : ""}
+                </div>
+
+                <div class="asset-info">
+                    ${limitBadge}
+
+                    <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
+
+                    <div class="asset-actions">
+                        <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
+                        <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function fetchIllustrationAssets() {
