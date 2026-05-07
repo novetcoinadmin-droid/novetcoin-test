@@ -120,7 +120,7 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 // ★ Web3Authとユーザー情報用の変数 (window にアタッチして auth-check.js からも触れるようにします)
 window.web3auth = null;
@@ -175,13 +175,17 @@ async function initApp() {
     }
 
     // 画面の描画を実行
-    renderRightPanel();
-    renderNewArrivals();
-    renderRanking();
+if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
+renderNewArrivals();
+renderRanking();
 
   } catch (error) {
     console.error("初期化エラー:", error);
-    renderRightPanel(); // エラー時はゲストとして描画
+    if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
   }
 }
 
