@@ -215,9 +215,10 @@
 <script src="auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
-
 let currentUser = null;
 let currentAssetStorageLimit = 50;
+let currentAssetStorageCount = 0;
+let currentAssetStorageExpiryText = "";
 let currentSelectableAssetIds = new Set();
 
 async function fetchSelectableAssetIds() {
@@ -247,7 +248,9 @@ function updateAssetStorageCountDisplay(count, limit = currentAssetStorageLimit)
 
     currentAssetStorageLimit = safeLimit;
 
-    el.innerText = `保存庫 ${safeCount} / ${safeLimit}`;
+    currentAssetStorageCount = safeCount;
+
+el.innerText = `保存庫 ${safeCount} / ${safeLimit}${currentAssetStorageExpiryText ? "　" + currentAssetStorageExpiryText : ""}`;
 
     if (safeCount >= safeLimit) {
         el.style.color = "#e74c3c";
@@ -287,6 +290,42 @@ async function fetchAssetStorageCount() {
     }
 
     updateAssetStorageCountDisplay(count || 0, currentAssetStorageLimit);
+}
+
+async function fetchAssetStorageExpiry() {
+    if (!currentUser) return;
+
+    currentAssetStorageExpiryText = "";
+
+    const { data, error } = await window.supabaseClient
+        .from("asset_storage_subscriptions")
+        .select("storage_limit, expires_at")
+        .eq("user_id", currentUser.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("storage_limit", { ascending: false })
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error("保管庫有効期限取得エラー:", error);
+        return;
+    }
+
+    if (!data || !data.expires_at) {
+        currentAssetStorageExpiryText = "";
+        return;
+    }
+
+    const expiryDate = new Date(data.expires_at);
+    const formattedDate = expiryDate.toLocaleDateString("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    });
+
+    currentAssetStorageExpiryText = `有効期限：${formattedDate}`;
 }
 
 async function purchaseAssetStoragePlan(planType) {
@@ -595,6 +634,7 @@ if (assetInsertError) {
 }
 
 async function fetchAssets() {
+    await fetchAssetStorageExpiry();
     await fetchAssetStorageCount();
     await fetchSelectableAssetIds();
 
