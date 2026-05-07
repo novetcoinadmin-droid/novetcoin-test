@@ -994,10 +994,22 @@ const { error: insertError } = await supabaseClient
         asset_type: savedAssetType,
         asset_source: "generated"
     });
-        
-        if (insertError) {
-            throw insertError;
-        }
+
+if (insertError) {
+    // DB保存に失敗した場合、先にStorageへ上がった画像だけ残らないよう削除する
+    await supabaseClient.storage
+        .from("illustrations")
+        .remove([fileName]);
+
+    if (
+        insertError.message &&
+        insertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
+    ) {
+        throw new Error("保存庫は50枚までです。不要な画像を削除してから再度保存してください。");
+    }
+
+    throw insertError;
+}
 
         alert("生成したイラストをイラスト保管庫に保存しました。");
 
