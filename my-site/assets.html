@@ -71,6 +71,42 @@
         保存庫 -- / 50
     </span>
 </h1>
+<div
+    id="assetStoragePlanBox"
+    style="background:#fdfaf6; border:1px solid #ead7a0; border-radius:8px; padding:14px; margin-bottom:20px;"
+>
+    <div style="font-size:13px; font-weight:bold; color:#6a0dad; margin-bottom:8px;">
+        保存枠を拡張する
+    </div>
+
+    <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:10px;">
+        無料枠は50枚までです。より多くのイラスト・風景・その他素材を保存したい場合は、30日間の拡張プランを利用できます。
+    </p>
+
+    <div style="display:flex; gap:8px;">
+        <button
+            type="button"
+            onclick="purchaseAssetStoragePlan('light')"
+            style="flex:1; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"
+        >
+            ライト保管庫<br>
+            <span style="font-size:11px; font-weight:normal;">150枚 / 30日 / 110NP</span>
+        </button>
+
+        <button
+            type="button"
+            onclick="purchaseAssetStoragePlan('creator')"
+            style="flex:1; padding:10px; border:1px solid #6a0dad; background:#6a0dad; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"
+        >
+            クリエイター保管庫<br>
+            <span style="font-size:11px; font-weight:normal;">350枚 / 30日 / 330NP</span>
+        </button>
+    </div>
+
+    <p style="font-size:11px; color:#a66; line-height:1.6; margin-top:10px;">
+        ※大切な画像は必ずご自身でもバックアップしてください。イラスト保管庫は永続保存を保証するものではありません。
+    </p>
+</div>
 
         <div style="display:flex; gap:10px; margin-bottom:20px;">
     <button
@@ -232,6 +268,65 @@ async function fetchAssetStorageCount() {
     }
 
     updateAssetStorageCountDisplay(count || 0, currentAssetStorageLimit);
+}
+
+async function purchaseAssetStoragePlan(planType) {
+    const isLight = planType === "light";
+
+    const planLabel = isLight ? "ライト保管庫" : "クリエイター保管庫";
+    const storageLimit = isLight ? 150 : 350;
+    const priceNp = isLight ? 110 : 330;
+
+    const ok = confirm(
+        `${planLabel}を購入します。\n\n` +
+        `保存上限：${storageLimit}枚\n` +
+        `期間：30日\n` +
+        `料金：${priceNp}NP\n\n` +
+        `重要：\n` +
+        `大切な画像は必ずご自身でもバックアップしてください。\n` +
+        `イラスト保管庫は永続保存を保証するものではありません。\n\n` +
+        `この内容に同意して購入しますか？`
+    );
+
+    if (!ok) return;
+
+    try {
+        const { data, error } = await window.supabaseClient.rpc(
+            "purchase_asset_storage_plan",
+            {
+                p_plan_type: planType
+            }
+        );
+
+        if (error) {
+            if (error.message && error.message.includes("INSUFFICIENT_NP")) {
+                alert("NP残高が不足しています。");
+                return;
+            }
+
+            throw error;
+        }
+
+        const result = Array.isArray(data) ? data[0] : data;
+
+        alert(
+            `${planLabel}を購入しました。\n` +
+            `保存上限が${result?.storage_limit || storageLimit}枚になりました。`
+        );
+
+        if (result && result.remaining_np !== undefined) {
+            const npEl = document.getElementById("dispNp");
+            if (npEl) {
+                npEl.innerText = Math.floor(Number(result.remaining_np || 0));
+            }
+        }
+
+        await fetchAssetStorageCount();
+
+    } catch (err) {
+        console.error("保管庫拡張購入エラー:", err);
+        alert("保管庫拡張の購入に失敗しました: " + (err.message || String(err)));
+    }
 }
 
 let currentAssetTab = "images";
