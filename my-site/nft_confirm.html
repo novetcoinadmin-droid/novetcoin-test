@@ -39,15 +39,9 @@
                 🖼️ イラスト保管庫から表紙を選ぶ
             </button>
         </div>
-        <div class="gen-section">
-            <label style="font-size: 13px; font-weight: bold;">🎨 表紙AI生成（フルカラー）</label>
-
-        <div class="gen-section">
-            <label style="font-size: 13px; font-weight: bold;">🎨 表紙AI生成（フルカラー）</label>
-            <p style="font-size: 11px; color: #666; margin: 5px 0 10px;">表紙イメージを入力してください（日本語可）</p>
-            <textarea id="promptInput" placeholder="例：ファンタジーな街並み、夕暮れ、水彩画風"></textarea>
-            <button class="btn-gen" onclick="generateCover()">表紙画像を生成する</button>
-        </div>
+        <div style="font-size: 12px; color: #666; text-align: center; margin: 8px 0 4px 0;">
+    表紙はイラスト保管庫から選択してください。
+</div>
 
         <div>
             <button id="mintBtn" class="btn-mint" onclick="handleMint()" disabled>100NPを消費してNFT化</button>
@@ -185,7 +179,6 @@ function dataURLtoBlob(dataurl) {
 }
 
 // 追加2：Supabase Storageに画像を保存し、公開URLを返す関数
-// 追加2：Supabase Storageに画像を保存し、公開URLを返す関数
 async function uploadImageToStorage(base64Data, fileNamePrefix) {
     if (!base64Data || base64Data.startsWith('http')) return base64Data;
 
@@ -209,6 +202,37 @@ async function uploadImageToStorage(base64Data, fileNamePrefix) {
         .getPublicUrl(filePath);
 
     return publicUrlData.publicUrl;
+}
+
+async function recordNpUsageTransaction({
+    userId,
+    type,
+    productName,
+    amountNp,
+    balanceBeforeNp,
+    balanceAfterNp,
+    relatedTable = null,
+    relatedId = null
+}) {
+    const { error } = await supabaseClient
+        .from("transactions")
+        .insert({
+            user_id: userId,
+            tx_type: "np_use",
+            type: type,
+            product_name: productName,
+            amount_nvt: 0,
+            amount_np: -Math.abs(Number(amountNp || 0)),
+            balance_before_np: balanceBeforeNp,
+            balance_after_np: balanceAfterNp,
+            related_table: relatedTable,
+            related_id: relatedId
+        });
+
+    if (error) {
+        console.error("NP利用履歴保存エラー:", error);
+        throw error;
+    }
 }
 
 // --- 修正版 generateCover 関数（回数制限とNP消費機能付き） ---
@@ -396,23 +420,48 @@ async function handleMint() {
         if (!currentAuthorId) throw new Error("作家データが読み込めませんでした。一度前の画面に戻り直してください。");
 
         // 🌟 4. 先にデータベース登録（エラー時にNPが減らないように保護）
-        const { error: metaError } = await supabaseClient.from('nft_metadata').insert({
-            novel_id: novelId,
-            title_at_mint: finalTitle, 
-            cover_image_url: finalCoverUrl, // ここも短いURLに変更
-            nft_content: finalNftContent,     
-            minted_at: new Date().toISOString(),
-            is_listing: false,
-            owner_id: user.id,
-            author_id: currentAuthorId 
-        });
+        const { data: insertedNft, error: metaError } = await supabaseClient
+    .from('nft_metadata')
+    .insert({
+        novel_id: novelId,
+        title_at_mint: finalTitle,
+        cover_image_url: finalCoverUrl,
+        nft_content: finalNftContent,
+        minted_at: new Date().toISOString(),
+        is_listing: false,
+        owner_id: user.id,
+        author_id: currentAuthorId
+    })
+    .select('id')
+    .single();
 
-        if (metaError) throw metaError;
+if (metaError) throw metaError;
 
-        // 🌟 5. DB登録が「成功」した時だけ、決済(100NP消費)を行う
-        await supabaseClient.from('profiles').update({ np_balance: profile.np_balance - 100 }).eq('id', user.id);
-        
-        await supabaseClient.from('novels').update({ is_nft: true }).eq('id', novelId);
+// 🌟 5. DB登録が「成功」した時だけ、決済(100NP消費)を行う
+const beforeNp = Number(profile.np_balance || 0);
+const afterNp = beforeNp - 100;
+
+const { error: npUpdateError } = await supabaseClient
+    .from('profiles')
+    .update({ np_balance: afterNp })
+    .eq('id', user.id);
+
+if (npUpdateError) {
+    throw npUpdateError;
+}
+
+await recordNpUsageTransaction({
+    userId: user.id,
+    type: "nft_mint",
+    productName: "NFT化・ライブラリ登録",
+    amountNp: 100,
+    balanceBeforeNp: beforeNp,
+    balanceAfterNp: afterNp,
+    relatedTable: "nft_metadata",
+    relatedId: insertedNft?.id || null
+});
+
+await supabaseClient.from('novels').update({ is_nft: true }).eq('id', novelId);
 
         alert(`NFT化成功！「${finalTitle}」としてライブラリに追加されました。`);
         location.href = "library.html";
