@@ -2353,28 +2353,35 @@ function closeScenePresetLoadModal() {
 }
 
 function setTemplateFieldValue(fieldId, value) {
-    const selectEl = document.getElementById(fieldId);
-    if (!selectEl) return;
+    const el = document.getElementById(fieldId);
+    if (!el) return;
 
     const normalizedValue = String(value || "").trim();
 
-    if (!normalizedValue) {
-        selectEl.value = "";
-        toggleTemplateCustomInput(selectEl);
+    // input / textarea の場合
+    if (!el.options) {
+        el.value = normalizedValue;
         return;
     }
 
-    const hasOption = Array.from(selectEl.options).some(option => option.value === normalizedValue);
+    // select の場合
+    if (!normalizedValue) {
+        el.value = "";
+        toggleTemplateCustomInput(el);
+        return;
+    }
+
+    const hasOption = Array.from(el.options).some(option => option.value === normalizedValue);
 
     if (hasOption) {
-        selectEl.value = normalizedValue;
-        toggleTemplateCustomInput(selectEl);
+        el.value = normalizedValue;
+        toggleTemplateCustomInput(el);
         return;
     }
 
     // 保存値が既存選択肢にない場合は、自由入力へ戻す
-    selectEl.value = "__custom__";
-    toggleTemplateCustomInput(selectEl);
+    el.value = "__custom__";
+    toggleTemplateCustomInput(el);
 
     const customEl = document.getElementById(fieldId + "_custom");
     if (customEl) {
