@@ -1699,6 +1699,48 @@ function updateTemplateDisplay() {
                 "顔アップ", "バストアップ", "中距離", "中遠距離", "遠距離"
             ])}
 
+                        ${buildTemplateSelect("画面内の主役範囲", "tpl_adult_subject_frame", [
+                "顔だけ",
+                "顔と上半身",
+                "顔を含めた全身",
+                "腰上",
+                "膝上",
+                "全身"
+            ])}
+
+            ${buildTemplateSelect("体の向き", "tpl_adult_body_direction", [
+                "正面向き",
+                "斜め向き",
+                "横向き",
+                "背中向き",
+                "振り返り"
+            ])}
+
+            ${buildTemplateSelect("ポーズ", "tpl_adult_pose", [
+                "立つ",
+                "座る",
+                "横になる",
+                "膝をつく",
+                "手を胸元に置く",
+                "片手を伸ばす"
+            ])}
+
+            ${buildTemplateSelect("背景の強さ", "tpl_adult_background_strength", [
+                "背景なし",
+                "簡易背景",
+                "室内の薄い背景",
+                "輪郭だけの背景",
+                "白背景多め"
+            ])}
+
+            ${buildTemplateSelect("画面の余白・配置", "tpl_adult_layout_margin", [
+                "余白多め",
+                "人物を中央",
+                "人物を少し右寄せ",
+                "人物を少し左寄せ",
+                "縦長構図"
+            ])}
+
             ${buildTemplateSelect("表情", "tpl_character_expression", [
                 "無表情", "微笑み", "照れ", "緊張", "恥じらい", "挑発的", "うっとり", "戸惑い", "安心", "真剣"
             ])}
@@ -1927,6 +1969,13 @@ const compositionSettings = {
     viewpoint: getTemplateInputValue("tpl_adult_viewpoint"),
     focus_part: getTemplateInputValue("tpl_adult_focus_part"),
     distance: getTemplateInputValue("tpl_adult_distance"),
+
+    subject_frame: getTemplateInputValue("tpl_adult_subject_frame"),
+    body_direction: getTemplateInputValue("tpl_adult_body_direction"),
+    pose: getTemplateInputValue("tpl_adult_pose"),
+    background_strength: getTemplateInputValue("tpl_adult_background_strength"),
+    layout_margin: getTemplateInputValue("tpl_adult_layout_margin"),
+
     expression: getTemplateInputValue("tpl_character_expression")
 };
 
@@ -2066,6 +2115,13 @@ async function applyAdultGenerationTemplate(template) {
         setAdultFieldValue("tpl_adult_viewpoint", compositionSettings.viewpoint || "");
         setAdultFieldValue("tpl_adult_focus_part", compositionSettings.focus_part || "");
         setAdultFieldValue("tpl_adult_distance", compositionSettings.distance || "");
+
+        setAdultFieldValue("tpl_adult_subject_frame", compositionSettings.subject_frame || "");
+        setAdultFieldValue("tpl_adult_body_direction", compositionSettings.body_direction || "");
+        setAdultFieldValue("tpl_adult_pose", compositionSettings.pose || "");
+        setAdultFieldValue("tpl_adult_background_strength", compositionSettings.background_strength || "");
+        setAdultFieldValue("tpl_adult_layout_margin", compositionSettings.layout_margin || "");
+
         setAdultFieldValue("tpl_character_expression", compositionSettings.expression || "");
 
         // 男性シルエット
@@ -2693,11 +2749,18 @@ function buildAdultCivitaiGenerationPayload(adultReferencePrompt) {
         clothing_text: getValue("tpl_character_outfit"),
 
         composition_settings: {
-            viewpoint: getValue("tpl_adult_viewpoint"),
-            focus_part: getValue("tpl_adult_focus_part"),
-            distance: getValue("tpl_adult_distance"),
-            expression: getValue("tpl_character_expression")
-        },
+    viewpoint: getValue("tpl_adult_viewpoint"),
+    focus_part: getValue("tpl_adult_focus_part"),
+    distance: getValue("tpl_adult_distance"),
+
+    subject_frame: getValue("tpl_adult_subject_frame"),
+    body_direction: getValue("tpl_adult_body_direction"),
+    pose: getValue("tpl_adult_pose"),
+    background_strength: getValue("tpl_adult_background_strength"),
+    layout_margin: getValue("tpl_adult_layout_margin"),
+
+    expression: getValue("tpl_character_expression")
+},
 
         silhouette_settings: {
             enabled: maleSilhouetteEnabled,
