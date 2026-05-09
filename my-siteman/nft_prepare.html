@@ -2003,18 +2003,83 @@ async function applyAdultGenerationTemplate(template) {
 
         const modelSettings = template.model_settings || {};
         const compositionSettings = template.composition_settings || {};
+        const silhouetteSettings = template.silhouette_settings || {};
 
-        setTemplateFieldValue("tpl_character_view", modelSettings.view || "");
-        setTemplateFieldValue("tpl_character_age", modelSettings.age || "");
-        setTemplateFieldValue("tpl_character_expression", modelSettings.expression || "");
+        // 念のため、input/select 両対応で値を戻す
+        const setAdultFieldValue = (fieldId, value) => {
+            const el = document.getElementById(fieldId);
+            if (!el) {
+                console.warn("成人テンプレ読込：項目が見つかりません:", fieldId, value);
+                return;
+            }
 
-        setTemplateFieldValue("tpl_character_outfit", template.clothing_text || "");
+            const normalizedValue = String(value || "").trim();
 
-        setTemplateFieldValue("tpl_character_pose", compositionSettings.pose || "");
-        setTemplateFieldValue("tpl_character_parts", compositionSettings.parts || "");
-        setTemplateFieldValue("tpl_character_background", compositionSettings.background || "");
-        setTemplateFieldValue("tpl_character_lighting", compositionSettings.lighting_mood || "");
+            // input / textarea
+            if (!el.options) {
+                el.value = normalizedValue;
+                return;
+            }
 
+            // select
+            if (!normalizedValue) {
+                el.value = "";
+                if (typeof toggleTemplateCustomInput === "function") {
+                    toggleTemplateCustomInput(el);
+                }
+                return;
+            }
+
+            const hasOption = Array.from(el.options).some(option => option.value === normalizedValue);
+
+            if (hasOption) {
+                el.value = normalizedValue;
+                if (typeof toggleTemplateCustomInput === "function") {
+                    toggleTemplateCustomInput(el);
+                }
+                return;
+            }
+
+            // 既存選択肢にない場合は自由入力へ
+            el.value = "__custom__";
+            if (typeof toggleTemplateCustomInput === "function") {
+                toggleTemplateCustomInput(el);
+            }
+
+            const customEl = document.getElementById(fieldId + "_custom");
+            if (customEl) {
+                customEl.value = normalizedValue;
+            }
+        };
+
+        // 女性モデル設定
+        setAdultFieldValue("tpl_character_age", modelSettings.age || "");
+        setAdultFieldValue("tpl_adult_height", modelSettings.height || "");
+        setAdultFieldValue("tpl_adult_bust", modelSettings.bust || "");
+        setAdultFieldValue("tpl_adult_waist", modelSettings.waist || "");
+        setAdultFieldValue("tpl_adult_hip", modelSettings.hip || "");
+
+        // 服装
+        setAdultFieldValue("tpl_character_outfit", template.clothing_text || "");
+
+        // 構図
+        setAdultFieldValue("tpl_adult_viewpoint", compositionSettings.viewpoint || "");
+        setAdultFieldValue("tpl_adult_focus_part", compositionSettings.focus_part || "");
+        setAdultFieldValue("tpl_adult_distance", compositionSettings.distance || "");
+        setAdultFieldValue("tpl_character_expression", compositionSettings.expression || "");
+
+        // 男性シルエット
+        setAdultFieldValue(
+            "tpl_adult_male_silhouette_enabled",
+            silhouetteSettings.enabled === true || silhouetteSettings.enabled === "true" ? "あり" : "なし"
+        );
+
+        setAdultFieldValue(
+            "tpl_adult_male_silhouette_placement",
+            silhouetteSettings.placement || ""
+        );
+
+        // 紐づく顔基準テンプレを復元
         if (template.reference_prompt_id) {
             const { data: referencePrompt, error: referenceError } = await supabaseClient
                 .from("adult_reference_prompts")
