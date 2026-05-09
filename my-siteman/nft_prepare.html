@@ -2591,7 +2591,7 @@ if (templatePayload.template_type !== "character") {
             debug_prompt_only: false
         };
 
-        console.log("🎨 Leonardo参照画像Functionへ送るpayload:", {
+        console.log("🎨 Civitai成人向けFunctionへ送るpayload:", {
             has_reference_image_url: !!requestPayload.reference_image_url,
             detail_settings: requestPayload.detail_settings,
             debug_prompt_only: requestPayload.debug_prompt_only
@@ -2609,7 +2609,7 @@ if (templatePayload.template_type !== "character") {
             throw new Error(error.message || "Leonardo参照画像Functionの呼び出しに失敗しました。");
         }
 
-        console.log("🎨 Leonardo参照画像Function 結果:", data);
+        console.log("🎨 Civitai成人向けFunction 結果:", data);
 
         if (!data || data.ok !== true) {
             throw new Error(data?.error || "画像URLの取得に失敗しました。");
