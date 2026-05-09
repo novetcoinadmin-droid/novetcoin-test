@@ -1599,44 +1599,121 @@ function updateTemplateDisplay() {
         return;
     }
 
-    if (type === "character") {
+        if (type === "character") {
         box.innerHTML = `
-            <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
-                一人キャラクター用テンプレートです。顔や輪郭などの基準化特徴に、見え方・表情・衣装・背景などを組み合わせます。
+            <div style="font-size:11px; color:#777; line-height:1.6; margin-bottom:10px;">
+                男性向け成人イラスト用テンプレートです。<br>
+                顔基準テンプレに、女性モデル設定・服装・構図・男性シルエットを組み合わせます。<br>
+                モノクロ・小説挿絵・手書き風は固定設定として自動で入ります。
             </div>
 
-            ${buildTemplateSelect("キャラの見え方", "tpl_character_view", [
-                "顔アップ", "バストアップ", "上半身", "膝上", "全身", "少し離れた全身", "遠景の人物"
-            ])}
+            <div style="margin-bottom:14px; padding:10px; background:#fff8e6; border:1px solid #f1c40f; border-radius:8px; font-size:11px; color:#7a4b00; line-height:1.6;">
+                <strong>注意</strong><br>
+                登場人物は成人として扱います。未成年に見える表現、学生・未成年を想起させる設定は避けてください。<br>
+                顔基準テンプレは、顔立ち・髪型・雰囲気を安定させるためのものです。
+            </div>
+
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:12px 0 8px;">
+                女性モデル設定
+            </div>
 
             ${buildTemplateSelect("年齢", "tpl_character_age", [
-                "幼少期", "少年・少女", "10代前半", "10代後半", "20代前半", "20代後半", "30代", "40代", "50代以上", "年齢不詳"
+                "20代前半", "20代後半", "30代", "40代", "50代以上"
+            ])}
+
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px;">
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">身長</label>
+                    <input
+                        id="tpl_adult_height"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：160cm"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
+
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">バスト</label>
+                    <input
+                        id="tpl_adult_bust"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：普通"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
+
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">ウエスト</label>
+                    <input
+                        id="tpl_adult_waist"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：細め"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
+
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">ヒップ</label>
+                    <input
+                        id="tpl_adult_hip"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：丸み"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
+            </div>
+
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                服装
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label style="font-size:11px; color:#666; font-weight:bold;">服装自由入力</label>
+                <input
+                    id="tpl_character_outfit"
+                    class="template-field"
+                    type="text"
+                    placeholder="例：ドレス、水着、下着"
+                    maxlength="40"
+                    style="width:15em; max-width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                >
+            </div>
+
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                構図
+            </div>
+
+            ${buildTemplateSelect("視点", "tpl_adult_viewpoint", [
+                "下から見上げる", "上から見下ろす", "背後から", "横から", "正面から"
+            ])}
+
+            ${buildTemplateSelect("クローズアップ", "tpl_adult_focus_part", [
+                "顔", "胸元", "腕から手", "手", "腰", "下半身", "ふともも", "足", "背中", "おしり"
+            ])}
+
+            ${buildTemplateSelect("距離", "tpl_adult_distance", [
+                "顔アップ", "バストアップ", "中距離", "中遠距離", "遠距離"
             ])}
 
             ${buildTemplateSelect("表情", "tpl_character_expression", [
-                "無表情", "微笑み", "喜び", "悲しげ", "真面目", "怒り", "疲れ", "照れ", "緊張", "決意"
+                "無表情", "微笑み", "照れ", "緊張", "恥じらい", "挑発的", "うっとり", "戸惑い", "安心", "真剣"
             ])}
 
-            ${buildTemplateSelect("ポーズ", "tpl_character_pose", [
-                "正面立ち", "斜め立ち", "座る", "振り返る", "歩く", "手を胸に当てる", "武器を構える", "本を持つ", "祈る", "見上げる"
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                男性シルエット
+            </div>
+
+            ${buildTemplateSelect("半透明の男性シルエット", "tpl_adult_male_silhouette_enabled", [
+                "なし", "あり"
             ])}
 
-            ${buildTemplateSelect("衣装デザイン", "tpl_character_outfit", [
-                "ドレス", "スーツ", "甲冑", "冒険者マント", "和服", "制服", "ローブ", "旅装", "貴族服", "カジュアル服"
+            ${buildTemplateSelect("男性シルエットの配置", "tpl_adult_male_silhouette_placement", [
+                "背後", "横", "手前", "画面端", "影として重ねる", "遠くに立たせる"
             ])}
-
-            ${buildTemplateSelect("特徴パーツ", "tpl_character_parts", [
-                "角", "翼", "獣耳", "尻尾", "宝石装飾", "髪飾り", "眼帯", "仮面", "非人間的な瞳", "魔法紋"
-            ])}
-
-            ${buildTemplateSelect("背景", "tpl_character_background", [
-                "無地", "和風", "西洋風", "現代風", "自然", "城内", "路地", "森", "室内", "幻想空間"
-            ])}
-
-            ${buildTemplateSelect("ライティング・雰囲気", "tpl_character_lighting", [
-                "明るい", "暗い", "逆光", "柔らかい光", "強い影", "シリアス", "ポップ", "透明感", "神秘的", "静かな雰囲気"
-            ])}
-
         `;
         return;
     }
@@ -2503,6 +2580,59 @@ async function openScenePresetLoadModal() {
 }
 
 // =====================================================
+// 成人向けCivitai生成用payload作成
+// =====================================================
+
+function buildAdultCivitaiGenerationPayload(adultReferencePrompt) {
+    const getValue = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+
+        const value = String(el.value || "").trim();
+
+        if (value === "__custom__") {
+            const customEl = document.getElementById(id + "_custom");
+            return String(customEl?.value || "").trim();
+        }
+
+        return value;
+    };
+
+    const maleSilhouetteEnabled = getValue("tpl_adult_male_silhouette_enabled") === "あり";
+
+    return {
+        adult_reference_prompt_id: adultReferencePrompt.id,
+        adult_reference_prompt_title: adultReferencePrompt.title,
+        adult_reference_prompt: adultReferencePrompt.reference_prompt,
+
+        model_settings: {
+            age: getValue("tpl_character_age"),
+            height: getValue("tpl_adult_height"),
+            bust: getValue("tpl_adult_bust"),
+            waist: getValue("tpl_adult_waist"),
+            hip: getValue("tpl_adult_hip")
+        },
+
+        clothing_text: getValue("tpl_character_outfit"),
+
+        composition_settings: {
+            viewpoint: getValue("tpl_adult_viewpoint"),
+            focus_part: getValue("tpl_adult_focus_part"),
+            distance: getValue("tpl_adult_distance"),
+            expression: getValue("tpl_character_expression")
+        },
+
+        silhouette_settings: {
+            enabled: maleSilhouetteEnabled,
+            count: maleSilhouetteEnabled ? 1 : 0,
+            placement: getValue("tpl_adult_male_silhouette_placement")
+        },
+
+        debug_prompt_only: false
+    };
+}
+
+// =====================================================
 // キャラテンプレート入力 → Leonardo送信用 detail_settings 作成
 // =====================================================
 
@@ -3042,14 +3172,18 @@ if (templatePayload.template_type !== "character") {
             return;
         }
 
-        const detailSettings = buildLeonardoReferenceDetailSettings(templatePayload);
+        const requestPayload = buildAdultCivitaiGenerationPayload(adultReferencePrompt);
 
-        const hasAnyDetail = Object.values(detailSettings).some(value => String(value || "").trim() !== "");
+const hasAnyAdultSetting =
+    Object.values(requestPayload.model_settings || {}).some(value => String(value || "").trim() !== "") ||
+    String(requestPayload.clothing_text || "").trim() !== "" ||
+    Object.values(requestPayload.composition_settings || {}).some(value => String(value || "").trim() !== "") ||
+    requestPayload.silhouette_settings?.enabled === true;
 
-        if (!hasAnyDetail) {
-            alert("キャラテンプレートの細部設定を1つ以上選択してください。");
-            return;
-        }
+if (!hasAnyAdultSetting) {
+    alert("成人向けテンプレートの設定を1つ以上入力してください。");
+    return;
+}
 
         if (!confirm("スタンダード生成を実行しますか？\n費用: 10 NP")) {
             return;
@@ -3059,19 +3193,15 @@ if (templatePayload.template_type !== "character") {
             loadingOverlay.style.display = "flex";
         }
 
-                const requestPayload = {
-            adult_reference_prompt_id: adultReferencePrompt.id,
-            adult_reference_prompt_title: adultReferencePrompt.title,
-            adult_reference_prompt: adultReferencePrompt.reference_prompt,
-            detail_settings: detailSettings,
-            debug_prompt_only: false
-        };
-
         console.log("🎨 Civitai成人向けFunctionへ送るpayload:", {
-            has_reference_image_url: !!requestPayload.reference_image_url,
-            detail_settings: requestPayload.detail_settings,
-            debug_prompt_only: requestPayload.debug_prompt_only
-        });
+    has_adult_reference_prompt_id: !!requestPayload.adult_reference_prompt_id,
+    has_adult_reference_prompt: !!requestPayload.adult_reference_prompt,
+    model_settings: requestPayload.model_settings,
+    has_clothing_text: !!requestPayload.clothing_text,
+    composition_settings: requestPayload.composition_settings,
+    silhouette_settings: requestPayload.silhouette_settings,
+    debug_prompt_only: requestPayload.debug_prompt_only
+});
 
         const { data, error } = await supabaseClient.functions.invoke(
             "generate-nft-adult-image-civitai",
