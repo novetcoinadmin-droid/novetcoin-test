@@ -420,6 +420,15 @@ body {
                 成人向けテンプレートを保存
             </button>
 
+            <button
+    type="button"
+    class="btn"
+    style="background:#f7f7f7; color:#555; border:1px solid #ccc; font-size:13px; margin-top:8px;"
+    onclick="openAdultTemplateLoadModal()"
+>
+    保存済み成人テンプレートを読み込む
+</button>
+
             <button class="btn" style="background:#f0f0f0; color:#333; font-size:13px; margin-top:10px;" onclick="generateImage('std')">
                 スタンダード生成（10 NP）
             </button>
@@ -1888,6 +1897,227 @@ async function saveAdultGenerationTemplate() {
     } catch (err) {
         console.error("成人向けテンプレート保存エラー:", err);
         alert("成人向けテンプレート保存に失敗しました: " + (err.message || String(err)));
+    }
+}
+
+// =====================================================
+// 成人向け生成テンプレート読込
+// =====================================================
+
+function closeAdultTemplateLoadModal() {
+    const overlay = document.getElementById("adultTemplateLoadOverlay");
+    if (overlay) overlay.remove();
+}
+
+async function applyAdultGenerationTemplate(template) {
+    try {
+        if (!template) return;
+
+        const templateTypeEl = document.getElementById("templateType");
+        if (templateTypeEl) {
+            templateTypeEl.value = "character";
+            updateTemplateDisplay();
+        }
+
+        const modelSettings = template.model_settings || {};
+        const compositionSettings = template.composition_settings || {};
+
+        setTemplateFieldValue("tpl_character_view", modelSettings.view || "");
+        setTemplateFieldValue("tpl_character_age", modelSettings.age || "");
+        setTemplateFieldValue("tpl_character_expression", modelSettings.expression || "");
+
+        setTemplateFieldValue("tpl_character_outfit", template.clothing_text || "");
+
+        setTemplateFieldValue("tpl_character_pose", compositionSettings.pose || "");
+        setTemplateFieldValue("tpl_character_parts", compositionSettings.parts || "");
+        setTemplateFieldValue("tpl_character_background", compositionSettings.background || "");
+        setTemplateFieldValue("tpl_character_lighting", compositionSettings.lighting_mood || "");
+
+        if (template.reference_prompt_id) {
+            const { data: referencePrompt, error: referenceError } = await supabaseClient
+                .from("adult_reference_prompts")
+                .select("id, title, reference_prompt, source_image_url, source_asset_name")
+                .eq("id", template.reference_prompt_id)
+                .eq("zone", "mens")
+                .eq("is_active", true)
+                .single();
+
+            if (referenceError || !referencePrompt?.reference_prompt) {
+                console.error("成人向け顔基準テンプレ取得エラー:", referenceError);
+                alert("テンプレートは読み込みましたが、顔基準テンプレの取得に失敗しました。");
+            } else {
+                const ref = {
+                    type: "character",
+                    asset_id: null,
+                    title: referencePrompt.source_asset_name || referencePrompt.title || "顔基準テンプレ",
+                    image_url: referencePrompt.source_image_url || "",
+                    extracted: true,
+                    extracting: false,
+                    standard_ready: true,
+                    standard_method: "adult_reference_prompt_db",
+                    adult_reference_prompt_id: referencePrompt.id,
+                    adult_reference_prompt_title: referencePrompt.title,
+                    adult_reference_prompt: referencePrompt.reference_prompt,
+                    loaded_from_template: true,
+                    loaded_at: new Date().toISOString()
+                };
+
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+                renderStandardReferenceCard();
+            }
+        }
+
+        closeAdultTemplateLoadModal();
+
+        alert("保存済み成人テンプレートを読み込みました。");
+
+    } catch (err) {
+        console.error("成人向けテンプレート読込エラー:", err);
+        alert("成人向けテンプレートの読み込みに失敗しました: " + (err.message || String(err)));
+    }
+}
+
+async function openAdultTemplateLoadModal() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        const { data: templates, error } = await supabaseClient
+            .from("adult_generation_templates")
+            .select("id, template_name, model_settings, clothing_text, composition_settings, silhouette_settings, reference_prompt_id, updated_at")
+            .eq("user_id", user.id)
+            .eq("zone", "mens")
+            .eq("is_active", true)
+            .order("updated_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const existing = document.getElementById("adultTemplateLoadOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "adultTemplateLoadOverlay";
+        overlay.style = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 10003;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: sans-serif;
+        `;
+
+        const listHtml = templates && templates.length > 0
+            ? templates.map((template, index) => {
+                const modelSettings = template.model_settings || {};
+                const compositionSettings = template.composition_settings || {};
+
+                const summaryParts = [
+                    modelSettings.view,
+                    modelSettings.age,
+                    modelSettings.expression,
+                    template.clothing_text,
+                    compositionSettings.pose,
+                    compositionSettings.background,
+                    compositionSettings.lighting_mood
+                ].filter(Boolean);
+
+                const summary = summaryParts.length > 0
+                    ? summaryParts.join(" / ")
+                    : "詳細設定あり";
+
+                return `
+                    <div style="
+                        border:1px solid #eee;
+                        border-radius:8px;
+                        padding:10px;
+                        margin-bottom:8px;
+                        background:#fff;
+                    ">
+                        <div style="font-size:13px; font-weight:bold; color:#333;">
+                            ${template.template_name || "無題の成人テンプレート"}
+                        </div>
+
+                        <div style="font-size:11px; color:#777; margin-top:4px; line-height:1.5;">
+                            ${summary}
+                        </div>
+
+                        <div style="font-size:10px; color:#999; margin-top:4px;">
+                            顔基準テンプレ：${template.reference_prompt_id ? "あり" : "なし"}
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="applyAdultGenerationTemplate(window.adultTemplateList[${index}])"
+                            style="
+                                width:100%;
+                                padding:8px;
+                                margin-top:8px;
+                                border:1px solid #6a0dad;
+                                background:#6a0dad;
+                                color:white;
+                                border-radius:6px;
+                                cursor:pointer;
+                                font-size:12px;
+                                font-weight:bold;
+                            "
+                        >
+                            この成人テンプレートを読み込む
+                        </button>
+                    </div>
+                `;
+            }).join("")
+            : `
+                <div style="text-align:center; color:#777; font-size:13px; padding:30px 10px;">
+                    保存済み成人テンプレートはまだありません。
+                </div>
+            `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:520px;
+                max-height:80vh;
+                background:#fff;
+                border-radius:12px;
+                padding:18px;
+                overflow-y:auto;
+                box-shadow:0 8px 30px rgba(0,0,0,0.25);
+            ">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 style="margin:0; font-size:17px; color:#6a0dad;">
+                        保存済み成人テンプレート
+                    </h3>
+
+                    <button
+                        type="button"
+                        onclick="closeAdultTemplateLoadModal()"
+                        style="border:none; background:none; font-size:22px; cursor:pointer; color:#999;"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                ${listHtml}
+            </div>
+        `;
+
+        window.adultTemplateList = templates || [];
+        document.body.appendChild(overlay);
+
+    } catch (err) {
+        console.error("成人向けテンプレート一覧取得エラー:", err);
+        alert("成人向けテンプレート一覧の取得に失敗しました: " + (err.message || String(err)));
     }
 }
 
