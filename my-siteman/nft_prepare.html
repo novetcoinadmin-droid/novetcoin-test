@@ -1193,30 +1193,121 @@ async function runStandardizeExtraction() {
             return;
         }
 
-        const ref = JSON.parse(raw);
+        let ref = JSON.parse(raw);
 
         if (!ref.image_url) {
             alert("基準化画像のURLが見つかりません。");
             return;
         }
 
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        ref.extracting = true;
+        ref.extracted = false;
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+        renderStandardReferenceCard();
+
+        const extractedRef = await extractStandardReferenceFeatures();
+        const features = extractedRef?.features || {};
+
+        const referencePromptParts = [
+            "adult woman character reference",
+            "face close-up reference only",
+            "use facial structure, hairstyle, hair length, bangs, eye shape, eyebrow shape, nose shape, mouth shape, face outline, jawline, and overall atmosphere",
+            "do not copy pose, clothing, background, explicit content, or composition",
+            features.visual_gender_presentation,
+            features.apparent_age_impression,
+            features.hair_length,
+            features.hair_style,
+            features.hair_color_value,
+            features.face_outline,
+            features.jawline,
+            features.chin_shape,
+            features.eye_shape,
+            features.eyebrow_shape,
+            features.nose_shape,
+            features.mouth_shape,
+            features.overall_impression
+        ].filter(Boolean);
+
+        const referencePrompt = referencePromptParts.join(", ");
+
+        if (!referencePrompt || referencePrompt.length < 30) {
+            throw new Error("基準化プロンプトの作成に失敗しました。");
+        }
+
+        const title = prompt(
+            "保存する成人向け基準化プロンプト名を入力してください。",
+            ref.title ? `${ref.title} の基準化` : "成人向け基準化プロンプト"
+        );
+
+        if (!title || !title.trim()) {
+            ref.extracting = false;
+            ref.extracted = true;
+            localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+            renderStandardReferenceCard();
+            alert("保存をキャンセルしました。");
+            return;
+        }
+
+        const { data: savedPrompt, error: insertError } = await supabaseClient
+            .from("adult_reference_prompts")
+            .insert({
+                user_id: user.id,
+                asset_id: ref.asset_id || null,
+                zone: "mens",
+                title: title.trim(),
+                reference_prompt: referencePrompt,
+                source_image_url: ref.image_url || null,
+                source_asset_name: ref.title || null,
+                note: "顔アップ基準化から作成"
+            })
+            .select("id, title, reference_prompt")
+            .single();
+
+        if (insertError) {
+            throw insertError;
+        }
+
         const updatedRef = {
-            ...ref,
+            ...extractedRef,
             extracted: true,
             extracting: false,
             standard_ready: true,
-            standard_method: "leonardo_reference_image",
+            standard_method: "adult_reference_prompt_db",
+            adult_reference_prompt_id: savedPrompt.id,
+            adult_reference_prompt_title: savedPrompt.title,
+            adult_reference_prompt: savedPrompt.reference_prompt,
             standardized_at: new Date().toISOString()
         };
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(updatedRef));
         renderStandardReferenceCard();
 
-        alert("基準化が完了しました。\nこの画像を参照画像として使用します。");
+        alert("成人向け基準化プロンプトをDBに保存しました。");
 
     } catch (err) {
-        console.error("基準化エラー:", err);
-        alert("基準化に失敗しました。参照画像の設定を確認してください。");
+        console.error("成人向け基準化エラー:", err);
+
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+
+        if (raw) {
+            try {
+                const ref = JSON.parse(raw);
+                ref.extracting = false;
+                ref.extracted = false;
+                ref.extraction_error = err instanceof Error ? err.message : String(err);
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+                renderStandardReferenceCard();
+            } catch {}
+        }
+
+        alert("成人向け基準化に失敗しました: " + (err.message || String(err)));
     }
 }
 
@@ -2217,6 +2308,22 @@ function showStandardReferenceGuideModal() {
                 ">
                     良い例：顔アップ・顔全体が見える・目が隠れていない<br>
                     悪い例：横顔・顔が隠れている・髪や手で目鼻口が見えない
+                </div>
+
+                <div style="
+                    font-size:12px;
+                    color:#8a4b00;
+                    line-height:1.7;
+                    background:#fff8e6;
+                    border:1px solid #f1c40f;
+                    border-radius:8px;
+                    padding:10px;
+                    margin-bottom:12px;
+                    ">
+                    <strong>成人向け基準化の注意</strong><br>
+                    基準化に使う画像は、顔アップで顔全体が見える画像を選んでください。<br>
+                    露骨な性的描写を含む画像は、基準化素材として使用しないでください。<br>
+                    基準化では顔立ち・髪型・雰囲気だけをプロンプト化し、生成時に画像そのものを参照し続けるものではありません。
                 </div>
 
                 <button
