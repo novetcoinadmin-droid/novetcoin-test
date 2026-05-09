@@ -411,6 +411,15 @@ body {
 
             <div id="charDetailBox" style="display:none;"></div>
 
+            <button
+                type="button"
+                class="btn"
+                style="background:#fff; color:#2c3e50; border:1px solid #2c3e50; font-size:13px; margin-top:10px;"
+                onclick="saveAdultGenerationTemplate()"
+            >
+                成人向けテンプレートを保存
+            </button>
+
             <button class="btn" style="background:#f0f0f0; color:#333; font-size:13px; margin-top:10px;" onclick="generateImage('std')">
                 スタンダード生成（10 NP）
             </button>
@@ -1411,7 +1420,7 @@ function renderStandardReferenceCard() {
                 </div>
 
                 <div style="font-size:10px; color:#2ecc71; margin-top:6px; line-height:1.5;">
-                    参照画像：設定済み
+                    顔基準素材：設定済み
                 </div>
 
                 <div style="display:flex; gap:6px; margin-top:8px;">
@@ -1420,7 +1429,7 @@ function renderStandardReferenceCard() {
                         onclick="runStandardizeExtraction()"
                         style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;"
                     >
-                        基準化
+                        顔基準テンプレ保存
                     </button>
 
                     <button
@@ -1766,6 +1775,120 @@ function getTemplateFieldValue(fieldId) {
     }
 
     return value;
+}
+
+// =====================================================
+// 成人向け生成テンプレート保存
+// =====================================================
+
+function getTemplateInputValue(fieldId) {
+    const el = document.getElementById(fieldId);
+    if (!el) return "";
+
+    const value = String(el.value || "").trim();
+
+    if (!value) return "";
+
+    if (value === "__custom__") {
+        const customEl = document.getElementById(fieldId + "_custom");
+        return String(customEl?.value || "").trim();
+    }
+
+    return value;
+}
+
+async function saveAdultGenerationTemplate() {
+    try {
+        const templateType = document.getElementById("templateType")?.value || "";
+
+        if (templateType !== "character") {
+            alert("成人向けテンプレート保存は、まずキャラテンプレートで使用します。");
+            return;
+        }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        let standardRef = null;
+
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            standardRef = raw ? JSON.parse(raw) : null;
+        } catch {
+            standardRef = null;
+        }
+
+        if (!standardRef || !standardRef.adult_reference_prompt_id) {
+            alert("先に「顔基準テンプレ保存」で、成人向け基準プロンプトを保存してください。");
+            return;
+        }
+
+        const modelSettings = {
+            view: getTemplateInputValue("tpl_character_view"),
+            age: getTemplateInputValue("tpl_character_age"),
+            expression: getTemplateInputValue("tpl_character_expression")
+        };
+
+        const clothingText = getTemplateInputValue("tpl_character_outfit");
+
+        const compositionSettings = {
+            pose: getTemplateInputValue("tpl_character_pose"),
+            parts: getTemplateInputValue("tpl_character_parts"),
+            background: getTemplateInputValue("tpl_character_background"),
+            lighting_mood: getTemplateInputValue("tpl_character_lighting")
+        };
+
+        const silhouetteSettings = {
+            enabled: false,
+            count: 0,
+            placement: ""
+        };
+
+        const hasAnySetting =
+            Object.values(modelSettings).some(v => String(v || "").trim() !== "") ||
+            String(clothingText || "").trim() !== "" ||
+            Object.values(compositionSettings).some(v => String(v || "").trim() !== "");
+
+        if (!hasAnySetting) {
+            alert("保存するテンプレート設定がありません。少なくとも1つ項目を選択してください。");
+            return;
+        }
+
+        const defaultName = "男性向け成人テンプレート";
+        const templateName = prompt("保存する成人向けテンプレート名を入力してください。", defaultName);
+
+        if (!templateName || !templateName.trim()) {
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from("adult_generation_templates")
+            .insert({
+                user_id: user.id,
+                zone: "mens",
+                template_name: templateName.trim(),
+                model_settings: modelSettings,
+                clothing_text: clothingText || null,
+                composition_settings: compositionSettings,
+                silhouette_settings: silhouetteSettings,
+                reference_prompt_id: standardRef.adult_reference_prompt_id || null,
+                note: "my-siteman/nft_prepare.html から保存"
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        alert("成人向け生成テンプレートを保存しました。");
+
+    } catch (err) {
+        console.error("成人向けテンプレート保存エラー:", err);
+        alert("成人向けテンプレート保存に失敗しました: " + (err.message || String(err)));
+    }
 }
 
 function collectCurrentSceneSettings() {
