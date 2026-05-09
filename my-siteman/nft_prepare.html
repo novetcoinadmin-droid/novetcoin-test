@@ -3211,9 +3211,19 @@ if (!hasAnyAdultSetting) {
         );
 
         if (error) {
-            console.error("Leonardo参照画像Function Error:", error);
-            throw new Error(error.message || "Leonardo参照画像Functionの呼び出しに失敗しました。");
+    console.error("Civitai成人向けFunction Error:", error);
+
+    try {
+        if (error.context) {
+            const errorText = await error.context.clone().text();
+            console.error("Civitai成人向けFunction Response:", errorText);
         }
+    } catch (detailErr) {
+        console.error("Civitai成人向けFunction Response取得失敗:", detailErr);
+    }
+
+    throw error;
+}
 
         console.log("🎨 Civitai成人向けFunction 結果:", data);
 
