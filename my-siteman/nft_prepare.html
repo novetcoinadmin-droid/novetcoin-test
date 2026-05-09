@@ -2665,13 +2665,27 @@ if (templatePayload.template_type !== "character") {
             standardRef = null;
         }
 
-        if (!standardRef || !standardRef.image_url) {
-            alert("先にイラスト保管庫から基準化用の画像を選択してください。");
+                if (!standardRef || standardRef.standard_ready !== true) {
+            alert("先に基準化用の画像を選択し、「基準化」ボタンで成人向け基準化プロンプトを保存してください。");
             return;
         }
 
-        if (standardRef.standard_ready !== true) {
-            alert("基準化用の画像は選択済みです。\n続けて「基準化」ボタンを押してから生成してください。");
+        if (!standardRef.adult_reference_prompt_id) {
+            alert("成人向け基準化プロンプトが見つかりません。\nもう一度「基準化」ボタンを押してDB保存してください。");
+            return;
+        }
+
+        const { data: adultReferencePrompt, error: adultReferenceError } = await supabaseClient
+            .from("adult_reference_prompts")
+            .select("id, title, reference_prompt")
+            .eq("id", standardRef.adult_reference_prompt_id)
+            .eq("zone", "mens")
+            .eq("is_active", true)
+            .single();
+
+        if (adultReferenceError || !adultReferencePrompt?.reference_prompt) {
+            console.error("成人向け基準化プロンプト取得エラー:", adultReferenceError);
+            alert("成人向け基準化プロンプトの読み込みに失敗しました。もう一度基準化してください。");
             return;
         }
 
@@ -2692,8 +2706,10 @@ if (templatePayload.template_type !== "character") {
             loadingOverlay.style.display = "flex";
         }
 
-        const requestPayload = {
-            reference_image_url: standardRef.image_url,
+                const requestPayload = {
+            adult_reference_prompt_id: adultReferencePrompt.id,
+            adult_reference_prompt_title: adultReferencePrompt.title,
+            adult_reference_prompt: adultReferencePrompt.reference_prompt,
             detail_settings: detailSettings,
             debug_prompt_only: false
         };
