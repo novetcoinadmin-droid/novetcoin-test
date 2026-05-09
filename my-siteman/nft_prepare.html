@@ -1914,25 +1914,30 @@ async function saveAdultGenerationTemplate() {
         }
 
         const modelSettings = {
-            view: getTemplateInputValue("tpl_character_view"),
-            age: getTemplateInputValue("tpl_character_age"),
-            expression: getTemplateInputValue("tpl_character_expression")
-        };
+    age: getTemplateInputValue("tpl_character_age"),
+    height: getTemplateInputValue("tpl_adult_height"),
+    bust: getTemplateInputValue("tpl_adult_bust"),
+    waist: getTemplateInputValue("tpl_adult_waist"),
+    hip: getTemplateInputValue("tpl_adult_hip")
+};
 
-        const clothingText = getTemplateInputValue("tpl_character_outfit");
+const clothingText = getTemplateInputValue("tpl_character_outfit");
 
-        const compositionSettings = {
-            pose: getTemplateInputValue("tpl_character_pose"),
-            parts: getTemplateInputValue("tpl_character_parts"),
-            background: getTemplateInputValue("tpl_character_background"),
-            lighting_mood: getTemplateInputValue("tpl_character_lighting")
-        };
+const compositionSettings = {
+    viewpoint: getTemplateInputValue("tpl_adult_viewpoint"),
+    focus_part: getTemplateInputValue("tpl_adult_focus_part"),
+    distance: getTemplateInputValue("tpl_adult_distance"),
+    expression: getTemplateInputValue("tpl_character_expression")
+};
 
-        const silhouetteSettings = {
-            enabled: false,
-            count: 0,
-            placement: ""
-        };
+const maleSilhouetteEnabled =
+    getTemplateInputValue("tpl_adult_male_silhouette_enabled") === "あり";
+
+const silhouetteSettings = {
+    enabled: maleSilhouetteEnabled,
+    count: maleSilhouetteEnabled ? 1 : 0,
+    placement: getTemplateInputValue("tpl_adult_male_silhouette_placement")
+};
 
         const hasAnySetting =
             Object.values(modelSettings).some(v => String(v || "").trim() !== "") ||
