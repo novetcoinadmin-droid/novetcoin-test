@@ -43,7 +43,7 @@
         .side-box { background: white; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
         .side-box h3 { font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; color: #666; }
     </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+</head>
 <body>
 
 <nav>
@@ -62,10 +62,92 @@
 
 <div class="layout">
     <div class="main-content">
-        <h1>🎨 イラスト保管庫</h1>
-        
+        <h1 style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <span>🎨 イラスト保管庫</span>
+    <span
+        id="assetStorageCount"
+        style="font-size:13px; color:#666; font-weight:bold; background:#f7f7f7; border:1px solid #ddd; border-radius:999px; padding:6px 12px; white-space:nowrap;"
+    >
+        保存庫 -- / 50
+    </span>
+</h1>
+<div
+    id="assetStoragePlanBox"
+    style="background:#fdfaf6; border:1px solid #ead7a0; border-radius:8px; padding:14px; margin-bottom:20px;"
+>
+    <div style="font-size:13px; font-weight:bold; color:#6a0dad; margin-bottom:8px;">
+        保存枠を拡張する
+    </div>
+
+    <p style="font-size:12px; color:#666; line-height:1.7; margin-bottom:10px;">
+        無料枠は50枚までです。より多くのイラスト・風景・その他素材を保存したい場合は、30日間の拡張プランを利用できます。
+    </p>
+
+    <div style="display:flex; gap:8px;">
+        <button
+            type="button"
+            onclick="purchaseAssetStoragePlan('light')"
+            style="flex:1; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"
+        >
+            ライト保管庫<br>
+            <span style="font-size:11px; font-weight:normal;">150枚 / 30日 / 110NP</span>
+        </button>
+
+        <button
+            type="button"
+            onclick="purchaseAssetStoragePlan('creator')"
+            style="flex:1; padding:10px; border:1px solid #6a0dad; background:#6a0dad; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;"
+        >
+            クリエイター保管庫<br>
+            <span style="font-size:11px; font-weight:normal;">350枚 / 30日 / 330NP</span>
+        </button>
+    </div>
+
+    <p style="font-size:11px; color:#a66; line-height:1.6; margin-top:10px;">
+        ※大切な画像は必ずご自身でもバックアップしてください。イラスト保管庫は永続保存を保証するものではありません。
+    </p>
+</div>
+
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+    <button
+        id="assetImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('images')"
+        style="flex:1; padding:10px; border:1px solid #6a0dad; background:#6a0dad; color:white; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        イラスト
+    </button>
+
+    <button
+        id="assetSceneImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('sceneImages')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景
+    </button>
+
+    <button
+        id="assetOtherImageTabBtn"
+        type="button"
+        onclick="switchAssetTab('otherImages')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        その他
+    </button>
+
+    <button
+        id="assetScenePresetTabBtn"
+        type="button"
+        onclick="switchAssetTab('scenePresets')"
+        style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景設定
+    </button>
+</div>
+
         <div class="upload-area">
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+            <p id="uploadAreaDescription" style="font-size: 13px; color: #666; margin-bottom: 15px;">
                 小説の表紙や挿絵、または将来NFT化したいイラストをアップロードします。<br>
                 ※画像は自動的に最適化（WebP変換）されて安全に保存されます。
             </p>
@@ -77,6 +159,24 @@
 
         <div class="gallery-grid" id="galleryGrid">
             <p style="color: #999; font-size: 13px;">読み込み中...</p>
+        </div>
+
+        <div id="sceneImagePanel" style="display:none;">
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                風景画像を読み込み中...
+            </p>
+        </div>
+
+        <div id="otherImagePanel" style="display:none;">
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                その他画像を読み込み中...
+            </p>
+        </div>
+
+        <div id="scenePresetPanel" style="display:none;">
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                風景設定を読み込み中...
+            </p>
         </div>
     </div>
 
@@ -95,10 +195,10 @@
                 <p style="font-weight:bold; color:var(--main-purple); font-size:18px;" id="dispNp">0</p>
             </div>
             
-            <button onclick=location.href="../my-site/wallet.html" style="width:100%; padding:10px; background:var(--main-purple); color:white; border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:bold;">
+            <button onclick="location.href='wallet.html'" style="width:100%; padding:10px; background:var(--main-purple); color:white; border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:bold;">
                 💳 ウォレットを開く
             </button>
-            <button onclick="location.href='account.html'" style="width:100%; padding:10px; background:#fff; border:1px solid #ccc; border-radius:5px; font-size:13px; cursor:pointer; margin-top:10px;">
+            <button onclick="location.href='/portal/account.html'" style="width:100%; padding:10px; background:#fff; border:1px solid #ccc; border-radius:5px; font-size:13px; cursor:pointer; margin-top:10px;">
                 ⚙️ 設定・マイページ
             </button>
         </div>
@@ -114,21 +214,287 @@
 
 <script src="auth-check.js"></script>
 <script>
-// Supabase設定は auth-check.js で共通読み込み済み
-
+// Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 let currentUser = null;
+let currentAssetStorageLimit = 50;
+let currentAssetStorageCount = 0;
+let currentAssetStorageExpiryText = "";
+let currentSelectableAssetIds = new Set();
+
+async function fetchSelectableAssetIds() {
+    currentSelectableAssetIds = new Set();
+
+    const { data, error } = await window.supabaseClient.rpc(
+        "get_selectable_user_assets",
+        {
+            p_asset_type: null
+        }
+    );
+
+    if (error) {
+        console.error("利用可能素材一覧の取得エラー:", error);
+        return;
+    }
+
+    currentSelectableAssetIds = new Set((data || []).map(asset => asset.id));
+}
+
+function updateAssetStorageCountDisplay(count, limit = currentAssetStorageLimit) {
+    const el = document.getElementById("assetStorageCount");
+    if (!el) return;
+
+    const safeCount = Number(count || 0);
+    const safeLimit = Number(limit || 50);
+
+    currentAssetStorageLimit = safeLimit;
+
+    currentAssetStorageCount = safeCount;
+
+el.innerText = `保存庫 ${safeCount} / ${safeLimit}${currentAssetStorageExpiryText ? "　" + currentAssetStorageExpiryText : ""}`;
+
+    if (safeCount >= safeLimit) {
+        el.style.color = "#e74c3c";
+        el.style.borderColor = "#e74c3c";
+        el.style.background = "#fff5f5";
+    } else {
+        el.style.color = "#666";
+        el.style.borderColor = "#ddd";
+        el.style.background = "#f7f7f7";
+    }
+}
+
+async function fetchAssetStorageCount() {
+    if (!currentUser) return;
+
+    const { data: limitData, error: limitError } = await window.supabaseClient
+        .rpc("get_user_asset_storage_limit", {
+            p_user_id: currentUser.id
+        });
+
+    if (limitError) {
+        console.error("保管庫上限取得エラー:", limitError);
+        currentAssetStorageLimit = 50;
+    } else {
+        currentAssetStorageLimit = Number(limitData || 50);
+    }
+
+    const { count, error } = await window.supabaseClient
+        .from("user_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        console.error("保管庫枚数カウントエラー:", error);
+        updateAssetStorageCountDisplay(0, currentAssetStorageLimit);
+        return;
+    }
+
+    updateAssetStorageCountDisplay(count || 0, currentAssetStorageLimit);
+}
+
+async function fetchAssetStorageExpiry() {
+    if (!currentUser) return;
+
+    currentAssetStorageExpiryText = "";
+
+    const { data, error } = await window.supabaseClient
+        .from("asset_storage_subscriptions")
+        .select("storage_limit, expires_at")
+        .eq("user_id", currentUser.id)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("storage_limit", { ascending: false })
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error("保管庫有効期限取得エラー:", error);
+        return;
+    }
+
+    if (!data || !data.expires_at) {
+        currentAssetStorageExpiryText = "";
+        return;
+    }
+
+    const expiryDate = new Date(data.expires_at);
+    const formattedDate = expiryDate.toLocaleDateString("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    });
+
+    currentAssetStorageExpiryText = `有効期限：${formattedDate}`;
+}
+
+async function purchaseAssetStoragePlan(planType) {
+    const isLight = planType === "light";
+
+    const planLabel = isLight ? "ライト保管庫" : "クリエイター保管庫";
+    const storageLimit = isLight ? 150 : 350;
+    const priceNp = isLight ? 110 : 330;
+
+    const ok = confirm(
+        `${planLabel}を購入します。\n\n` +
+        `保存上限：${storageLimit}枚\n` +
+        `期間：30日\n` +
+        `料金：${priceNp}NP\n\n` +
+        `重要：\n` +
+        `大切な画像は必ずご自身でもバックアップしてください。\n` +
+        `イラスト保管庫は永続保存を保証するものではありません。\n\n` +
+        `この内容に同意して購入しますか？`
+    );
+
+    if (!ok) return;
+
+    try {
+        const { data, error } = await window.supabaseClient.rpc(
+            "purchase_asset_storage_plan",
+            {
+                p_plan_type: planType
+            }
+        );
+
+        if (error) {
+            if (error.message && error.message.includes("INSUFFICIENT_NP")) {
+                alert("NP残高が不足しています。");
+                return;
+            }
+
+            throw error;
+        }
+
+        const result = Array.isArray(data) ? data[0] : data;
+
+        alert(
+            `${planLabel}を購入しました。\n` +
+            `保存上限が${result?.storage_limit || storageLimit}枚になりました。`
+        );
+
+        if (result && result.remaining_np !== undefined) {
+            const npEl = document.getElementById("dispNp");
+            if (npEl) {
+                npEl.innerText = Math.floor(Number(result.remaining_np || 0));
+            }
+        }
+
+        await fetchAssetStorageCount();
+
+    } catch (err) {
+        console.error("保管庫拡張購入エラー:", err);
+        alert("保管庫拡張の購入に失敗しました: " + (err.message || String(err)));
+    }
+}
+
+let currentAssetTab = "images";
+
+function switchAssetTab(tabName) {
+    currentAssetTab = tabName;
+
+    const imageTabBtn = document.getElementById("assetImageTabBtn");
+    const sceneImageTabBtn = document.getElementById("assetSceneImageTabBtn");
+    const otherImageTabBtn = document.getElementById("assetOtherImageTabBtn");
+    const scenePresetTabBtn = document.getElementById("assetScenePresetTabBtn");
+
+    const uploadArea = document.querySelector(".upload-area");
+    const uploadDesc = document.getElementById("uploadAreaDescription");
+    const uploadBtnText = document.getElementById("uploadBtnText");
+
+    const galleryGrid = document.getElementById("galleryGrid");
+    const sceneImagePanel = document.getElementById("sceneImagePanel");
+    const otherImagePanel = document.getElementById("otherImagePanel");
+    const scenePresetPanel = document.getElementById("scenePresetPanel");
+
+    const setButtonStyle = (btn, active) => {
+        if (!btn) return;
+
+        btn.style.background = active ? "#6a0dad" : "#fff";
+        btn.style.color = active ? "#fff" : "#555";
+        btn.style.borderColor = active ? "#6a0dad" : "#ccc";
+    };
+
+    const isImages = tabName === "images";
+    const isSceneImages = tabName === "sceneImages";
+    const isOtherImages = tabName === "otherImages";
+    const isScenePresets = tabName === "scenePresets";
+
+    setButtonStyle(imageTabBtn, isImages);
+    setButtonStyle(sceneImageTabBtn, isSceneImages);
+    setButtonStyle(otherImageTabBtn, isOtherImages);
+    setButtonStyle(scenePresetTabBtn, isScenePresets);
+
+    if (uploadArea) {
+        uploadArea.style.display = (isImages || isSceneImages || isOtherImages) ? "block" : "none";
+    }
+
+    if (uploadDesc && uploadBtnText) {
+        if (isImages) {
+            uploadDesc.innerHTML = `
+                小説の表紙や挿絵、または将来NFT化したいイラストをアップロードします。<br>
+                ※画像は自動的に最適化（WebP変換）されて安全に保存されます。
+            `;
+            uploadBtnText.innerText = "＋ イラスト用画像をアップロード（複数選択可）";
+        }
+
+        if (isSceneImages) {
+            uploadDesc.innerHTML = `
+                ギルド、王城、ダンジョン、街並みなどの風景画像をアップロードします。<br>
+                ※風景タブに保存され、今後の風景生成や世界観確認に使えます。
+            `;
+            uploadBtnText.innerText = "＋ 風景用画像をアップロード（複数選択可）";
+        }
+
+        if (isOtherImages) {
+            uploadDesc.innerHTML = `
+                装備・アイテム・魔法・スキルなど、その他素材用の画像をアップロードします。<br>
+                ※その他タブに保存され、後から挿絵素材として使えます。
+            `;
+            uploadBtnText.innerText = "＋ その他用画像をアップロード（複数選択可）";
+        }
+    }
+
+    if (galleryGrid) {
+        galleryGrid.style.display = isImages ? "grid" : "none";
+    }
+
+    if (sceneImagePanel) {
+        sceneImagePanel.style.display = isSceneImages ? "block" : "none";
+    }
+
+    if (otherImagePanel) {
+        otherImagePanel.style.display = isOtherImages ? "block" : "none";
+    }
+
+    if (scenePresetPanel) {
+        scenePresetPanel.style.display = isScenePresets ? "block" : "none";
+    }
+}
 
 async function init() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { location.href = "login.html"; return; }
-    currentUser = user;
+    // 🌟 Step 1: ユーザー情報を取得（ここが抜けていたのがエラーの原因です）
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
 
+    if (!user) {
+        console.error("ログインユーザーが見つかりません。");
+        return;
+    }
+
+    currentUser = user; // グローバル変数にセット
+
+    // 🌟 Step 2: ユーザー情報を元に各データを取得
     await fetchAccountInfo();
     await fetchAssets();
 }
 
 async function fetchAccountInfo() {
-    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+    // window.supabaseClient を使用
+    const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
     if (profile) {
         document.getElementById("dispName").innerText = profile.username || "未設定";
         document.getElementById("dispNvt").innerText = parseFloat(profile.nvt_balance || 0).toFixed(2);
@@ -140,109 +506,435 @@ async function handleUpload(event) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    const isSceneUpload = currentAssetTab === "sceneImages";
+    const isOtherUpload = currentAssetTab === "otherImages";
+
+    let assetType = "illustration";
+
+    if (isSceneUpload) {
+        assetType = "scene";
+        }
+
+    if (isOtherUpload) {
+        assetType = "other";
+    }
+
+    const assetSource = "uploaded";
+    
     const btn = document.getElementById('uploadBtnText');
-    btn.innerText = "⏳ 変換＆アップロード中...";
-    btn.disabled = true;
+    const originalBtnText = btn ? btn.innerText : "";
+
+    if (btn) {
+        btn.innerText = isSceneUpload
+            ? "⏳ 風景画像を変換＆アップロード中..."
+            : "⏳ イラストを変換＆アップロード中...";
+        btn.disabled = true;
+    }
 
     try {
         for (let i = 0; i < files.length; i++) {
             let file = files[i];
-            
+
             const img = new Image();
             const objectUrl = URL.createObjectURL(file);
+
             await new Promise((resolve, reject) => {
-                img.onload = resolve; img.onerror = reject; img.src = objectUrl;
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = objectUrl;
             });
 
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
             canvas.height = img.height;
+
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0);
-            
+
+            URL.revokeObjectURL(objectUrl);
+
             const webpBlob = await new Promise(resolve => {
                 canvas.toBlob(resolve, "image/webp", 0.8);
             });
 
-            const fileName = `asset_${currentUser.id}_${Date.now()}_${i}.webp`;
-            const { error: uploadErr } = await supabaseClient.storage
+            if (!webpBlob) {
+                throw new Error("WebP変換に失敗しました。");
+            }
+
+            const prefix = isSceneUpload ? "scene" : (isOtherUpload ? "other" : "asset");
+            const fileName = `${prefix}_${currentUser.id}_${Date.now()}_${i}.webp`;
+
+            const { error: uploadErr } = await window.supabaseClient.storage
                 .from('illustrations')
                 .upload(fileName, webpBlob, { contentType: 'image/webp' });
 
             if (uploadErr) throw uploadErr;
 
-            const { data: publicUrlData } = supabaseClient.storage.from('illustrations').getPublicUrl(fileName);
+            const { data: publicUrlData } = window.supabaseClient.storage
+                .from('illustrations')
+                .getPublicUrl(fileName);
+
             const finalUrl = publicUrlData.publicUrl;
 
-            const originalName = file.name.split('.')[0]; 
-            await supabaseClient.from('user_assets').insert({
-                user_id: currentUser.id,
-                file_url: finalUrl,
-                file_name: originalName
-            });
+            const originalName = file.name.split('.')[0];
+
+            const { error: assetInsertError } = await window.supabaseClient
+    .from('user_assets')
+    .insert({
+        user_id: currentUser.id,
+        file_url: finalUrl,
+        file_name: originalName,
+        asset_type: assetType,
+        asset_source: assetSource
+    });
+
+if (assetInsertError) {
+    // DB保存に失敗した場合、先にStorageへ上がった画像だけ残らないよう削除する
+    await window.supabaseClient.storage
+        .from('illustrations')
+        .remove([fileName]);
+
+    if (
+        assetInsertError.message &&
+        assetInsertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
+    ) {
+        throw new Error("保存庫は50枚までです。不要な画像を削除してから再度アップロードしてください。");
+    }
+
+    throw assetInsertError;
+}
         }
-        
-        alert("アップロードが完了しました！");
-        await fetchAssets(); 
+
+        alert(isSceneUpload
+            ? "風景画像のアップロードが完了しました！"
+            : "イラストのアップロードが完了しました！"
+        );
+
+        await fetchAssets();
+
+        // アップロード後も今のタブ表示を維持
+        switchAssetTab(currentAssetTab);
 
     } catch (err) {
+        console.error(err);
         alert("アップロード失敗: " + err.message);
+
     } finally {
-        btn.innerText = "＋ 新しい画像をアップロード（複数選択可）";
-        btn.disabled = false;
+        if (btn) {
+            btn.innerText = originalBtnText || (
+                isSceneUpload
+                    ? "＋ 風景用画像をアップロード（複数選択可）"
+                    : "＋ イラスト用画像をアップロード（複数選択可）"
+            );
+            btn.disabled = false;
+        }
+
         event.target.value = "";
     }
 }
 
 async function fetchAssets() {
-    const grid = document.getElementById('galleryGrid');
-    
-    const { data: assets, error } = await supabaseClient
-        .from('user_assets')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
+    await fetchAssetStorageExpiry();
+    await fetchAssetStorageCount();
+    await fetchSelectableAssetIds();
 
-    if (error) { grid.innerHTML = `<p>エラーが発生しました</p>`; return; }
+    await fetchIllustrationAssets();
+    await fetchSceneImageAssets();
+    await fetchOtherImageAssets();
+    await fetchScenePresets();
+}
 
-    if (assets && assets.length > 0) {
-        grid.innerHTML = assets.map(asset => `
-            <div class="asset-card" id="card_${asset.id}">
-                <div class="asset-img-wrapper">
-                    <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
+function renderAssetCards(assets) {
+    if (!assets || assets.length === 0) {
+        return "";
+    }
+
+    return assets.map(asset => {
+        const isSelectable = currentSelectableAssetIds.has(asset.id);
+
+        const limitBadge = isSelectable
+            ? `
+                <div style="font-size:11px; color:#2ecc71; margin-bottom:6px;">
+                    挿絵・基準化に利用可能
                 </div>
+            `
+            : `
+                <div style="font-size:11px; color:#e74c3c; margin-bottom:6px; font-weight:bold;">
+                    上限超過中：挿絵・基準化には利用できません
+                </div>
+            `;
+
+        const cardOpacity = isSelectable ? "1" : "0.65";
+
+        return `
+            <div class="asset-card" id="card_${asset.id}" style="opacity:${cardOpacity};">
+                <div class="asset-img-wrapper" style="position:relative;">
+                    <img src="${asset.file_url}" onclick="window.open('${asset.file_url}', '_blank')" style="cursor:pointer;" title="クリックで拡大表示">
+
+                    ${!isSelectable ? `
+                        <div style="
+                            position:absolute;
+                            left:0;
+                            right:0;
+                            bottom:0;
+                            background:rgba(231,76,60,0.9);
+                            color:white;
+                            font-size:11px;
+                            text-align:center;
+                            padding:5px;
+                            font-weight:bold;
+                        ">
+                            上限超過中
+                        </div>
+                    ` : ""}
+                </div>
+
                 <div class="asset-info">
+                    ${limitBadge}
+
                     <input type="text" id="name_${asset.id}" value="${asset.file_name || '無題'}">
+
                     <div class="asset-actions">
                         <button class="btn-save" onclick="updateAssetName('${asset.id}')">💾 名前を保存</button>
                         <button class="btn-delete" onclick="deleteAsset('${asset.id}', '${asset.file_url}')">🗑️</button>
                     </div>
                 </div>
             </div>
-        `).join('');
-    } else {
-        grid.innerHTML = `<p style="color:#999; font-size:13px; grid-column: 1 / -1; text-align:center; padding: 40px 0;">まだ素材がありません。上のボタンからアップロードしてください。</p>`;
+        `;
+    }).join('');
+}
+
+async function fetchIllustrationAssets() {
+    const grid = document.getElementById('galleryGrid');
+
+    const { data: assets, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('asset_type', 'illustration')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        grid.innerHTML = `<p>エラーが発生しました</p>`;
+        return;
     }
+
+    if (assets && assets.length > 0) {
+        grid.innerHTML = renderAssetCards(assets);
+    } else {
+        grid.innerHTML = `
+            <p style="color:#999; font-size:13px; grid-column: 1 / -1; text-align:center; padding: 40px 0;">
+                まだイラスト素材がありません。上のボタンからアップロードしてください。
+            </p>
+        `;
+    }
+}
+
+async function fetchSceneImageAssets() {
+    const panel = document.getElementById('sceneImagePanel');
+
+    const { data: assets, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('asset_type', 'scene')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        panel.innerHTML = `<p>風景画像の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (assets && assets.length > 0) {
+        panel.innerHTML = `
+            <div class="gallery-grid">
+                ${renderAssetCards(assets)}
+            </div>
+        `;
+    } else {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだ風景画像はありません。<br>
+                今後、風景生成後に保存した画像がここに表示されます。
+            </p>
+        `;
+    }
+}
+
+async function fetchOtherImageAssets() {
+    const panel = document.getElementById('otherImagePanel');
+
+    const { data: assets, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('asset_type', 'other')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        panel.innerHTML = `<p>その他画像の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (assets && assets.length > 0) {
+        panel.innerHTML = `
+            <div class="gallery-grid">
+                ${renderAssetCards(assets)}
+            </div>
+        `;
+    } else {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだその他画像はありません。<br>
+                装備・アイテム・魔法・スキルなどの素材がここに表示されます。
+            </p>
+        `;
+    }
+}
+
+async function fetchScenePresets() {
+    const panel = document.getElementById("scenePresetPanel");
+
+    const { data: presets, error } = await window.supabaseClient
+        .from("scene_presets")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("updated_at", { ascending: false });
+
+    if (error) {
+        console.error("風景設定読み込みエラー:", error);
+        panel.innerHTML = `<p>風景設定の読み込みでエラーが発生しました</p>`;
+        return;
+    }
+
+    if (!presets || presets.length === 0) {
+        panel.innerHTML = `
+            <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
+                まだ保存済みの風景設定はありません。<br>
+                nft_prepare.html の風景テンプレートから保存できます。
+            </p>
+        `;
+        return;
+    }
+
+    panel.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px;">
+            ${presets.map(preset => {
+                const settings = preset.scene_settings || {};
+                const summary = [
+                    settings.place,
+                    settings.world,
+                    settings.light,
+                    settings.mood
+                ].filter(Boolean).join(" / ") || "詳細設定あり";
+
+                return `
+                    <div style="background:#fff; border:1px solid #eee; border-radius:8px; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <input
+                            type="text"
+                            id="scene_name_${preset.id}"
+                            value="${preset.preset_name || "無題の風景設定"}"
+                            style="width:100%; padding:8px; font-size:13px; border:1px solid #ccc; border-radius:4px; margin-bottom:8px;"
+                        >
+
+                        <div style="font-size:12px; color:#666; line-height:1.6; margin-bottom:8px;">
+                            ${summary}
+                        </div>
+
+                        <div style="font-size:11px; color:${preset.reference_enabled ? "#2ecc71" : "#999"}; margin-bottom:10px;">
+                            基準化画像：${preset.reference_enabled ? "あり" : "なし"}
+                        </div>
+
+                        <div style="display:flex; gap:6px;">
+                            <button
+                                onclick="updateScenePresetName('${preset.id}')"
+                                style="flex:1; background:#6a0dad; color:white; border:none; padding:7px; border-radius:4px; font-size:11px; cursor:pointer;"
+                            >
+                                💾 名前を保存
+                            </button>
+
+                            <button
+                                onclick="deleteScenePreset('${preset.id}')"
+                                style="background:#ff4d4f; color:white; border:none; padding:7px 10px; border-radius:4px; font-size:11px; cursor:pointer;"
+                            >
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("")}
+        </div>
+    `;
+}
+
+async function updateScenePresetName(id) {
+    const input = document.getElementById(`scene_name_${id}`);
+    const newName = input ? input.value.trim() : "";
+
+    if (!newName) {
+        alert("名前を入力してください。");
+        return;
+    }
+
+    const { error } = await window.supabaseClient
+        .from("scene_presets")
+        .update({ preset_name: newName })
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        alert("風景設定名の保存に失敗しました。");
+        return;
+    }
+
+    alert("風景設定名を保存しました。");
+    await fetchScenePresets();
+}
+
+async function deleteScenePreset(id) {
+    if (!confirm("この風景設定を削除しますか？")) return;
+
+    const { error } = await window.supabaseClient
+        .from("scene_presets")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        alert("風景設定の削除に失敗しました。");
+        return;
+    }
+
+    alert("風景設定を削除しました。");
+    await fetchScenePresets();
 }
 
 async function updateAssetName(id) {
     const newName = document.getElementById(`name_${id}`).value;
-    const { error } = await supabaseClient.from('user_assets').update({ file_name: newName }).eq('id', id);
+    const { error } = await window.supabaseClient
+        .from('user_assets')
+        .update({ file_name: newName })
+        .eq('id', id);
     
     if (error) alert("保存エラー");
     else alert("ファイル名を保存しました！");
 }
 
 async function deleteAsset(id, url) {
-    if (!confirm("この素材を削除しますか？\n※すでに挿絵として使っている作品からは画像が消えてしまうのでご注意ください。")) return;
+    if (!confirm("この素材を削除しますか？\n※挿絵として使用中の場合、画像が表示されなくなります。")) return;
 
     try {
-        await supabaseClient.from('user_assets').delete().eq('id', id);
+        // DBから削除
+        await window.supabaseClient.from('user_assets').delete().eq('id', id);
         
+        // Storageから削除
         const fileName = url.split('/').pop(); 
-        await supabaseClient.storage.from('illustrations').remove([fileName]);
+        await window.supabaseClient.storage.from('illustrations').remove([fileName]);
 
-        document.getElementById(`card_${id}`).remove();
+        const el = document.getElementById(`card_${id}`);
+if (el) el.remove();
+
+await fetchAssetStorageCount();
     } catch (err) {
         alert("削除に失敗しました");
     }
