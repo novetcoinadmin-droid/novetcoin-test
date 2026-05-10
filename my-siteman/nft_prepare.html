@@ -1231,29 +1231,63 @@ async function runStandardizeExtraction() {
         renderStandardReferenceCard();
 
         const extractedRef = await extractStandardReferenceFeatures();
-        const features = extractedRef?.features || {};
 
-        const referencePromptParts = [
-            "adult woman character reference",
-            "face close-up reference only",
-            "use facial structure, hairstyle, hair length, bangs, eye shape, eyebrow shape, nose shape, mouth shape, face outline, jawline, and overall atmosphere",
-            "do not copy pose, clothing, background, explicit content, or composition",
-            features.visual_gender_presentation,
-            features.apparent_age_impression,
-            features.hair_length,
-            features.hair_style,
-            features.hair_color_value,
-            features.face_outline,
-            features.jawline,
-            features.chin_shape,
-            features.eye_shape,
-            features.eyebrow_shape,
-            features.nose_shape,
-            features.mouth_shape,
-            features.overall_impression
-        ].filter(Boolean);
+// extract-standard-reference-features の返り値は、
+// data.extracted.features / data.extracted.face_prompt_fragments のような構造を想定する
+const extracted = extractedRef?.features || {};
+const featureObj = extracted.features || extracted;
 
-        const referencePrompt = referencePromptParts.join(", ");
+const facePromptFragments = Array.isArray(extracted.face_prompt_fragments)
+    ? extracted.face_prompt_fragments
+    : [];
+
+const cleanFeatureText = (value) => {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    const lower = text.toLowerCase();
+
+    if (
+        lower === "unclear" ||
+        lower === "not applicable" ||
+        lower === "unknown" ||
+        lower === "none"
+    ) {
+        return "";
+    }
+
+    return text;
+};
+
+const referencePromptParts = [
+    "same adult heroine character",
+    "adult woman character identity",
+    "use this only as character identity, not as framing or pose",
+    "keep the same hairstyle, bangs, face shape, eyes, nose, mouth, jawline, and facial impression",
+    "do not copy clothing, pose, background, explicit content, distance, framing, or scene composition",
+
+    ...facePromptFragments.map(cleanFeatureText),
+
+    cleanFeatureText(featureObj.visual_gender_presentation),
+    cleanFeatureText(featureObj.apparent_age_impression),
+    cleanFeatureText(featureObj.hair_length),
+    cleanFeatureText(featureObj.hair_style),
+    cleanFeatureText(featureObj.hair_color_value),
+    cleanFeatureText(featureObj.bangs),
+    cleanFeatureText(featureObj.face_outline),
+    cleanFeatureText(featureObj.jawline),
+    cleanFeatureText(featureObj.chin_shape),
+    cleanFeatureText(featureObj.cheek_shape),
+    cleanFeatureText(featureObj.eye_shape),
+    cleanFeatureText(featureObj.eye_angle),
+    cleanFeatureText(featureObj.eyebrow_shape),
+    cleanFeatureText(featureObj.eyelid_style),
+    cleanFeatureText(featureObj.nose_shape),
+    cleanFeatureText(featureObj.mouth_shape),
+    cleanFeatureText(featureObj.overall_impression)
+].filter(Boolean);
+
+const referencePrompt = [...new Set(referencePromptParts)].join(", ");
 
         if (!referencePrompt || referencePrompt.length < 30) {
             throw new Error("基準化プロンプトの作成に失敗しました。");
