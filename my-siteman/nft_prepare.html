@@ -1722,16 +1722,32 @@ function updateTemplateDisplay() {
             </div>
 
             <div style="margin-bottom:10px;">
-                <label style="font-size:11px; color:#666; font-weight:bold;">服装自由入力</label>
-                <input
-                    id="tpl_character_outfit"
-                    class="template-field"
-                    type="text"
-                    placeholder="例：ドレス、水着、下着"
-                    maxlength="40"
-                    style="width:15em; max-width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
-                >
-            </div>
+    <label style="font-size:11px; color:#666; font-weight:bold;">服装</label>
+
+    <input
+        id="tpl_character_outfit"
+        class="template-field"
+        type="text"
+        list="tpl_character_outfit_options"
+        placeholder="例：指定なし、着衣無し、ドレス、水着、下着"
+        maxlength="40"
+        style="width:15em; max-width:100%; margin-top:4px; padding:6px; border-radius:5px;"
+    >
+
+    <datalist id="tpl_character_outfit_options">
+        <option value="">
+        <option value="着衣無し">
+        <option value="ドレス">
+        <option value="水着">
+        <option value="下着">
+        <option value="バスタオル">
+        <option value="寝巻き">
+    </datalist>
+
+    <div style="font-size:10px; color:#777; margin-top:4px; line-height:1.5;">
+        空欄の場合は指定なしです。衣服を補完させたくない場合は「衣服を一切着ていない」を選んでください。
+    </div>
+</div>
 
             <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
                 構図
