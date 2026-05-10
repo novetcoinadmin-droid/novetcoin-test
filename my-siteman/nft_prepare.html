@@ -1613,6 +1613,22 @@ function updateTemplateDisplay() {
                 顔基準テンプレは、顔立ち・髪型・雰囲気を安定させるためのものです。
             </div>
 
+                        <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                情景入力
+            </div>
+
+            <div style="font-size:11px; color:#777; line-height:1.6; margin-bottom:6px;">
+                作成したいシーンを本文などからコピペして、必要に応じて補足してください。
+            </div>
+
+            <textarea
+                id="tpl_adult_scene_text"
+                class="template-field"
+                placeholder="例：浴室の扉を開けると、普段とは違う雰囲気の幼馴染が、バスタオル姿でこちらを待っていた。"
+                rows="5"
+                style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; box-sizing:border-box; resize:vertical; margin-bottom:12px;"
+            ></textarea>
+
             <div style="font-size:12px; font-weight:bold; color:#333; margin:12px 0 8px;">
                 女性モデル設定
             </div>
@@ -1687,25 +1703,21 @@ function updateTemplateDisplay() {
                 構図
             </div>
 
-            ${buildTemplateSelect("視点", "tpl_adult_viewpoint", [
-                "下から見上げる", "上から見下ろす", "背後から", "横から", "正面から"
-            ])}
-
-            ${buildTemplateSelect("クローズアップ", "tpl_adult_focus_part", [
-                "顔", "胸元", "腕から手", "手", "腰", "下半身", "ふともも", "足", "背中", "おしり"
-            ])}
-
-            ${buildTemplateSelect("距離", "tpl_adult_distance", [
-                "顔アップ", "バストアップ", "中距離", "中遠距離", "遠距離"
-            ])}
-
-                        ${buildTemplateSelect("画面内の主役範囲", "tpl_adult_subject_frame", [
-                "顔だけ",
-                "顔と上半身",
-                "顔を含めた全身",
-                "腰上",
-                "膝上",
+                        ${buildTemplateSelect("主役範囲", "tpl_adult_subject_frame", [
+                "顔アップ",
                 "全身"
+            ])}
+
+            <div style="font-size:11px; color:#777; line-height:1.6; margin:-4px 0 10px;">
+                顔アップはキャラクターID・表情確認向け、全身は小説挿絵向けです。<br>
+                全身生成後にクローズアップしたい場合は、画像をダウンロードしてご自身のデバイスでトリミングし、イラスト保管庫にアップロードすることで挿絵として利用できます。
+            </div>
+
+            ${buildTemplateSelect("顔の見え方", "tpl_adult_face_visibility", [
+                "顔が見える",
+                "目を閉じる",
+                "横顔",
+                "顔を少し隠す"
             ])}
 
             ${buildTemplateSelect("体の向き", "tpl_adult_body_direction", [
@@ -1717,6 +1729,7 @@ function updateTemplateDisplay() {
             ])}
 
             ${buildTemplateSelect("ポーズ", "tpl_adult_pose", [
+                "使用しない",
                 "立つ",
                 "座る",
                 "横になる",
@@ -1726,6 +1739,7 @@ function updateTemplateDisplay() {
             ])}
 
             ${buildTemplateSelect("背景の強さ", "tpl_adult_background_strength", [
+                "使用しない",
                 "背景なし",
                 "簡易背景",
                 "室内の薄い背景",
@@ -1734,6 +1748,7 @@ function updateTemplateDisplay() {
             ])}
 
             ${buildTemplateSelect("画面の余白・配置", "tpl_adult_layout_margin", [
+                "使用しない",
                 "余白多め",
                 "人物を中央",
                 "人物を少し右寄せ",
@@ -1966,11 +1981,10 @@ async function saveAdultGenerationTemplate() {
 const clothingText = getTemplateInputValue("tpl_character_outfit");
 
 const compositionSettings = {
-    viewpoint: getTemplateInputValue("tpl_adult_viewpoint"),
-    focus_part: getTemplateInputValue("tpl_adult_focus_part"),
-    distance: getTemplateInputValue("tpl_adult_distance"),
+    scene_text: getTemplateInputValue("tpl_adult_scene_text"),
 
     subject_frame: getTemplateInputValue("tpl_adult_subject_frame"),
+    face_visibility: getTemplateInputValue("tpl_adult_face_visibility"),
     body_direction: getTemplateInputValue("tpl_adult_body_direction"),
     pose: getTemplateInputValue("tpl_adult_pose"),
     background_strength: getTemplateInputValue("tpl_adult_background_strength"),
@@ -2112,11 +2126,10 @@ async function applyAdultGenerationTemplate(template) {
         setAdultFieldValue("tpl_character_outfit", template.clothing_text || "");
 
         // 構図
-        setAdultFieldValue("tpl_adult_viewpoint", compositionSettings.viewpoint || "");
-        setAdultFieldValue("tpl_adult_focus_part", compositionSettings.focus_part || "");
-        setAdultFieldValue("tpl_adult_distance", compositionSettings.distance || "");
+        setAdultFieldValue("tpl_adult_scene_text", compositionSettings.scene_text || "");
 
         setAdultFieldValue("tpl_adult_subject_frame", compositionSettings.subject_frame || "");
+        setAdultFieldValue("tpl_adult_face_visibility", compositionSettings.face_visibility || "");
         setAdultFieldValue("tpl_adult_body_direction", compositionSettings.body_direction || "");
         setAdultFieldValue("tpl_adult_pose", compositionSettings.pose || "");
         setAdultFieldValue("tpl_adult_background_strength", compositionSettings.background_strength || "");
@@ -2749,18 +2762,17 @@ function buildAdultCivitaiGenerationPayload(adultReferencePrompt) {
         clothing_text: getValue("tpl_character_outfit"),
 
         composition_settings: {
-    viewpoint: getValue("tpl_adult_viewpoint"),
-    focus_part: getValue("tpl_adult_focus_part"),
-    distance: getValue("tpl_adult_distance"),
+            scene_text: getValue("tpl_adult_scene_text"),
 
-    subject_frame: getValue("tpl_adult_subject_frame"),
-    body_direction: getValue("tpl_adult_body_direction"),
-    pose: getValue("tpl_adult_pose"),
-    background_strength: getValue("tpl_adult_background_strength"),
-    layout_margin: getValue("tpl_adult_layout_margin"),
+            subject_frame: getValue("tpl_adult_subject_frame"),
+            face_visibility: getValue("tpl_adult_face_visibility"),
+            body_direction: getValue("tpl_adult_body_direction"),
+            pose: getValue("tpl_adult_pose"),
+            background_strength: getValue("tpl_adult_background_strength"),
+            layout_margin: getValue("tpl_adult_layout_margin"),
 
-    expression: getValue("tpl_character_expression")
-},
+            expression: getValue("tpl_character_expression")
+        },
 
         silhouette_settings: {
             enabled: maleSilhouetteEnabled,
