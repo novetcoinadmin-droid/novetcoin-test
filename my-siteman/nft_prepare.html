@@ -1663,6 +1663,7 @@ function updateTemplateDisplay() {
                 style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; box-sizing:border-box; resize:vertical; margin-bottom:12px;"
             ></textarea>
 
+        <!-- 一旦非表示：女性モデル詳細設定ここから
             <div style="font-size:12px; font-weight:bold; color:#333; margin:12px 0 8px;">
                 女性モデル設定
             </div>
@@ -1749,19 +1750,39 @@ function updateTemplateDisplay() {
     </div>
 </div>
 
+        一旦非表示：女性モデル詳細設定ここまで -->
+
             <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
                 構図
             </div>
 
-                        ${buildTemplateSelect("主役範囲", "tpl_adult_subject_frame", [
-                "顔アップ",
-                "全身"
-            ])}
+               ${buildTemplateSelect("主役範囲", "tpl_adult_subject_frame", [
+    "顔アップ",
+    "全身",
+    "自由入力"
+])}
+
+<div style="margin-bottom:10px;">
+    <label style="font-size:11px; color:#666; font-weight:bold;">構図自由入力</label>
+    <input
+        id="tpl_adult_subject_frame_free"
+        class="template-field"
+        type="text"
+        placeholder="例：椅子に座る、斜め上から、ベッドの上で横になる"
+        maxlength="80"
+        style="width:100%; margin-top:4px; padding:6px; border-radius:5px;"
+    >
+    <div style="font-size:10px; color:#777; margin-top:4px; line-height:1.5;">
+        主役範囲で「自由入力」を選んだ場合だけ、この内容を構図として使います。
+    </div>
+</div>
 
             <div style="font-size:11px; color:#777; line-height:1.6; margin:-4px 0 10px;">
                 顔アップはキャラクターID・表情確認向け、全身は小説挿絵向けです。<br>
                 全身生成後にクローズアップしたい場合は、画像をダウンロードしてご自身のデバイスでトリミングし、イラスト保管庫にアップロードすることで挿絵として利用できます。
             </div>
+
+  <!-- 一旦非表示：構図詳細設定ここから
 
             ${buildTemplateSelect("顔の見え方", "tpl_adult_face_visibility", [
                 "顔が見える",
@@ -1821,6 +1842,19 @@ function updateTemplateDisplay() {
             ${buildTemplateSelect("男性シルエットの配置", "tpl_adult_male_silhouette_placement", [
                 "背後", "横", "手前", "画面端", "影として重ねる", "遠くに立たせる"
             ])}
+
+    一旦非表示：構図詳細設定ここまで -->
+
+<!-- 一旦非表示にした構図詳細項目のJS用デフォルト値 -->
+<input type="hidden" id="tpl_adult_face_visibility" value="指定なし">
+<input type="hidden" id="tpl_adult_body_direction" value="指定なし">
+<input type="hidden" id="tpl_adult_pose" value="指定なし">
+<input type="hidden" id="tpl_adult_background_strength" value="指定なし">
+<input type="hidden" id="tpl_adult_layout_margin" value="指定なし">
+<input type="hidden" id="tpl_adult_expression" value="指定なし">
+<input type="hidden" id="tpl_adult_male_silhouette_enabled" value="なし">
+<input type="hidden" id="tpl_adult_male_silhouette_placement" value="指定なし">
+
         `;
         return;
     }
@@ -2033,7 +2067,10 @@ const clothingText = getTemplateInputValue("tpl_character_outfit");
 const compositionSettings = {
     scene_text: getTemplateInputValue("tpl_adult_scene_text"),
 
-    subject_frame: getTemplateInputValue("tpl_adult_subject_frame"),
+    subject_frame:
+    (document.getElementById("tpl_adult_subject_frame")?.value === "自由入力")
+        ? (document.getElementById("tpl_adult_subject_frame_free")?.value || "")
+        : (document.getElementById("tpl_adult_subject_frame")?.value || ""),
     face_visibility: getTemplateInputValue("tpl_adult_face_visibility"),
     body_direction: getTemplateInputValue("tpl_adult_body_direction"),
     pose: getTemplateInputValue("tpl_adult_pose"),
