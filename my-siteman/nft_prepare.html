@@ -631,6 +631,7 @@ async function init() {
             // （ユーザーが手動で編集・保存した状態を最優先にするため）
             if (draftData.assets && Object.keys(draftData.assets).length > 0) {
                 pageAssets = { ...pageAssets, ...draftData.assets };
+                console.log("DBから復元したpageAssets:", pageAssets);
             }
 
             // ついでに、テキストやページ割りも最新の編集状態があれば復元する
