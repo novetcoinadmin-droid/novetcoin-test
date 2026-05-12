@@ -133,6 +133,58 @@ body {
 }
 .illust-half img { width: 100%; height: 100%; object-fit: contain; }
 
+/* --- 2枚絵モード表示用 --- */
+.illust-half.double-illust-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: #ddd;
+}
+
+.illust-slot {
+    width: 100%;
+    height: 100%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.illust-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.illust-slot.empty {
+    color: #aaa;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.illust-slot-label {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 999px;
+    z-index: 2;
+}
+
+/* スマホ風表示でも2枚絵は左右分割で表示 */
+.page-spread.mobile-mode .illust-half.double-illust-mode {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+}
+
 /* --- 📱 スマホモード：レイアウト & スクロール完全修正版 --- */
 
 .page-spread.mobile-mode {
@@ -350,6 +402,42 @@ body {
 
 <div class="section-card" style="border-left: 4px solid #6a0dad;">
     <label style="font-size:13px; font-weight:bold;">挿絵選択</label>
+
+    <div style="margin-top:10px; padding:10px; background:#f8f4ff; border:1px solid #e2d5f5; border-radius:8px;">
+    <div style="font-size:12px; font-weight:bold; color:#333; margin-bottom:6px;">
+        挿絵表示モード
+    </div>
+
+    <select
+        id="pageIllustrationModeSelect"
+        onchange="setCurrentIllustrationMode(this.value)"
+        style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+    >
+        <option value="single">1枚絵</option>
+        <option value="double">2枚絵</option>
+    </select>
+
+    <div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+        2枚絵にすると、このページの挿絵枠を左・右に分割します。
+    </div>
+    <div style="margin-top:10px;">
+    <div style="font-size:12px; font-weight:bold; color:#333; margin-bottom:6px;">
+        挿絵の挿入先
+    </div>
+
+    <select
+        id="pageIllustrationSlotSelect"
+        style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+    >
+        <option value="left">左 / 1枚絵</option>
+        <option value="right">右</option>
+    </select>
+
+    <div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+        1枚絵モードでは左側だけを使用します。2枚絵モードでは左・右を選んで挿入できます。
+    </div>
+</div>
+</div>
 
     <select
         id="insertAssetTypeSelect"
@@ -874,20 +962,43 @@ async function selectAssetFromList(index) {
 
 // 画像がクリックされた時の処理
 function selectAsset(imageUrl) {
-    // 1. 現在のページの挿絵データとして、選んだ画像のURLをセットする
-    pageAssets[currentPage] = imageUrl;
-    
-    // 2. 変更があったので「未保存状態」にする（戻るボタン対策）
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    const insertSlot =
+        normalizedAsset.mode === "double"
+            ? (slotSelectEl?.value || "left")
+            : "left";
+
+    const nextSlotData = {
+        source_type: "asset",
+        image_url: imageUrl
+    };
+
+    if (normalizedAsset.mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: insertSlot === "left" ? nextSlotData : normalizedAsset.left,
+            right: insertSlot === "right" ? nextSlotData : normalizedAsset.right
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: nextSlotData,
+            right: null
+        };
+    }
+
     isEdited = true;
-    
-    // 3. 画面を再描画して、イラスト枠(illustHalf)に画像を即座に表示させる
     renderPage();
-    
-    // 4. ポップアップを閉じる
     closeAssetModal();
-    
-    // 5. ユーザーにお知らせ
-    alert("イラストを挿入しました！\n（※忘れずに「保存」ボタンを押してください）");
+
+    const insertedLabel =
+        normalizedAsset.mode === "double"
+            ? (insertSlot === "right" ? "右側" : "左側")
+            : "1枚絵";
+
+    alert(`イラストを${insertedLabel}に挿入しました！\n（※忘れずに「保存」ボタンを押してください）`);
 }
 
 // =====================================================
@@ -1542,17 +1653,189 @@ function refreshPages() {
     }
 }
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function normalizePageAssetSlot(slot) {
+    if (!slot) return null;
+
+    // 旧形式・簡易形式：URL文字列
+    if (typeof slot === "string") {
+        return {
+            source_type: "legacy",
+            image_url: slot
+        };
+    }
+
+    if (typeof slot !== "object") return null;
+
+    const imageUrl =
+        slot.image_url ||
+        slot.imageUrl ||
+        slot.file_url ||
+        slot.url ||
+        "";
+
+    if (!imageUrl) return null;
+
+    return {
+        ...slot,
+        source_type: slot.source_type || slot.source || "unknown",
+        image_url: imageUrl
+    };
+}
+
+function normalizePageAsset(rawAsset) {
+    if (!rawAsset) {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    // 旧形式：pageAssets[page] = "画像URL"
+    if (typeof rawAsset === "string") {
+        return {
+            mode: "single",
+            left: {
+                source_type: "legacy",
+                image_url: rawAsset
+            },
+            right: null
+        };
+    }
+
+    if (typeof rawAsset !== "object") {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    // 新形式：2枚絵
+    if (rawAsset.mode === "double") {
+        return {
+            mode: "double",
+            left: normalizePageAssetSlot(rawAsset.left),
+            right: normalizePageAssetSlot(rawAsset.right)
+        };
+    }
+
+    // 新形式：1枚絵
+    // または image_url / imageUrl / file_url / url を持つオブジェクト形式
+    return {
+        mode: "single",
+        left: normalizePageAssetSlot(
+            rawAsset.left ||
+            rawAsset.image_url ||
+            rawAsset.imageUrl ||
+            rawAsset.file_url ||
+            rawAsset.url ||
+            rawAsset
+        ),
+        right: null
+    };
+}
+
+function renderIllustSlot(slot, labelText) {
+    if (!slot || !slot.image_url) {
+        return `
+            <div class="illust-slot empty">
+                <div>
+                    ${escapeHtml(labelText)}<br>
+                    NO IMAGE
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="illust-slot">
+            <div class="illust-slot-label">${escapeHtml(labelText)}</div>
+            <img src="${escapeHtml(slot.image_url)}">
+        </div>
+    `;
+}
+
 function renderPage() {
     const textHalf = document.getElementById("textHalf");
     const illustHalf = document.getElementById("illustHalf");
     const counter = document.getElementById("pageCounter");
+
     textHalf.innerText = pages[currentPage] || "";
-    if (pageAssets[currentPage]) {
-        illustHalf.innerHTML = `<img src="${pageAssets[currentPage]}">`;
+
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+
+    illustHalf.classList.remove("double-illust-mode");
+
+    if (normalizedAsset.mode === "double") {
+        illustHalf.classList.add("double-illust-mode");
+        illustHalf.innerHTML = `
+            ${renderIllustSlot(normalizedAsset.left, "左")}
+            ${renderIllustSlot(normalizedAsset.right, "右")}
+        `;
+    } else if (normalizedAsset.left && normalizedAsset.left.image_url) {
+        illustHalf.innerHTML = `<img src="${escapeHtml(normalizedAsset.left.image_url)}">`;
     } else {
         illustHalf.innerHTML = `<span style="color:#aaa; font-size:12px;">NO IMAGE</span>`;
     }
+
+    updateIllustrationModeSelect();
     counter.innerText = `${currentPage + 1} / ${pages.length}`;
+}
+
+function updateIllustrationModeSelect() {
+    const selectEl = document.getElementById("pageIllustrationModeSelect");
+    if (!selectEl) return;
+
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const isDoubleMode = normalizedAsset.mode === "double";
+
+    selectEl.value = isDoubleMode ? "double" : "single";
+
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    if (slotSelectEl) {
+        slotSelectEl.disabled = !isDoubleMode;
+
+        if (!isDoubleMode) {
+            slotSelectEl.value = "left";
+            slotSelectEl.style.opacity = "0.55";
+            slotSelectEl.style.cursor = "not-allowed";
+        } else {
+            slotSelectEl.style.opacity = "1";
+            slotSelectEl.style.cursor = "pointer";
+        }
+    }
+}
+
+function setCurrentIllustrationMode(mode) {
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+
+    if (mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: normalizedAsset.left || null,
+            right: normalizedAsset.right || null
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: normalizedAsset.left || normalizedAsset.right || null,
+            right: null
+        };
+    }
+
+    isEdited = true;
+    renderPage();
 }
 
 function handleTextEdit() {
