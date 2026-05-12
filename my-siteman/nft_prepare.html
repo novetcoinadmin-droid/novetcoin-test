@@ -1107,10 +1107,28 @@ async function convertImageUrlToWebpBlob(imageUrl) {
 }
 
 async function saveCurrentGeneratedImageToAssets() {
-    const imageUrl = pageAssets[currentPage];
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    const saveTargetSlot =
+        normalizedAsset.mode === "double"
+            ? (slotSelectEl?.value === "right" ? "right" : "left")
+            : "left";
+
+    const selectedSlot =
+        saveTargetSlot === "right"
+            ? normalizedAsset.right
+            : normalizedAsset.left;
+
+    const imageUrl = selectedSlot?.image_url || "";
 
     if (!imageUrl) {
-        alert("このページには保存できる生成イラストがありません。");
+        alert("選択中の枠には保存できる生成イラストがありません。");
+        return;
+    }
+
+    if (selectedSlot?.source_type === "asset") {
+        alert("選択中の枠はすでに保管庫から挿入された画像です。\nAI生成画像の枠を選んでください。");
         return;
     }
 
@@ -1152,46 +1170,53 @@ async function saveCurrentGeneratedImageToAssets() {
 
         const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
 
-        const currentTemplateType =
-    String(document.getElementById("templateType")?.value || "").toLowerCase();
+        const currentTemplateType = String(
+            selectedSlot?.template_type ||
+            document.getElementById("templateType")?.value ||
+            ""
+        ).toLowerCase();
 
-let savedAssetType = "illustration";
+        let savedAssetType = "illustration";
 
-if (currentTemplateType === "scenery") {
-    savedAssetType = "scene";
-}
+        if (currentTemplateType === "scenery") {
+            savedAssetType = "scene";
+        }
 
-if (currentTemplateType === "other") {
-    savedAssetType = "other";
-}
+        if (currentTemplateType === "other") {
+            savedAssetType = "other";
+        }
 
-const { error: insertError } = await supabaseClient
-    .from("user_assets")
-    .insert({
-        user_id: user.id,
-        file_url: finalUrl,
-        file_name: defaultName,
-        asset_type: savedAssetType,
-        asset_source: "generated"
-    });
+        const { error: insertError } = await supabaseClient
+            .from("user_assets")
+            .insert({
+                user_id: user.id,
+                file_url: finalUrl,
+                file_name: defaultName,
+                asset_type: savedAssetType,
+                asset_source: "generated"
+            });
 
-if (insertError) {
-    // DB保存に失敗した場合、先にStorageへ上がった画像だけ残らないよう削除する
-    await supabaseClient.storage
-        .from("illustrations")
-        .remove([fileName]);
+        if (insertError) {
+            await supabaseClient.storage
+                .from("illustrations")
+                .remove([fileName]);
 
-    if (
-        insertError.message &&
-        insertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
-    ) {
-        throw new Error("保存庫は50枚までです。不要な画像を削除してから再度保存してください。");
-    }
+            if (
+                insertError.message &&
+                insertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
+            ) {
+                throw new Error("保存庫は50枚までです。不要な画像を削除してから再度保存してください。");
+            }
 
-    throw insertError;
-}
+            throw insertError;
+        }
 
-        alert("生成したイラストをイラスト保管庫に保存しました。");
+        const savedLabel =
+            normalizedAsset.mode === "double"
+                ? (saveTargetSlot === "right" ? "右側" : "左側")
+                : "1枚絵";
+
+        alert(`${savedLabel}の生成イラストをイラスト保管庫に保存しました。`);
 
     } catch (err) {
         console.error("生成イラスト保管庫保存エラー:", err);
