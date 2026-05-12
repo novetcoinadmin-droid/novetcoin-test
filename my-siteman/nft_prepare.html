@@ -2030,6 +2030,23 @@ function updateTemplateDisplay() {
                 顔基準テンプレは、顔立ち・髪型・雰囲気を安定させるためのものです。
             </div>
 
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+    モデル種別
+</div>
+
+<select
+    id="tpl_adult_model_type"
+    class="template-field"
+    style="width:100%; margin-bottom:10px; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+>
+    <option value="female">女性モデルテンプレート</option>
+    <option value="male">男性モデルテンプレート</option>
+</select>
+
+<div style="font-size:10px; color:#777; line-height:1.5; margin:-4px 0 10px;">
+    女性モデルは現在の成人向け生成に近い設定です。男性モデルは次の段階で男性向けLoRAと顔基準強化に接続します。
+</div>
+
                         <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
                 情景入力
             </div>
@@ -3228,13 +3245,20 @@ function buildAdultCivitaiGenerationPayload(adultReferencePrompt) {
     };
 
     const maleSilhouetteEnabled = getValue("tpl_adult_male_silhouette_enabled") === "あり";
+    const adultModelType =
+    getValue("tpl_adult_model_type") === "male"
+        ? "male"
+        : "female";
 
     return {
+        model_type: adultModelType,
+
         adult_reference_prompt_id: adultReferencePrompt.id,
         adult_reference_prompt_title: adultReferencePrompt.title,
         adult_reference_prompt: adultReferencePrompt.reference_prompt,
 
         model_settings: {
+            model_type: adultModelType,
             age: getValue("tpl_character_age"),
             height: getValue("tpl_adult_height"),
             bust: getValue("tpl_adult_bust"),
