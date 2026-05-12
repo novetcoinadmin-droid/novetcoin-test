@@ -1745,22 +1745,18 @@ function normalizePageAsset(rawAsset) {
     };
 }
 
-function renderIllustSlot(slot, labelText) {
+function renderIllustSlot(slot, labelText = "") {
     if (!slot || !slot.image_url) {
         return `
             <div class="illust-slot empty">
-                <div>
-                    ${escapeHtml(labelText)}<br>
-                    NO IMAGE
-                </div>
+                <div>NO IMAGE</div>
             </div>
         `;
     }
 
     return `
         <div class="illust-slot">
-            <div class="illust-slot-label">${escapeHtml(labelText)}</div>
-            <img src="${escapeHtml(slot.image_url)}">
+            <img src="${escapeHtml(slot.image_url)}" alt="">
         </div>
     `;
 }
