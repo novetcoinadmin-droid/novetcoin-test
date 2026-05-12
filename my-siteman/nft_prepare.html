@@ -517,9 +517,31 @@ body {
     保存済み成人テンプレートを読み込む
 </button>
 
-            <button class="btn" style="background:#f0f0f0; color:#333; font-size:13px; margin-top:10px;" onclick="generateImage('std')">
-                スタンダード生成（10 NP）
-            </button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
+    <button
+        id="generateLeftBtn"
+        type="button"
+        class="btn"
+        style="background:#f0f0f0; color:#333; font-size:13px; margin-top:0;"
+        onclick="generateImage('std', 'left')"
+    >
+        左側に生成<br>（10 NP）
+    </button>
+
+    <button
+        id="generateRightBtn"
+        type="button"
+        class="btn"
+        style="background:#f0f0f0; color:#333; font-size:13px; margin-top:0;"
+        onclick="generateImage('std', 'right')"
+    >
+        右側に生成<br>（10 NP）
+    </button>
+</div>
+
+<div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+    1枚絵モードでは右側生成は使用できません。2枚絵モードでは左・右を選んで生成できます。
+</div>
 
             <button
                 id="saveGeneratedAssetBtn"
@@ -999,6 +1021,34 @@ function selectAsset(imageUrl) {
             : "1枚絵";
 
     alert(`イラストを${insertedLabel}に挿入しました！\n（※忘れずに「保存」ボタンを押してください）`);
+}
+
+function setGeneratedImageToCurrentPage(imageUrl, templateType = "character", targetSlot = "left") {
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const safeTargetSlot = targetSlot === "right" ? "right" : "left";
+
+    const nextSlotData = {
+        source_type: "ai",
+        image_url: imageUrl,
+        template_type: templateType || "character"
+    };
+
+    if (normalizedAsset.mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: safeTargetSlot === "left" ? nextSlotData : normalizedAsset.left,
+            right: safeTargetSlot === "right" ? nextSlotData : normalizedAsset.right
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: nextSlotData,
+            right: null
+        };
+    }
+
+    isEdited = true;
+    renderPage();
 }
 
 // =====================================================
@@ -1809,6 +1859,22 @@ function updateIllustrationModeSelect() {
         } else {
             slotSelectEl.style.opacity = "1";
             slotSelectEl.style.cursor = "pointer";
+        }
+    }
+
+    const generateRightBtn = document.getElementById("generateRightBtn");
+
+    if (generateRightBtn) {
+        generateRightBtn.disabled = !isDoubleMode;
+
+        if (!isDoubleMode) {
+            generateRightBtn.style.opacity = "0.45";
+            generateRightBtn.style.cursor = "not-allowed";
+            generateRightBtn.title = "1枚絵モードでは右側生成は使用できません。";
+        } else {
+            generateRightBtn.style.opacity = "1";
+            generateRightBtn.style.cursor = "pointer";
+            generateRightBtn.title = "";
         }
     }
 }
@@ -3401,11 +3467,18 @@ function updatePromptSource() {
 
 // 4. 画像生成ロジック
 // Leonardo参照画像Function 本実行版
-async function generateImage(type) {
+async function generateImage(type, targetSlot = "left") {
     const charSelect = document.getElementById("charSelect");
     const charId = charSelect ? charSelect.value : "text";
     const urlParams = new URLSearchParams(window.location.search);
     const loadingOverlay = document.getElementById("loadingOverlay");
+    const generationTargetSlot = targetSlot === "right" ? "right" : "left";
+const currentAssetForGeneration = normalizePageAsset(pageAssets[currentPage]);
+
+if (generationTargetSlot === "right" && currentAssetForGeneration.mode !== "double") {
+    alert("右側に生成するには、先に挿絵表示モードを2枚絵にしてください。");
+    return;
+}
 
     // --- プレミアムの場合 ---
     if (type === "premium") {
@@ -3510,9 +3583,7 @@ if (templatePayload.template_type === "scenery") {
         throw new Error("風景画像URLが返ってきませんでした。");
     }
 
-    pageAssets[currentPage] = imageUrl;
-    isEdited = true;
-    renderPage();
+    setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
     const newNp = currentNp - 10;
 
@@ -3625,9 +3696,7 @@ const { data, error } = await supabaseClient.functions.invoke(
         throw new Error("その他画像URLが返ってきませんでした。");
     }
 
-    pageAssets[currentPage] = imageUrl;
-    isEdited = true;
-    renderPage();
+    setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
     const newNp = currentNp - 10;
 
@@ -3775,9 +3844,7 @@ if (!hasAnyAdultSetting) {
             throw new Error("画像URLが返ってきませんでした。");
         }
 
-        pageAssets[currentPage] = imageUrl;
-        isEdited = true;
-        renderPage();
+        setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
         const newNp = currentNp - 10;
 
