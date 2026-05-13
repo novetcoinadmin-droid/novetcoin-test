@@ -350,10 +350,24 @@ body {
     left: 0;
     width: 50%;
     box-sizing: border-box;
-    padding: 0 60px 0 40px;
+
+    /* text-half の左右余白に合わせる */
+    padding: 0 50px;
+
     pointer-events: none;
     z-index: 12;
     font-family: sans-serif;
+}
+
+.line-guide-numbers {
+    display: grid;
+    gap: 0;
+    color: rgba(106, 13, 173, 0.45);
+    font-size: 11px;
+    font-weight: bold;
+
+    /* 縦書きは右から1行目なので、行番号も右から並べる */
+    direction: rtl;
 }
 
 .line-guide-note {
@@ -2018,7 +2032,7 @@ const PAGE_LINE_LIMIT = 9;
 const PAGE_CHARS_PER_LINE = 18;
 
 function toKanjiNumber(num) {
-    const ones = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+    const ones = ["", "九", "八", "七", "六", "五", "四", "三", "二", "一"];
 
     if (num <= 9) return ones[num];
     if (num === 10) return "十";
@@ -2343,12 +2357,46 @@ function setCurrentIllustrationMode(mode) {
     renderPage();
 }
 
+function placeCaretAtEnd(el) {
+    if (!el) return;
+
+    el.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
 function handleTextEdit() {
     const textHalf = document.getElementById("textHalf");
 
     if (textHalf) {
-        pages[currentPage] = textHalf.innerText;
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
         masterText = pages.join("");
+    }
+
+    const pageBefore = currentPage;
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+
+    const nextText = pages[currentPage] || "";
+
+    /*
+      Backspace / Delete / Enter でページまたぎが起きた時、
+      現在ページにもすぐ反映させる。
+      これにより「次ページへ行って戻るまで文字が戻らない」状態を防ぐ。
+    */
+    if (textHalf && textHalf.innerText !== nextText) {
+        textHalf.innerText = nextText;
+        placeCaretAtEnd(textHalf);
     }
 
     const counter = document.getElementById("pageCounter");
@@ -2356,6 +2404,7 @@ function handleTextEdit() {
         counter.innerText = `${currentPage + 1} / ${pages.length}`;
     }
 
+    renderLineGuide();
     isEdited = true;
 }
 
