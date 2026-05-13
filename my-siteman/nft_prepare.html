@@ -1075,6 +1075,118 @@ function showAdultGenerationWarning() {
     });
 }
 
+function showBlockingOkModal({
+    title = "確認",
+    message = "",
+    okText = "OK",
+    accentColor = "#6a0dad"
+}) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.62);
+            z-index:10050;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:440px;
+                background:#fff;
+                border-radius:12px;
+                padding:22px;
+                box-shadow:0 8px 30px rgba(0,0,0,0.3);
+                font-family:sans-serif;
+            ">
+                <h3 style="margin:0 0 12px; font-size:18px; color:${accentColor};">
+                    ${escapeHtml(title)}
+                </h3>
+
+                <div style="font-size:13px; line-height:1.8; color:#444; margin-bottom:18px; white-space:pre-line;">
+                    ${escapeHtml(message)}
+                </div>
+
+                <button type="button" style="
+                    width:100%;
+                    padding:11px;
+                    border-radius:8px;
+                    border:1px solid ${accentColor};
+                    background:${accentColor};
+                    color:white;
+                    font-weight:bold;
+                    cursor:pointer;
+                ">
+                    ${escapeHtml(okText)}
+                </button>
+            </div>
+        `;
+
+        const okBtn = overlay.querySelector("button");
+
+        okBtn.onclick = () => {
+            overlay.remove();
+            resolve(true);
+        };
+
+        document.body.appendChild(overlay);
+    });
+}
+
+function showNftPrepareBusyOverlay(title = "処理中...", message = "しばらくお待ちください。") {
+    let overlay = document.getElementById("nftPrepareBusyOverlay");
+
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "nftPrepareBusyOverlay";
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.78);
+            z-index:10040;
+            color:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+            font-family:sans-serif;
+            text-align:center;
+            padding:20px;
+            box-sizing:border-box;
+        `;
+
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+        <div style="font-size:24px; font-weight:bold; margin-bottom:16px;">
+            ${escapeHtml(title)}
+        </div>
+        <div style="font-size:14px; line-height:1.8; color:#eee;">
+            ${escapeHtml(message)}
+        </div>
+    `;
+
+    overlay.style.display = "flex";
+}
+
+function hideNftPrepareBusyOverlay() {
+    const overlay = document.getElementById("nftPrepareBusyOverlay");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+}
+
 async function selectAssetFromList(index) {
     const asset = window.currentAssetList?.[index];
     if (!asset) return;
@@ -1329,10 +1441,28 @@ async function saveCurrentGeneratedImageToAssets() {
         alert(`${savedLabel}の生成イラストをイラスト保管庫に保存しました。`);
 
     } catch (err) {
-        console.error("生成イラスト保管庫保存エラー:", err);
-        alert("保管庫への保存に失敗しました: " + (err.message || String(err)));
+    console.error("生成イラスト保管庫保存エラー:", err);
 
-    } finally {
+    const errorMessage = err?.message || String(err);
+
+    if (
+        errorMessage.includes("ASSET_STORAGE_LIMIT_REACHED") ||
+        errorMessage.includes("保存庫は50枚まで") ||
+        errorMessage.includes("保管庫は50枚まで")
+    ) {
+        await showBlockingOkModal({
+            title: "イラスト保管庫の上限に達しています",
+            message:
+                "イラスト保管庫がいっぱいのため、生成イラストを保管庫へ保存できませんでした。\n\n不要な画像を削除するか、保管庫の拡張サービスをご利用ください。",
+            okText: "OK",
+            accentColor: "#b00020"
+        });
+        return;
+    }
+
+    alert("保管庫への保存に失敗しました: " + errorMessage);
+
+} finally {
         if (btn) {
             btn.disabled = false;
             btn.innerText = originalText || "生成したイラストを保管庫に保存";
@@ -1527,6 +1657,11 @@ async function runStandardizeExtraction() {
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
 
+        showNftPrepareBusyOverlay(
+    "顔基準テンプレ作成中...",
+    "顔立ち・髪型・雰囲気を解析しています。\n完了までこの画面を閉じずにお待ちください。"
+);
+
         const extractedRef = await extractStandardReferenceFeatures();
 
 // extract-standard-reference-features の返り値は、
@@ -1640,7 +1775,7 @@ const referencePrompt = [...new Set(referencePromptParts)].join(", ");
 
         alert("成人向け基準化プロンプトをDBに保存しました。");
 
-    } catch (err) {
+        } catch (err) {
         console.error("成人向け基準化エラー:", err);
 
         const raw = localStorage.getItem(STANDARD_REF_KEY);
@@ -1657,6 +1792,8 @@ const referencePrompt = [...new Set(referencePromptParts)].join(", ");
         }
 
         alert("成人向け基準化に失敗しました: " + (err.message || String(err)));
+    } finally {
+        hideNftPrepareBusyOverlay();
     }
 }
 
