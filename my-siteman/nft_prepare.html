@@ -1968,10 +1968,51 @@ async function loadCharacters(userId) {
 }
 
 // 3. 描画・ページ操作系
+const PAGE_TEXT_UNIT_LIMIT = 100;
+const PAGE_NEWLINE_UNIT = 18;
+
+function getTextPageUnit(char) {
+    return char === "\n" ? PAGE_NEWLINE_UNIT : 1;
+}
+
 function refreshPages() {
+    const text = String(masterText || "");
+
     pages = [];
-    for (let i = 0; i < masterText.length; i += 100) {
-        pages.push(masterText.substring(i, i + 100));
+
+    let buffer = "";
+    let units = 0;
+
+    for (const char of text) {
+        const addUnit = getTextPageUnit(char);
+
+        if (buffer && units + addUnit > PAGE_TEXT_UNIT_LIMIT) {
+            pages.push(buffer);
+            buffer = "";
+            units = 0;
+        }
+
+        buffer += char;
+        units += addUnit;
+    }
+
+    if (buffer || pages.length === 0) {
+        pages.push(buffer);
+    }
+}
+
+function commitCurrentTextAndReflow() {
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText;
+        masterText = pages.join("");
+    }
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
     }
 }
 
@@ -2173,14 +2214,26 @@ function setCurrentIllustrationMode(mode) {
 }
 
 function handleTextEdit() {
-    pages[currentPage] = document.getElementById("textHalf").innerText;
-    masterText = pages.join("");
-    document.getElementById("pageCounter").innerText = `${currentPage + 1} / ${pages.length}`;
-    isEdited = true; // ✨ 追加：文字を編集したら「未保存」にする
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText;
+        masterText = pages.join("");
+    }
+
+    const counter = document.getElementById("pageCounter");
+    if (counter) {
+        counter.innerText = `${currentPage + 1} / ${pages.length}`;
+    }
+
+    isEdited = true;
 }
 
 function changePage(delta) {
+    commitCurrentTextAndReflow();
+
     const newPage = currentPage + delta;
+
     if (newPage >= 0 && newPage < pages.length) {
         currentPage = newPage;
         renderPage();
@@ -4192,6 +4245,7 @@ if (!hasAnyAdultSetting) {
 // 5. 保存ロジック（エピソードごとに分離 ＆ ミント済み保護機能付き）
 async function saveNftDraft() {
     try {
+        commitCurrentTextAndReflow();
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) throw new Error("ログインセッションが見つかりません。");
 
