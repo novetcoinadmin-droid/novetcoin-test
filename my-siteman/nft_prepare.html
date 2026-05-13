@@ -1968,36 +1968,19 @@ async function loadCharacters(userId) {
 }
 
 // 3. 描画・ページ操作系
-const PAGE_TEXT_UNIT_LIMIT = 100;
-const PAGE_NEWLINE_UNIT = 18;
-
-function getTextPageUnit(char) {
-    return char === "\n" ? PAGE_NEWLINE_UNIT : 1;
-}
+const PAGE_TEXT_LIMIT = 100;
 
 function refreshPages() {
     const text = String(masterText || "");
 
     pages = [];
 
-    let buffer = "";
-    let units = 0;
-
-    for (const char of text) {
-        const addUnit = getTextPageUnit(char);
-
-        if (buffer && units + addUnit > PAGE_TEXT_UNIT_LIMIT) {
-            pages.push(buffer);
-            buffer = "";
-            units = 0;
-        }
-
-        buffer += char;
-        units += addUnit;
+    for (let i = 0; i < text.length; i += PAGE_TEXT_LIMIT) {
+        pages.push(text.substring(i, i + PAGE_TEXT_LIMIT));
     }
 
-    if (buffer || pages.length === 0) {
-        pages.push(buffer);
+    if (pages.length === 0) {
+        pages.push("");
     }
 }
 
