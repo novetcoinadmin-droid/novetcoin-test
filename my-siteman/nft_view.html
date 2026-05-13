@@ -18,6 +18,35 @@
         .text-half { padding: 60px 60px 60px 40px; writing-mode: vertical-rl; font-size: 17px; line-height: 2.4; letter-spacing: 0.05em; color: #333; z-index: 5; }
         .illust-half { background: #eee; display: flex; align-items: center; justify-content: center; z-index: 5; overflow: hidden; }
         .illust-half img { width: 100%; height: 100%; object-fit: cover; }
+        .illust-half.double-illust-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: #ddd;
+}
+
+.viewer-illust-slot {
+    width: 100%;
+    height: 100%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.viewer-illust-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.viewer-illust-slot.empty {
+    color: #aaa;
+    font-size: 12px;
+    text-align: center;
+}
 
         .page-controls { margin-top: 30px; display: flex; align-items: center; gap: 30px; padding-bottom: 40px; }
         .page-btn { background: none; border: 1px solid #fff; color: #fff; cursor: pointer; padding: 8px 20px; border-radius: 20px; font-size: 14px; }
@@ -26,6 +55,25 @@
 
         /* 右側：コントロールパネル */
         .control-panel { width: 320px; background: #fff; padding: 20px; display: flex; flex-direction: column; border-left: 1px solid #333; overflow-y: auto; z-index: 50; }
+        .panel-toggle-btn {
+    position: fixed;
+    top: 16px;
+    right: 18px;
+    z-index: 120;
+    background: #fff;
+    color: var(--main-purple);
+    border: 1px solid var(--main-purple);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+body.panel-hidden .control-panel {
+    display: none;
+}
         .panel-title { font-size: 14px; font-weight: bold; color: var(--main-purple); border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin: 20px 0 10px; }
         .back-btn { background: #f0f0f0; color: #333; text-decoration: none; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
 
@@ -44,6 +92,10 @@
         <h3 style="color: #fff;">閲覧権限を確認中...</h3>
         <p id="overlayMsg" style="color: #aaa; font-size: 12px;"></p>
     </div>
+
+    <button id="panelToggleBtn" class="panel-toggle-btn" onclick="toggleControlPanel()">
+    目次を隠す
+</button>
 
     <div class="work-display-area">
         <div class="page-spread" id="mainSpread">
@@ -144,6 +196,135 @@ async function initViewer() {
     }
 }
 
+function toggleControlPanel() {
+    const isHidden = document.body.classList.toggle("panel-hidden");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (btn) {
+        btn.innerText = isHidden ? "目次を表示" : "目次を隠す";
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getViewerAssetImageUrl(asset) {
+    if (!asset) return "";
+
+    if (typeof asset === "string") {
+        return asset;
+    }
+
+    if (typeof asset !== "object") {
+        return "";
+    }
+
+    return (
+        asset.image_url ||
+        asset.imageUrl ||
+        asset.file_url ||
+        asset.url ||
+        ""
+    );
+}
+
+function normalizeViewerPageAsset(rawAsset) {
+    if (!rawAsset) {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    if (typeof rawAsset === "string") {
+        return {
+            mode: "single",
+            left: {
+                image_url: rawAsset
+            },
+            right: null
+        };
+    }
+
+    if (typeof rawAsset !== "object") {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    if (rawAsset.mode === "double") {
+        return {
+            mode: "double",
+            left: rawAsset.left || null,
+            right: rawAsset.right || null
+        };
+    }
+
+    if (rawAsset.left || rawAsset.right) {
+        return {
+            mode: rawAsset.right ? "double" : "single",
+            left: rawAsset.left || null,
+            right: rawAsset.right || null
+        };
+    }
+
+    return {
+        mode: "single",
+        left: rawAsset,
+        right: null
+    };
+}
+
+function renderViewerIllustSlot(slot) {
+    const imageUrl = getViewerAssetImageUrl(slot);
+
+    if (!imageUrl) {
+        return `
+            <div class="viewer-illust-slot empty">
+                NO IMAGE
+            </div>
+        `;
+    }
+
+    return `
+        <div class="viewer-illust-slot">
+            <img src="${escapeHtml(imageUrl)}">
+        </div>
+    `;
+}
+
+function renderViewerPageAsset(illustArea, rawAsset) {
+    const asset = normalizeViewerPageAsset(rawAsset);
+
+    illustArea.classList.remove("double-illust-mode");
+
+    if (asset.mode === "double") {
+        illustArea.classList.add("double-illust-mode");
+        illustArea.innerHTML = `
+            ${renderViewerIllustSlot(asset.left)}
+            ${renderViewerIllustSlot(asset.right)}
+        `;
+        return;
+    }
+
+    const imageUrl = getViewerAssetImageUrl(asset.left);
+
+    if (imageUrl) {
+        illustArea.innerHTML = `<img src="${escapeHtml(imageUrl)}">`;
+    } else {
+        illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
+    }
+}
+
 function renderTOC() {
     const list = document.getElementById("tocList");
     list.innerHTML = `<li class="toc-item ${currentEpIdx === -1 ? 'active' : ''}" onclick="jumpTo(-1, 0)">📔 表紙</li>`;
@@ -174,6 +355,9 @@ function renderScreen() {
             </div>
         `;
         const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
+        illustArea.classList.remove("double-illust-mode");
+
+        
         if (coverImg) {
             illustArea.innerHTML = `<img src="${coverImg}">`;
         } else {
@@ -189,11 +373,7 @@ function renderScreen() {
         textArea.innerText = ep.pages[currentPageIdx] || "";
         
         const asset = ep.assets ? ep.assets[currentPageIdx] : null;
-        if (asset) {
-            illustArea.innerHTML = `<img src="${asset}">`;
-        } else {
-            illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
-        }
+renderViewerPageAsset(illustArea, asset);
         counter.innerText = `Ep.${ep.episode_number} - P.${currentPageIdx + 1}/${ep.pages.length}`;
     }
     renderTOC();
