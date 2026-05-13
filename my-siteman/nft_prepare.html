@@ -346,13 +346,19 @@ body {
 
 .line-guide-layer {
     position: absolute;
-    top: 18px;
+
+    /* 本文上部に近づけすぎず、ガイドとして見やすい位置 */
+    top: 22px;
+
     left: 0;
     width: 50%;
     box-sizing: border-box;
 
-    /* text-half の左右余白に合わせる */
-    padding: 0 50px;
+    /*
+      text-half の横余白に合わせる。
+      右端の「一」と左端の「九」が本文列の中心に近づくように微調整。
+    */
+    padding: 0 68px 0 64px;
 
     pointer-events: none;
     z-index: 12;
@@ -377,6 +383,8 @@ body {
 
 .line-guide-number {
     text-align: center;
+    line-height: 1;
+    transform: translateX(2px);
 }
 
 /* スマホ風表示では行番号ガイドを非表示 */
