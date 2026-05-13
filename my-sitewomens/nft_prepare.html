@@ -350,7 +350,10 @@ body {
     left: 0;
     width: 50%;
     box-sizing: border-box;
-    padding: 0 60px 0 40px;
+
+    /* text-half の左右余白に合わせる */
+    padding: 0 50px;
+
     pointer-events: none;
     z-index: 12;
     font-family: sans-serif;
@@ -366,7 +369,10 @@ body {
 
 .line-guide-numbers {
     display: grid;
+    grid-template-columns: repeat(9, 48px);
+    justify-content: end;
     gap: 0;
+
     color: rgba(106, 13, 173, 0.45);
     font-size: 11px;
     font-weight: bold;
@@ -374,6 +380,7 @@ body {
 
 .line-guide-number {
     text-align: center;
+    line-height: 1;
 }
 
 /* スマホ風表示では行番号ガイドを非表示 */
@@ -2116,9 +2123,9 @@ function renderLineGuide() {
     if (!guide) return;
 
     const numbers = Array.from({ length: PAGE_LINE_LIMIT }, (_, index) => {
-        const n = index + 1;
-        return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
-    }).join("");
+    const n = PAGE_LINE_LIMIT - index;
+    return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
+}).join("");
 
     guide.innerHTML = `
         <div class="line-guide-note">
@@ -2343,12 +2350,46 @@ function setCurrentIllustrationMode(mode) {
     renderPage();
 }
 
+function placeCaretAtEnd(el) {
+    if (!el) return;
+
+    el.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
 function handleTextEdit() {
     const textHalf = document.getElementById("textHalf");
 
     if (textHalf) {
-        pages[currentPage] = textHalf.innerText;
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
         masterText = pages.join("");
+    }
+
+    const pageBefore = currentPage;
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+
+    const nextText = pages[currentPage] || "";
+
+    /*
+      Backspace / Delete / Enter でページまたぎが起きた時、
+      現在ページにもすぐ反映させる。
+      これにより「次ページへ行って戻るまで文字が戻らない」状態を防ぐ。
+    */
+    if (textHalf && textHalf.innerText !== nextText) {
+        textHalf.innerText = nextText;
+        placeCaretAtEnd(textHalf);
     }
 
     const counter = document.getElementById("pageCounter");
@@ -2356,6 +2397,7 @@ function handleTextEdit() {
         counter.innerText = `${currentPage + 1} / ${pages.length}`;
     }
 
+    renderLineGuide();
     isEdited = true;
 }
 
