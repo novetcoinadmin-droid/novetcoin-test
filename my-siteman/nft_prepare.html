@@ -977,6 +977,104 @@ function showInsertCopyrightWarning() {
     });
 }
 
+const ADULT_GENERATION_WARNING_SKIP_KEY = "novet_adult_generation_warning_skip_session";
+
+function showAdultGenerationWarning() {
+    if (sessionStorage.getItem(ADULT_GENERATION_WARNING_SKIP_KEY) === "true") {
+        return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.id = "adultGenerationWarning";
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.6);
+            z-index:10000;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:460px;
+                background:#fff;
+                border-radius:12px;
+                padding:22px;
+                box-shadow:0 8px 30px rgba(0,0,0,0.25);
+                font-family:sans-serif;
+            ">
+                <h3 style="margin:0 0 12px; font-size:18px; color:#b00020;">
+                    成人向けAIイラスト生成に関する注意
+                </h3>
+
+                <p style="font-size:13px; line-height:1.8; color:#444; margin:0 0 14px;">
+                    男性器、女性器、挿入部分などの露骨なシーンを<strong>【未加工】</strong>で投稿することは、本サイト内での利用だけでなく、外部サイトでの転用を含め固く禁じられています。
+                </p>
+
+                <p style="font-size:13px; line-height:1.8; color:#b00020; font-weight:bold; margin:0 0 16px;">
+                    発見した場合は、アカウントの停止、削除の対象になります。
+                </p>
+
+                <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#555; margin-bottom:16px;">
+                    <input type="checkbox" id="skipAdultGenerationWarningCheck">
+                    次からこの警告を表示しない（ブラウザを閉じるまで）
+                </label>
+
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="cancelAdultGenerationWarning" style="
+                        flex:1;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #aaa;
+                        background:#f5f5f5;
+                        cursor:pointer;
+                    ">
+                        キャンセル
+                    </button>
+
+                    <button type="button" id="okAdultGenerationWarning" style="
+                        flex:1;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #b00020;
+                        background:#b00020;
+                        color:white;
+                        font-weight:bold;
+                        cursor:pointer;
+                    ">
+                        内容を確認して生成する
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById("cancelAdultGenerationWarning").onclick = () => {
+            overlay.remove();
+            resolve(false);
+        };
+
+        document.getElementById("okAdultGenerationWarning").onclick = () => {
+            const skip = document.getElementById("skipAdultGenerationWarningCheck")?.checked;
+
+            if (skip) {
+                sessionStorage.setItem(ADULT_GENERATION_WARNING_SKIP_KEY, "true");
+            }
+
+            overlay.remove();
+            resolve(true);
+        };
+    });
+}
+
 async function selectAssetFromList(index) {
     const asset = window.currentAssetList?.[index];
     if (!asset) return;
@@ -2169,13 +2267,13 @@ function updateTemplateDisplay() {
             <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
                 構図
             </div>
-
+<!-- 一旦非表示：構図自由入力
                ${buildTemplateSelect("主役範囲", "tpl_adult_subject_frame", [
     "顔アップ",
     "全身"
 ])}
 
-<!-- 一旦非表示：構図自由入力
+
 <div style="margin-bottom:10px;">
     <label style="font-size:11px; color:#666; font-weight:bold;">構図自由入力</label>
     <input
@@ -3529,6 +3627,8 @@ function updatePromptSource() {
 // 4. 画像生成ロジック
 // Leonardo参照画像Function 本実行版
 async function generateImage(type, targetSlot = "left") {
+    const warningOk = await showAdultGenerationWarning();
+    if (!warningOk) return;
     const charSelect = document.getElementById("charSelect");
     const charId = charSelect ? charSelect.value : "text";
     const urlParams = new URLSearchParams(window.location.search);
