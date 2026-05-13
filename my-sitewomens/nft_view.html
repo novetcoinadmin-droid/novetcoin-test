@@ -74,6 +74,59 @@
 body.panel-hidden .control-panel {
     display: none;
 }
+/* --- 目次非表示時：大画面読書モード --- */
+body.panel-hidden .work-display-area {
+    padding-top: 24px;
+    justify-content: flex-start;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* 目次を隠した時だけ、本を画面いっぱい寄りに拡大 */
+body.panel-hidden .page-spread {
+    width: min(calc(100vw - 48px), calc((100vh - 72px) * 1.5));
+    height: auto;
+    aspect-ratio: 3 / 2;
+}
+
+/* 大画面時は本文も少しだけ読みやすく拡大 */
+body.panel-hidden .text-half {
+    font-size: 18px;
+    line-height: 2.45;
+}
+
+/* 前へ/次へを本の上に半透明で重ねる */
+body.panel-hidden .page-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 90;
+
+    margin-top: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+
+    gap: 22px;
+}
+
+/* 半透明操作ボタン */
+body.panel-hidden .page-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.92);
+}
+
+/* ページ番号も半透明パネル上で見やすく */
+body.panel-hidden .page-counter {
+    color: rgba(255,255,255,0.92);
+    min-width: 110px;
+    text-align: center;
+}
         .panel-title { font-size: 14px; font-weight: bold; color: var(--main-purple); border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin: 20px 0 10px; }
         .back-btn { background: #f0f0f0; color: #333; text-decoration: none; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
 
@@ -84,6 +137,24 @@ body.panel-hidden .control-panel {
         .toc-item.active { background: #f3ebff; color: var(--main-purple); font-weight: bold; }
 
         #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #222; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+
+        /* --- 本全体の角丸を左右で統一 --- */
+.page-spread {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+/* 左ページ・右ページは親の角丸に合わせて自然に切り抜く */
+.text-half,
+.illust-half {
+    border-radius: 0 !important;
+}
+
+/* 表紙ページ内の背景も親の角丸からはみ出さないようにする */
+#viewContent,
+#illustContent {
+    overflow: hidden;
+}
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -357,7 +428,7 @@ function renderScreen() {
         const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
         illustArea.classList.remove("double-illust-mode");
 
-        
+
         if (coverImg) {
             illustArea.innerHTML = `<img src="${coverImg}">`;
         } else {
