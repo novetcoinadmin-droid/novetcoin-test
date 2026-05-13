@@ -234,6 +234,71 @@ async function uploadImageToStorage(base64Data, fileNamePrefix) {
     return publicUrlData.publicUrl;
 }
 
+async function uploadNftAssetImageUrl(imageUrl, fileNamePrefix) {
+    if (!imageUrl || typeof imageUrl !== "string") {
+        return imageUrl || null;
+    }
+
+    const base64Webp = await convertToWebP(imageUrl);
+    return await uploadImageToStorage(base64Webp, fileNamePrefix);
+}
+
+async function uploadNftAssetSlot(slot, fileNamePrefix) {
+    if (!slot) return slot;
+
+    // 旧形式：URL文字列
+    if (typeof slot === "string") {
+        return await uploadNftAssetImageUrl(slot, fileNamePrefix);
+    }
+
+    if (typeof slot !== "object") {
+        return slot;
+    }
+
+    const imageUrl =
+        slot.image_url ||
+        slot.imageUrl ||
+        slot.file_url ||
+        slot.url ||
+        "";
+
+    if (!imageUrl) {
+        return slot;
+    }
+
+    const finalUrl = await uploadNftAssetImageUrl(imageUrl, fileNamePrefix);
+
+    return {
+        ...slot,
+        image_url: finalUrl
+    };
+}
+
+async function uploadNftPageAsset(rawAsset, fileNamePrefix) {
+    if (!rawAsset) return rawAsset;
+
+    // 旧形式：pageAssets[page] = "https://..."
+    if (typeof rawAsset === "string") {
+        return await uploadNftAssetImageUrl(rawAsset, fileNamePrefix);
+    }
+
+    if (typeof rawAsset !== "object") {
+        return rawAsset;
+    }
+
+    // 新形式：single / double
+    if (rawAsset.mode || rawAsset.left || rawAsset.right) {
+        return {
+            ...rawAsset,
+            left: await uploadNftAssetSlot(rawAsset.left, `${fileNamePrefix}_left`),
+            right: await uploadNftAssetSlot(rawAsset.right, `${fileNamePrefix}_right`)
+        };
+    }
+
+    // 念のため：image_urlだけ持つオブジェクト形式
+    return await uploadNftAssetSlot(rawAsset, fileNamePrefix);
+}
+
 async function recordNpUsageTransaction({
     userId,
     type,
@@ -418,10 +483,17 @@ async function handleMint() {
                     
                     // 🌟 ここが挿絵を順番にバケットに保存する処理です
                     for (let pageNum in rawAssets) {
-                        btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
-                        let base64Webp = await convertToWebP(rawAssets[pageNum]);
-                        assets[pageNum] = await uploadImageToStorage(base64Webp, `ep${epCounter}_p${pageNum}`);
-                    }
+    btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
+
+    const uploadedAsset = await uploadNftPageAsset(
+        rawAssets[pageNum],
+        `ep${epCounter}_p${pageNum}`
+    );
+
+    if (uploadedAsset) {
+        assets[pageNum] = uploadedAsset;
+    }
+}
                 } else {
                     let text = ep.content || "";
                     for (let i = 0; i < text.length; i += 100) {
