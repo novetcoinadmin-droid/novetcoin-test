@@ -365,9 +365,6 @@ body {
     color: rgba(106, 13, 173, 0.45);
     font-size: 11px;
     font-weight: bold;
-
-    /* 縦書きは右から1行目なので、行番号も右から並べる */
-    direction: rtl;
 }
 
 .line-guide-note {
@@ -2130,9 +2127,9 @@ function renderLineGuide() {
     if (!guide) return;
 
     const numbers = Array.from({ length: PAGE_LINE_LIMIT }, (_, index) => {
-        const n = index + 1;
-        return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
-    }).join("");
+    const n = PAGE_LINE_LIMIT - index;
+    return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
+}).join("");
 
     guide.innerHTML = `
         <div class="line-guide-note">
