@@ -339,6 +339,47 @@ body {
     .modal-asset-card:hover { border-color: #6a0dad; transform: translateY(-2px); }
     .modal-asset-img { width: 100%; height: 120px; object-fit: cover; display: block; }
     .modal-asset-name { padding: 8px; font-size: 12px; color: #555; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* --- 編集用：縦書き行ガイド --- */
+.text-half {
+    white-space: pre-wrap;
+}
+
+.line-guide-layer {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 50%;
+    box-sizing: border-box;
+    padding: 0 60px 0 40px;
+    pointer-events: none;
+    z-index: 12;
+    font-family: sans-serif;
+}
+
+.line-guide-note {
+    font-size: 10px;
+    color: rgba(106, 13, 173, 0.55);
+    text-align: center;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}
+
+.line-guide-numbers {
+    display: grid;
+    gap: 0;
+    color: rgba(106, 13, 173, 0.45);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.line-guide-number {
+    text-align: center;
+}
+
+/* スマホ風表示では行番号ガイドを非表示 */
+.page-spread.mobile-mode .line-guide-layer {
+    display: none !important;
+}
     </style>
 
     <div class="asset-modal-overlay" id="assetModal">
@@ -1969,11 +2010,25 @@ async function loadCharacters(userId) {
 }
 
 // 3. 描画・ページ操作系
-const PAGE_TEXT_LIMIT = 100;
+// =====================================================
+// ページ分割：行スロット方式
+// 1ページ = 9行 / 1行 = 18文字目安
+// =====================================================
+const PAGE_LINE_LIMIT = 9;
+const PAGE_CHARS_PER_LINE = 18;
 
-// 縦書き1列あたりの目安文字数。
-// 通常文字は1文字=1枠。Enterは「次の列へ送る」扱いにする。
-const PAGE_VERTICAL_COLUMN_LIMIT = 14;
+function toKanjiNumber(num) {
+    const ones = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+    if (num <= 9) return ones[num];
+    if (num === 10) return "十";
+    if (num < 20) return "十" + ones[num - 10];
+
+    const tens = Math.floor(num / 10);
+    const rest = num % 10;
+
+    return ones[tens] + "十" + (rest ? ones[rest] : "");
+}
 
 function refreshPages() {
     const text = String(masterText || "").replace(/\r/g, "");
@@ -1981,51 +2036,98 @@ function refreshPages() {
     pages = [];
 
     let buffer = "";
-    let pageUnits = 0;
-    let columnUnits = 0;
+    let lineCount = 1;
+    let charCountInLine = 0;
 
-    const pushPage = () => {
+    function pushPage() {
         pages.push(buffer);
         buffer = "";
-        pageUnits = 0;
-        columnUnits = 0;
-    };
+        lineCount = 1;
+        charCountInLine = 0;
+    }
 
     for (const char of text) {
-        // Enterは、縦書きの「次の列へ送る」扱い
+        // Enterは「次の行へ送る」
         if (char === "\n") {
-            const usedInColumn = columnUnits % PAGE_VERTICAL_COLUMN_LIMIT;
-            const remainingInColumn =
-                usedInColumn === 0
-                    ? PAGE_VERTICAL_COLUMN_LIMIT
-                    : PAGE_VERTICAL_COLUMN_LIMIT - usedInColumn;
+            buffer += "\n";
+            lineCount++;
+            charCountInLine = 0;
 
-            if (buffer && pageUnits + remainingInColumn > PAGE_TEXT_LIMIT) {
+            if (lineCount > PAGE_LINE_LIMIT) {
                 pushPage();
             }
 
-            buffer += "\n";
-            pageUnits += remainingInColumn;
-            columnUnits = 0;
             continue;
         }
 
-        if (buffer && pageUnits + 1 > PAGE_TEXT_LIMIT) {
-            pushPage();
+        // 1行の文字数を超えたら、次の行へ送る
+        if (charCountInLine >= PAGE_CHARS_PER_LINE) {
+            lineCount++;
+            charCountInLine = 0;
+
+            if (lineCount > PAGE_LINE_LIMIT) {
+                pushPage();
+            }
         }
 
         buffer += char;
-        pageUnits += 1;
-        columnUnits += 1;
-
-        if (columnUnits >= PAGE_VERTICAL_COLUMN_LIMIT) {
-            columnUnits = 0;
-        }
+        charCountInLine++;
     }
 
     if (buffer || pages.length === 0) {
         pages.push(buffer);
     }
+}
+
+function commitCurrentTextAndReflow() {
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
+        masterText = pages.join("");
+    }
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+}
+
+function ensureLineGuideLayer() {
+    const spread = document.getElementById("mainSpread");
+    if (!spread) return null;
+
+    let guide = document.getElementById("textLineGuideLayer");
+
+    if (!guide) {
+        guide = document.createElement("div");
+        guide.id = "textLineGuideLayer";
+        guide.className = "line-guide-layer";
+        guide.setAttribute("aria-hidden", "true");
+        spread.appendChild(guide);
+    }
+
+    return guide;
+}
+
+function renderLineGuide() {
+    const guide = ensureLineGuideLayer();
+    if (!guide) return;
+
+    const numbers = Array.from({ length: PAGE_LINE_LIMIT }, (_, index) => {
+        const n = index + 1;
+        return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
+    }).join("");
+
+    guide.innerHTML = `
+        <div class="line-guide-note">
+            ※行数表示は編集用ガイドです。投稿後・NFT表示には保存されません。
+        </div>
+        <div class="line-guide-numbers" style="grid-template-columns: repeat(${PAGE_LINE_LIMIT}, 1fr);">
+            ${numbers}
+        </div>
+    `;
 }
 
 function commitCurrentTextAndReflow() {
@@ -2175,6 +2277,7 @@ function renderPage() {
     }
 
     updateIllustrationModeSelect();
+    renderLineGuide();
     counter.innerText = `${currentPage + 1} / ${pages.length}`;
 }
 
