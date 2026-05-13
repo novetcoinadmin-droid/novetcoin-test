@@ -114,6 +114,7 @@ body {
     padding: 60px 50px; 
     writing-mode: vertical-rl; 
     text-orientation: mixed;
+    white-space: pre-wrap;
     font-size: 16px; /* 指定通りそのまま */
     line-height: 2.5; 
     letter-spacing: 0.05em; 
@@ -1970,17 +1971,60 @@ async function loadCharacters(userId) {
 // 3. 描画・ページ操作系
 const PAGE_TEXT_LIMIT = 100;
 
+// 縦書き1列あたりの目安文字数。
+// 通常文字は1文字=1枠。Enterは「次の列へ送る」扱いにする。
+const PAGE_VERTICAL_COLUMN_LIMIT = 14;
+
 function refreshPages() {
-    const text = String(masterText || "");
+    const text = String(masterText || "").replace(/\r/g, "");
 
     pages = [];
 
-    for (let i = 0; i < text.length; i += PAGE_TEXT_LIMIT) {
-        pages.push(text.substring(i, i + PAGE_TEXT_LIMIT));
+    let buffer = "";
+    let pageUnits = 0;
+    let columnUnits = 0;
+
+    const pushPage = () => {
+        pages.push(buffer);
+        buffer = "";
+        pageUnits = 0;
+        columnUnits = 0;
+    };
+
+    for (const char of text) {
+        // Enterは、縦書きの「次の列へ送る」扱い
+        if (char === "\n") {
+            const usedInColumn = columnUnits % PAGE_VERTICAL_COLUMN_LIMIT;
+            const remainingInColumn =
+                usedInColumn === 0
+                    ? PAGE_VERTICAL_COLUMN_LIMIT
+                    : PAGE_VERTICAL_COLUMN_LIMIT - usedInColumn;
+
+            if (buffer && pageUnits + remainingInColumn > PAGE_TEXT_LIMIT) {
+                pushPage();
+            }
+
+            buffer += "\n";
+            pageUnits += remainingInColumn;
+            columnUnits = 0;
+            continue;
+        }
+
+        if (buffer && pageUnits + 1 > PAGE_TEXT_LIMIT) {
+            pushPage();
+        }
+
+        buffer += char;
+        pageUnits += 1;
+        columnUnits += 1;
+
+        if (columnUnits >= PAGE_VERTICAL_COLUMN_LIMIT) {
+            columnUnits = 0;
+        }
     }
 
-    if (pages.length === 0) {
-        pages.push("");
+    if (buffer || pages.length === 0) {
+        pages.push(buffer);
     }
 }
 
@@ -1988,7 +2032,7 @@ function commitCurrentTextAndReflow() {
     const textHalf = document.getElementById("textHalf");
 
     if (textHalf) {
-        pages[currentPage] = textHalf.innerText;
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
         masterText = pages.join("");
     }
 
