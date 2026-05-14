@@ -66,11 +66,11 @@
     <div class="right" id="rightPanel"></div>
   </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 
-// 変数名を supabaseClient に統一して二重宣言エラーを回避
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 共通auth-check.js側のSupabaseクライアントを使う
+const supabaseClient = window.supabaseClient;
 
 let currentSort = 'id';
 
@@ -226,6 +226,7 @@ fetchNovels();
 renderRightPanel();
 
 // アカウント状態（凍結）をチェックする共通関数
+// アカウント状態（凍結）をチェックする共通関数
 async function checkAccountStatus() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   
@@ -237,26 +238,37 @@ async function checkAccountStatus() {
       .single();
 
     if (profile && profile.is_frozen) {
-      // ★ location.href ではなく replace を使うのがコツです
-      window.location.replace('penalty.html');
+      window.location.replace('../portal/penalty.html');
       return true;
     }
   }
+
   return false;
 }
 
 // ページ読み込み時の実行処理
 async function initPage() {
   const isFrozen = await checkAccountStatus();
-  if (isFrozen) return; // 凍結中なら以下の処理はやめる
+  if (isFrozen) return;
 
-  // ここに各ページ元々の読み込み処理（fetchNovelsなど）があれば書く
-  if (typeof fetchNovels === 'function') fetchNovels();
-  if (typeof renderRightPanel === 'function') renderRightPanel();
+  await fetchNovels();
+
+  if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+  } else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+    const panel = document.getElementById("rightPanel");
+    if (panel) {
+      panel.innerHTML = `
+        <h3>マイステータス</h3>
+        <p style="font-size:12px; color:#999;">右パネルの読み込みに失敗しました。</p>
+      `;
+    }
+  }
 }
 
 // 実行
-initPage();
+window.addEventListener("load", initPage);
 </script>
 </body>
 </html>
