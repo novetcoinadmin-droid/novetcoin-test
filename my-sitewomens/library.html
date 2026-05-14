@@ -145,7 +145,7 @@ const { data: nfts, error: nError } = await supabaseClient
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('owner_id', session.user.id)
-    .eq('authors.zone', 'main')
+    .eq('authors.zone', 'womens')
     .not('minted_at', 'is', null)
     .order('minted_at', { ascending: false });
 

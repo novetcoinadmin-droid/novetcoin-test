@@ -161,7 +161,7 @@ async function loadShelves() {
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('is_listing', true)
-    .eq('authors.zone', 'main');
+    .eq('authors.zone', 'womens');
 
 
     if (error) return console.error(error);
