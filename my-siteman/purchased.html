@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>購入済み作品一覧 | Novet</title>
     <style>
@@ -35,7 +34,7 @@
         .nft-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333; }
         .nft-author { font-size: 11px; color: #999; }
     </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+</head>
 <body>
 
 <nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
@@ -69,11 +68,7 @@
     </div>
 
     <div class="sidebar">
-        <div id="userStatusArea">
-            <div style="background: white; padding: 25px; border-radius: 16px; border: 1px solid #f0f0f0; text-align: center;">
-                <p style="font-size: 12px; color: #888;">読み込み中...</p>
-            </div>
-        </div>
+        <div id="rightPanel"></div>
         
         <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
             <p style="margin: 0 0 10px 0;"><strong>エコシステム情報</strong></p>
@@ -86,31 +81,44 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
-    // 提示されたコードから抽出した接続情報
-    const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     let currentUser = null;
     let currentFilter = 'main';
 
     async function init() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        // 🌟 ここを追加：現在のログインユーザーを取得する
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+
         if (!user) {
-            location.href = "login.html";
+            alert("セッションが切れました。ログインし直してください。");
+            location.href = "../portal/login.html";
             return;
         }
+
         currentUser = user;
-        
-        fetchUserStatus();
-        fetchPurchasedNFTs();
+
+if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+} else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+    const panel = document.getElementById("rightPanel");
+    if (panel) {
+        panel.innerHTML = `
+            <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                右パネルの読み込みに失敗しました。
+            </div>
+        `;
+    }
+}
+
+fetchPurchasedNFTs();
     }
 
     async function fetchUserStatus() {
         const statusArea = document.getElementById("userStatusArea");
-        const { data: profile, error } = await supabaseClient
+        const { data: profile, error } = await window.supabaseClient
             .from('profiles')
             .select('username, nvt_balance, np_balance')
             .eq('id', currentUser.id)
@@ -140,7 +148,7 @@
                         <div style="font-size: 1.2rem; font-weight: bold; color: #333;">${Number(profile.np_balance).toLocaleString()} <span style="font-size: 12px;">NP</span></div>
                     </div>
                 </div>
-                <button onclick="location.href='account.html'" style="width:100%; margin-top:20px; padding:10px; background:#fdfbff; border:1px solid #eee; border-radius:8px; font-size:12px; color:#666; cursor:pointer;">アカウント管理 ⚙️</button>
+                <button onclick="location.href='/portal/account.html'" style="width:100%; margin-top:20px; padding:10px; background:#fdfbff; border:1px solid #eee; border-radius:8px; font-size:12px; color:#666; cursor:pointer;">アカウント管理 ⚙️</button>
             </div>
         `;
     }
@@ -156,7 +164,7 @@
 
         try {
             // 🌟 1. sales_logs テーブルから、自分が買った「チケット」をすべて探す
-            const { data: logs, error: logError } = await supabaseClient
+            const { data: logs, error: logError } = await window.supabaseClient
                 .from('sales_logs')
                 .select('nft_id')
                 .eq('buyer_id', currentUser.id);
@@ -173,7 +181,7 @@
             const nftIds = logs.map(log => log.nft_id);
 
             // 🌟 3. nft_metadata テーブルから、リストにあるIDの作品を一気に持ってくる
-            let query = supabaseClient
+            let query = window.supabaseClient
                 .from('nft_metadata')
                 .select('*')
                 .in('id', nftIds); // in() を使うと、リストにあるIDを全部探してくれます

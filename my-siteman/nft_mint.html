@@ -15,7 +15,7 @@
         .nav-link:hover { color: #6a0dad; }
         .nav-active { color: #6a0dad !important; font-weight: bold; border-bottom: 2px solid #6a0dad; }
     </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+</head>
 <body>
 <nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
   <div style="font-weight: bold; color: #6a0dad; display: flex; align-items: center; gap: 8px; font-size: 20px;">
@@ -58,7 +58,7 @@
       </div>
 
       <div style="width: 280px; position: sticky; top: 100px;">
-        <div id="userStatusArea"></div>
+        <div id="rightPanel"></div>
         
         <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
           <p style="margin: 0 0 10px 0;"><strong>エコシステム情報</strong></p>
@@ -68,7 +68,7 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 
@@ -80,8 +80,13 @@ async function init() {
         // ログイン中ならメイン画面を表示
         document.getElementById("mainStudioArea").style.display = "block";
         
-        renderUserStatus(session.user);
-        loadEligibleWorks(session.user);
+        if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+} else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+}
+
+loadEligibleWorks(session.user);
     } else {
         // 未ログインの場合は警告を出して一般サイトのトップへ戻す
         alert("ログインが必要です。");

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>N-Marketplace | Novet</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -51,7 +50,7 @@
 .rank-3 { background: linear-gradient(45deg, #cd7f32, #8b4513); } /* 銅 */
 .rank-normal { background: rgba(106, 13, 173, 0.8); } /* その他（紫） */
 </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+</head>
 <body>
 
 <nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 40px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1000;">
@@ -123,7 +122,7 @@
             <input type="text" id="searchInput" placeholder="作品を検索..." style="width: 100%; padding: 12px; border: 2px solid #6a0dad; border-radius: 25px; box-sizing: border-box; outline: none;">
         </div>
 
-        <div id="userStatusArea"></div>
+        <div id="rightPanel"></div>
         
         <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
             <p><strong>マーケット情報</strong></p>
@@ -132,25 +131,38 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で共通読み込み済み
 
 async function init() {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-        renderUserStatus(session.user);
+
+    if (window.renderNovetSharedRightPanel) {
+        await window.renderNovetSharedRightPanel();
+    } else {
+        console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+        const panel = document.getElementById("rightPanel");
+        if (panel) {
+            panel.innerHTML = `
+                <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                    右パネルの読み込みに失敗しました。
+                </div>
+            `;
+        }
     }
+
     loadShelves();
 }
 
 // 棚のデータを読み込む
 async function loadShelves() {
-const { data: allNfts, error } = await supabaseClient
+    const { data: allNfts, error } = await supabaseClient
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('is_listing', true)
-    .eq('authors.zone', 'mens');
+    .eq('authors.zone', 'main');
+
 
     if (error) return console.error(error);
 
@@ -282,7 +294,7 @@ async function renderUserStatus(user) {
         </div>
       </a>
       <div style="font-size:12px; color:#444; border-top:1px solid #eee; pt:10px;">
-            <a href="../my-site/account.html" style="display:block; text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">← アカウント管理へ</a>
+            <a href="../portal/account.html" style="display:block; text-align: center; text-decoration: none; font-size: 12px; color: #6a0dad; padding: 8px; border: 1px solid #6a0dad; border-radius: 8px; font-weight: bold;">← アカウント管理へ</a>
         </div>
     `;
 }
