@@ -31,7 +31,7 @@
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
   </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
   <div class="menu">
@@ -65,7 +65,7 @@
     <div class="right" id="rightPanel"></div>
   </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 
 let currentSort = 'id';
@@ -81,7 +81,7 @@ async function fetchNovels() {
     .select('*, authors!inner(author_name, zone)') // ★変更
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'womens');
+    .eq('authors.zone', 'mens');
 
   // 検索クエリがあれば適用
   if (query) {
@@ -180,7 +180,7 @@ async function renderRightPanel() {
 
     // --- ここから表示内容の変更 ---
     panel.innerHTML = `
-       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
       
       <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
       
@@ -204,7 +204,7 @@ async function renderRightPanel() {
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
 
-      <a href="../portal/account.html"" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
+      <a href="account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
       <button class="logout-btn" onclick="handleLogout()" style="background:none; border:none; color:#999; text-decoration:underline; font-size:11px; cursor:pointer; width:100%; margin-top:10px;">ログアウト</button>
     `;
   } catch (err) {
@@ -223,36 +223,47 @@ renderRightPanel();
 
 // アカウント状態（凍結）をチェックする共通関数
 async function checkAccountStatus() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
   
   if (user) {
-    const { data: profile } = await supabaseClient
+    const { data: profile } = await window.supabaseClient
       .from('profiles')
       .select('is_frozen')
       .eq('id', user.id)
       .single();
 
     if (profile && profile.is_frozen) {
-      // ★ location.href ではなく replace を使うのがコツです
-      window.location.replace('penalty.html');
+      window.location.replace('../portal/penalty.html');
       return true;
     }
   }
+
   return false;
 }
 
 // ページ読み込み時の実行処理
 async function initPage() {
   const isFrozen = await checkAccountStatus();
-  if (isFrozen) return; // 凍結中なら以下の処理はやめる
+  if (isFrozen) return;
 
-  // ここに各ページ元々の読み込み処理（fetchNovelsなど）があれば書く
-  if (typeof fetchNovels === 'function') fetchNovels();
-  if (typeof renderRightPanel === 'function') renderRightPanel();
+  await fetchNovels();
+
+  if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+  } else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+    const panel = document.getElementById("rightPanel");
+    if (panel) {
+      panel.innerHTML = `
+        <h3>マイステータス</h3>
+        <p style="font-size:12px; color:#999;">右パネルの読み込みに失敗しました。</p>
+      `;
+    }
+  }
 }
 
 // 実行
-initPage();
+window.addEventListener("load", initPage);
 </script>
 </body>
 </html>
