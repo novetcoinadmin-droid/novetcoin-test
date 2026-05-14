@@ -68,11 +68,7 @@
     </div>
 
     <div class="sidebar">
-        <div id="userStatusArea">
-            <div style="background: white; padding: 25px; border-radius: 16px; border: 1px solid #f0f0f0; text-align: center;">
-                <p style="font-size: 12px; color: #888;">読み込み中...</p>
-            </div>
-        </div>
+        <div id="rightPanel"></div>
         
         <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
             <p style="margin: 0 0 10px 0;"><strong>エコシステム情報</strong></p>
@@ -85,7 +81,7 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
     
     let currentUser = null;
@@ -102,9 +98,22 @@
         }
 
         currentUser = user;
-        
-        fetchUserStatus();
-        fetchPurchasedNFTs();
+
+if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+} else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+    const panel = document.getElementById("rightPanel");
+    if (panel) {
+        panel.innerHTML = `
+            <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                右パネルの読み込みに失敗しました。
+            </div>
+        `;
+    }
+}
+
+fetchPurchasedNFTs();
     }
 
     async function fetchUserStatus() {
