@@ -247,6 +247,50 @@ body {
     .section-card { background: #fdfdfd; padding: 12px; border-radius: 8px; border: 1px solid #eee; font-size: 12px; }
     .btn { padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
     .btn-save { background: #2ecc71; color: white; padding: 15px; font-size: 16px; margin-top: auto; }
+    /* --- 編集用：縦書き行ガイド --- */
+.text-half {
+    white-space: pre-wrap;
+}
+
+.line-guide-layer {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 50%;
+    box-sizing: border-box;
+    padding: 0 50px;
+    pointer-events: none;
+    z-index: 12;
+    font-family: sans-serif;
+}
+
+.line-guide-note {
+    font-size: 10px;
+    color: rgba(106, 13, 173, 0.55);
+    text-align: center;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}
+
+.line-guide-numbers {
+    display: grid;
+    grid-template-columns: repeat(9, 48px);
+    justify-content: end;
+    gap: 0;
+    color: rgba(106, 13, 173, 0.45);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.line-guide-number {
+    text-align: center;
+    line-height: 1;
+}
+
+/* スマホ風表示では行番号ガイドを非表示 */
+.page-spread.mobile-mode .line-guide-layer {
+    display: none !important;
+}
     </style>
 </head>
 <body>
@@ -1391,35 +1435,193 @@ async function loadCharacters(userId) {
 }
 
 // 3. 描画・ページ操作系
+// =====================================================
+// ページ分割：行スロット方式
+// 1ページ = 9行 / 1行 = 18文字目安
+// =====================================================
+const PAGE_LINE_LIMIT = 9;
+const PAGE_CHARS_PER_LINE = 18;
+
+function toKanjiNumber(num) {
+    const ones = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+    if (num <= 9) return ones[num];
+    if (num === 10) return "十";
+    if (num < 20) return "十" + ones[num - 10];
+
+    const tens = Math.floor(num / 10);
+    const rest = num % 10;
+
+    return ones[tens] + "十" + (rest ? ones[rest] : "");
+}
+
 function refreshPages() {
+    const text = String(masterText || "").replace(/\r/g, "");
+
     pages = [];
-    for (let i = 0; i < masterText.length; i += 100) {
-        pages.push(masterText.substring(i, i + 100));
+
+    let buffer = "";
+    let lineCount = 1;
+    let charCountInLine = 0;
+
+    function pushPage() {
+        pages.push(buffer);
+        buffer = "";
+        lineCount = 1;
+        charCountInLine = 0;
     }
+
+    for (const char of text) {
+        // Enterは「次の行へ送る」
+        if (char === "\n") {
+            buffer += "\n";
+            lineCount++;
+            charCountInLine = 0;
+
+            if (lineCount > PAGE_LINE_LIMIT) {
+                pushPage();
+            }
+
+            continue;
+        }
+
+        // 1行の文字数を超えたら、次の行へ送る
+        if (charCountInLine >= PAGE_CHARS_PER_LINE) {
+            lineCount++;
+            charCountInLine = 0;
+
+            if (lineCount > PAGE_LINE_LIMIT) {
+                pushPage();
+            }
+        }
+
+        buffer += char;
+        charCountInLine++;
+    }
+
+    if (buffer || pages.length === 0) {
+        pages.push(buffer);
+    }
+}
+
+function commitCurrentTextAndReflow() {
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
+        masterText = pages.join("");
+    }
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+}
+
+function ensureLineGuideLayer() {
+    const spread = document.getElementById("mainSpread");
+    if (!spread) return null;
+
+    let guide = document.getElementById("textLineGuideLayer");
+
+    if (!guide) {
+        guide = document.createElement("div");
+        guide.id = "textLineGuideLayer";
+        guide.className = "line-guide-layer";
+        guide.setAttribute("aria-hidden", "true");
+        spread.appendChild(guide);
+    }
+
+    return guide;
+}
+
+function renderLineGuide() {
+    const guide = ensureLineGuideLayer();
+    if (!guide) return;
+
+    const numbers = Array.from({ length: PAGE_LINE_LIMIT }, (_, index) => {
+        const n = PAGE_LINE_LIMIT - index;
+        return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
+    }).join("");
+
+    guide.innerHTML = `
+        <div class="line-guide-note">
+            ※行数表示は編集用ガイドです。投稿後・NFT表示には保存されません。
+        </div>
+        <div class="line-guide-numbers">
+            ${numbers}
+        </div>
+    `;
+}
+
+function placeCaretAtEnd(el) {
+    if (!el) return;
+
+    el.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
 }
 
 function renderPage() {
     const textHalf = document.getElementById("textHalf");
     const illustHalf = document.getElementById("illustHalf");
     const counter = document.getElementById("pageCounter");
+
     textHalf.innerText = pages[currentPage] || "";
+
     if (pageAssets[currentPage]) {
         illustHalf.innerHTML = `<img src="${pageAssets[currentPage]}">`;
     } else {
         illustHalf.innerHTML = `<span style="color:#aaa; font-size:12px;">NO IMAGE</span>`;
     }
+
+    renderLineGuide();
+
     counter.innerText = `${currentPage + 1} / ${pages.length}`;
 }
 
 function handleTextEdit() {
-    pages[currentPage] = document.getElementById("textHalf").innerText;
-    masterText = pages.join("");
-    document.getElementById("pageCounter").innerText = `${currentPage + 1} / ${pages.length}`;
-    isEdited = true; // ✨ 追加：文字を編集したら「未保存」にする
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
+        masterText = pages.join("");
+    }
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+
+    const nextText = pages[currentPage] || "";
+
+    if (textHalf && textHalf.innerText !== nextText) {
+        textHalf.innerText = nextText;
+        placeCaretAtEnd(textHalf);
+    }
+
+    const counter = document.getElementById("pageCounter");
+    if (counter) {
+        counter.innerText = `${currentPage + 1} / ${pages.length}`;
+    }
+
+    renderLineGuide();
+    isEdited = true;
 }
 
 function changePage(delta) {
+    commitCurrentTextAndReflow();
+
     const newPage = currentPage + delta;
+
     if (newPage >= 0 && newPage < pages.length) {
         currentPage = newPage;
         renderPage();
