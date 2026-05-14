@@ -122,7 +122,7 @@
             <input type="text" id="searchInput" placeholder="作品を検索..." style="width: 100%; padding: 12px; border: 2px solid #6a0dad; border-radius: 25px; box-sizing: border-box; outline: none;">
         </div>
 
-        <div id="userStatusArea"></div>
+        <div id="rightPanel"></div>
         
         <div style="margin-top: 20px; font-size: 12px; color: #999; padding: 15px; background: #fff; border-radius: 12px; border: 1px solid #eee;">
             <p><strong>マーケット情報</strong></p>
@@ -131,15 +131,27 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で共通読み込み済み
 
 async function init() {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-        renderUserStatus(session.user);
+
+    if (window.renderNovetSharedRightPanel) {
+        await window.renderNovetSharedRightPanel();
+    } else {
+        console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+        const panel = document.getElementById("rightPanel");
+        if (panel) {
+            panel.innerHTML = `
+                <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                    右パネルの読み込みに失敗しました。
+                </div>
+            `;
+        }
     }
+
     loadShelves();
 }
 
