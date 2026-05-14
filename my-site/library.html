@@ -111,11 +111,12 @@
     </div>
 
     <div class="sidebar">
-        <div id="userStatusArea" class="status-card">読み込み中...</div>
-    </div>
+    <div id="rightPanel"></div>
 </div>
 
-<script src="auth-check.js"></script>
+</div>
+
+<script src="../portal/auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で共通読み込み済み
 
@@ -148,39 +149,19 @@ const { data: nfts, error: nError } = await supabaseClient
     .not('minted_at', 'is', null)
     .order('minted_at', { ascending: false });
 
-if (profile) {
-    document.getElementById("userStatusArea").innerHTML = `
-        <h3 style="border-bottom: 2px solid var(--main-purple); padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
-        
-        <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile.username || "名無し"}</p>
-        
-        <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
-            <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" 
-                 onmouseover="this.style.background='#f0f0f0'" 
-                 onmouseout="this.style.background='#f9f9f9'">
-                <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:var(--main-purple); font-weight:bold;">(クリックでウォレットへ)</span></p>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-size:13px; font-weight:bold; color:var(--main-purple);">💎 NVT (報酬)</span>
-                    <span style="font-size:13px; font-weight:bold;">${(profile.nvt_balance || 0).toLocaleString()}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-                    <span style="font-size:13px; font-weight:bold;">${(profile.np_balance || 0).toLocaleString()}</span>
-                </div>
+if (window.renderNovetSharedRightPanel) {
+    await window.renderNovetSharedRightPanel();
+} else {
+    console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+    const panel = document.getElementById("rightPanel");
+    if (panel) {
+        panel.innerHTML = `
+            <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                右パネルの読み込みに失敗しました。
             </div>
-        </a>
-
-        <div style="border-top: 1px solid #f0f0f0; padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-            <a href="../portal/account.html" style="text-align: center; text-decoration: none; font-size: 12px; color: var(--main-purple); padding: 8px; border: 1px solid var(--main-purple); border-radius: 8px; font-weight: bold;">
-                ← アカウント管理へ戻る
-            </a>
-            <button onclick="handleLogout()" style="width: 100%; font-size: 11px; cursor: pointer; border: none; background: #f5f5f5; color: #999; padding: 8px; border-radius: 8px;">
-                ログアウト
-            </button>
-        </div>
-    `;
+        `;
+    }
 }
-
 
         const listArea = document.getElementById("nftListArea");
         listArea.innerHTML = "";
