@@ -181,29 +181,9 @@
     </div>
 
     <div class="right-panel">
-        <div class="side-box" id="accountInfoBox">
-            <h3>👤 アカウント情報</h3>
-            <p style="font-size:12px; color:#999; margin-bottom:5px;">表示名</p>
-            <p style="font-weight:bold; font-size:16px; margin-bottom:15px;" id="dispName">--</p>
-            
-            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
-                <p style="font-size:11px; color:#666;">NVT 残高 (暗号資産)</p>
-                <p style="font-weight:bold; color:#d4ac0d; font-size:18px;" id="dispNvt">0.00</p>
-            </div>
-            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:15px;">
-                <p style="font-size:11px; color:#666;">NP 残高 (ポイント)</p>
-                <p style="font-weight:bold; color:var(--main-purple); font-size:18px;" id="dispNp">0</p>
-            </div>
-            
-            <button onclick="location.href='wallet.html'" style="width:100%; padding:10px; background:var(--main-purple); color:white; border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:bold;">
-                💳 ウォレットを開く
-            </button>
-            <button onclick="location.href='/portal/account.html'" style="width:100%; padding:10px; background:#fff; border:1px solid #ccc; border-radius:5px; font-size:13px; cursor:pointer; margin-top:10px;">
-                ⚙️ 設定・マイページ
-            </button>
-        </div>
-        
-        <div class="side-box">
+    <div id="rightPanel"></div>
+    
+    <div class="side-box">
             <h3 style="color: var(--main-purple);">✨ 今後のアップデート</h3>
             <p style="font-size: 12px; color: #666; line-height: 1.5;">
                 ここで管理しているイラストは、後ほどエディタ画面（作成・編集）から自由に呼び出して挿絵として使うことができます。また、将来的に**イラスト単体でのNNFT化**も可能になる予定です。
@@ -212,7 +192,7 @@
     </div>
 </div>
 
-<script src="auth-check.js"></script>
+<script src="../portal/auth-check.js"></script>
 <script>
 // Supabase設定は auth-check.js で window.supabaseClient として共通読み込み済み
 let currentUser = null;
@@ -372,11 +352,8 @@ async function purchaseAssetStoragePlan(planType) {
             `保存上限が${result?.storage_limit || storageLimit}枚になりました。`
         );
 
-        if (result && result.remaining_np !== undefined) {
-            const npEl = document.getElementById("dispNp");
-            if (npEl) {
-                npEl.innerText = Math.floor(Number(result.remaining_np || 0));
-            }
+                if (window.renderNovetSharedRightPanel) {
+            await window.renderNovetSharedRightPanel();
         }
 
         await fetchAssetStorageCount();
@@ -482,8 +459,21 @@ async function init() {
 
     currentUser = user; // グローバル変数にセット
 
-    // 🌟 Step 2: ユーザー情報を元に各データを取得
-    await fetchAccountInfo();
+        // 🌟 Step 2: 共通右パネルと各データを取得
+    if (window.renderNovetSharedRightPanel) {
+        await window.renderNovetSharedRightPanel();
+    } else {
+        console.error("共通右パネル関数 renderNovetSharedRightPanel が見つかりません。");
+        const panel = document.getElementById("rightPanel");
+        if (panel) {
+            panel.innerHTML = `
+                <div style="background:#fff; border:1px solid #eee; padding:15px; border-radius:12px; font-size:12px; color:#999;">
+                    右パネルの読み込みに失敗しました。
+                </div>
+            `;
+        }
+    }
+
     await fetchAssets();
 }
 
