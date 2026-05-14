@@ -31,7 +31,7 @@
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
   </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+<style>body { background: #fdeff2 !important; }</style></head>
 <body>
 
   <div class="menu">
@@ -81,7 +81,7 @@ async function fetchNovels() {
     .select('*, authors!inner(author_name, zone)') // ★変更
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'mens');
+    .eq('authors.zone', 'womens');
 
   // 検索クエリがあれば適用
   if (query) {
@@ -156,7 +156,7 @@ async function renderRightPanel() {
       <h3>ゲストさん</h3>
       <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
       <a href="register.html" class="right-btn">新規登録</a>
-      <a href="login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
+      <a href="../portal/login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
     `;
     return;
   }
@@ -180,7 +180,7 @@ async function renderRightPanel() {
 
     // --- ここから表示内容の変更 ---
     panel.innerHTML = `
-      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
       
       <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
       
@@ -204,7 +204,7 @@ async function renderRightPanel() {
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
 
-      <a href="account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
+      <a href="../portal/account.html"" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
       <button class="logout-btn" onclick="handleLogout()" style="background:none; border:none; color:#999; text-decoration:underline; font-size:11px; cursor:pointer; width:100%; margin-top:10px;">ログアウト</button>
     `;
   } catch (err) {
