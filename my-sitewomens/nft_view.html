@@ -71,6 +71,34 @@
     box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
 
+.bookmark-toggle-btn {
+    position: fixed;
+    top: 58px;
+    right: 18px;
+    z-index: 120;
+    background: #f0f0f0;
+    color: #777;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.bookmark-toggle-btn.bookmarked {
+    background: var(--main-purple);
+    color: #fff;
+    border-color: var(--main-purple);
+}
+
+.bookmark-toggle-btn.not-bookmarked {
+    background: #f0f0f0;
+    color: #777;
+    border-color: #ccc;
+}
+
 body.panel-hidden .control-panel {
     display: none;
 }
@@ -167,6 +195,9 @@ body.panel-hidden .page-counter {
     <button id="panelToggleBtn" class="panel-toggle-btn" onclick="toggleControlPanel()">
     目次を隠す
 </button>
+<button id="bookmarkBtn" class="bookmark-toggle-btn not-bookmarked" onclick="saveCurrentBookmark()">
+    🔖 しおり
+</button>
 
     <div class="work-display-area">
         <div class="page-spread" id="mainSpread">
@@ -203,6 +234,10 @@ let episodes = [];
 let currentEpIdx = -1; // -1 は「表紙」の状態
 let currentPageIdx = 0;
 
+let currentUser = null;
+let currentNftId = null;
+let savedBookmark = null;
+
 async function initViewer() {
     const params = new URLSearchParams(window.location.search);
     const nftId = params.get('id');
@@ -212,6 +247,9 @@ async function initViewer() {
         window.location.href = "market.html";
         return;
     }
+
+    currentNftId = nftId;
+currentUser = session.user;
 
     try {
         const { data: nft } = await supabaseClient.from('nft_metadata').select('*').eq('id', nftId).single();
@@ -257,14 +295,136 @@ async function initViewer() {
         document.getElementById("viewTitle").innerText = nft.title_at_mint;
         document.getElementById("viewAuthor").innerText = "@" + (profile?.username || "不明");
 
-        // 初期表示の実行
-        renderTOC();
-        renderScreen();
+        // 保存済みしおりがあれば、その位置から開く
+await loadSavedBookmark();
+
+// 初期表示の実行
+renderTOC();
+renderScreen();
 
         document.getElementById("overlay").style.display = "none";
     } catch (err) {
         document.getElementById("overlayMsg").innerText = err.message;
     }
+}
+
+function normalizeBookmarkPosition(epIdx, pageIdx) {
+    const safeEpIdx = Number(epIdx);
+    const safePageIdx = Number(pageIdx || 0);
+
+    if (safeEpIdx === -1) {
+        return {
+            epIdx: -1,
+            pageIdx: 0
+        };
+    }
+
+    if (!episodes[safeEpIdx]) {
+        return null;
+    }
+
+    const pages = episodes[safeEpIdx].pages || [];
+    const maxPage = Math.max(0, pages.length - 1);
+
+    return {
+        epIdx: safeEpIdx,
+        pageIdx: Math.min(Math.max(0, safePageIdx), maxPage)
+    };
+}
+
+async function loadSavedBookmark() {
+    if (!currentUser || !currentNftId) return;
+
+    const { data, error } = await supabaseClient
+        .from("nft_read_bookmarks")
+        .select("episode_index, page_index, updated_at")
+        .eq("user_id", currentUser.id)
+        .eq("nft_id", currentNftId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("しおり読み込みエラー:", error);
+        return;
+    }
+
+    if (!data) {
+        savedBookmark = null;
+        return;
+    }
+
+    const position = normalizeBookmarkPosition(data.episode_index, data.page_index);
+
+    if (!position) {
+        savedBookmark = null;
+        return;
+    }
+
+    savedBookmark = {
+        episode_index: position.epIdx,
+        page_index: position.pageIdx
+    };
+
+    currentEpIdx = position.epIdx;
+    currentPageIdx = position.pageIdx;
+}
+
+function isCurrentPageBookmarked() {
+    return (
+        savedBookmark &&
+        Number(savedBookmark.episode_index) === Number(currentEpIdx) &&
+        Number(savedBookmark.page_index) === Number(currentPageIdx)
+    );
+}
+
+function updateBookmarkButtonVisual() {
+    const btn = document.getElementById("bookmarkBtn");
+    if (!btn) return;
+
+    const bookmarked = isCurrentPageBookmarked();
+
+    btn.classList.toggle("bookmarked", bookmarked);
+    btn.classList.toggle("not-bookmarked", !bookmarked);
+    btn.innerText = bookmarked ? "🔖 しおり済み" : "🔖 しおり";
+}
+
+async function saveCurrentBookmark() {
+    if (!currentUser || !currentNftId) {
+        alert("ログイン情報を確認できませんでした。");
+        return;
+    }
+
+    if (currentEpIdx === -1) {
+        alert("本文ページでしおりを保存してください。");
+        return;
+    }
+
+    const payload = {
+        user_id: currentUser.id,
+        nft_id: currentNftId,
+        episode_index: currentEpIdx,
+        page_index: currentPageIdx,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+        .from("nft_read_bookmarks")
+        .upsert(payload, {
+            onConflict: "user_id,nft_id"
+        });
+
+    if (error) {
+        console.error("しおり保存エラー:", error);
+        alert("しおりの保存に失敗しました。");
+        return;
+    }
+
+    savedBookmark = {
+        episode_index: currentEpIdx,
+        page_index: currentPageIdx
+    };
+
+    updateBookmarkButtonVisual();
+    alert("しおりを保存しました。");
 }
 
 function toggleControlPanel() {
@@ -448,6 +608,7 @@ renderViewerPageAsset(illustArea, asset);
         counter.innerText = `Ep.${ep.episode_number} - P.${currentPageIdx + 1}/${ep.pages.length}`;
     }
     renderTOC();
+updateBookmarkButtonVisual();
 }
 
 function changePage(delta) {
