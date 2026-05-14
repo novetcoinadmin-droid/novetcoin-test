@@ -131,10 +131,93 @@ async function checkBannedContent(text) {
 }
 
 async function reportNovel() {
-  alert(
-    "通報機能は、AI判定処理を安全なサーバー側処理へ移行中です。\n" +
-    "公開前に再開予定です。"
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("通報にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const ok = confirm(
+    "この話をAI通報します。\n\n" +
+    "全年齢向けとして明確に問題のある性的・卑猥表現がある場合、AI判定により作品が停止されることがあります。\n\n" +
+    "通報しますか？"
   );
+
+  if (!ok) return;
+
+  const reason = prompt(
+    "通報理由を入力してください。\n例：全年齢向けとして不適切な性的表現がある",
+    "全年齢向けとして不適切な表現がある"
+  );
+
+  if (reason === null) return;
+
+  const btn = event?.target;
+  const originalText = btn ? btn.innerText : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "AI判定中...";
+  }
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      "report-novel-ai-moderation",
+      {
+        body: {
+          novel_id: novelId,
+          episode_index: currentIndex,
+          reason: reason.trim() || "全年齢向けとして不適切な表現がある"
+        }
+      }
+    );
+
+    if (error) {
+      console.error("通報Functionエラー:", error);
+      alert("通報処理に失敗しました。時間をおいて再度お試しください。");
+      return;
+    }
+
+    if (data?.already_reported) {
+      alert("この作品はすでに通報済みです。");
+      return;
+    }
+
+    if (data?.decision === "suspended") {
+      alert(
+        "AI判定により、全年齢向けとして不適切な表現が確認されたため、この作品は停止されました。"
+      );
+      location.href = "works.html";
+      return;
+    }
+
+    if (data?.decision === "reported") {
+      alert(
+        "通報を受け付けました。\nAI判定では自動停止までは行わず、確認対象として記録されました。"
+      );
+      return;
+    }
+
+    alert(
+      "通報を受け付けました。\nAI判定では、現在表示中の話について自動停止対象ではないと判断されました。"
+    );
+
+  } catch (err) {
+    console.error("通報処理エラー:", err);
+    alert("通報処理中にエラーが発生しました。");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText || "🚩 この作品を通報する";
+    }
+  }
 }
 
 // --- 4. 初期化処理 ---
