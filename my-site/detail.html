@@ -250,6 +250,56 @@ async function init() {
   // --- ★ここからキャラクター設定の表示判定を追加 ---
   const charSection = document.getElementById("charSection");
   const charContent = document.getElementById("charContent");
+  // --- 投稿停止中の作品はURL直アクセスでも本文を表示しない ---
+if (novel.review_status === "suspended") {
+  const penName = novel.authors ? novel.authors.author_name : "不明な作家";
+
+  document.getElementById("sidePenName").innerText = penName;
+  document.getElementById("sideViews").innerText = novel.views || 0;
+  document.getElementById("sideLikes").innerText = novel.likes || 0;
+  document.getElementById("sideFavs").innerText = "0";
+
+  document.getElementById("displayChapTitle").innerText = "";
+  document.getElementById("displayEpiTitle").innerText = "この作品は現在、投稿停止中です";
+  document.getElementById("displayBody").innerText =
+    "この作品は通報または審査により、現在閲覧できません。\n作者による修正後、再公開される場合があります。";
+
+  const charSection = document.getElementById("charSection");
+  if (charSection) {
+    charSection.style.display = "none";
+  }
+
+  const tocArea = document.getElementById("tocArea");
+  if (tocArea) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        投稿停止中のため、目次は表示できません。
+      </p>
+    `;
+  }
+
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+
+  const favBtn = document.getElementById("favBtn");
+  const likeBtn = document.getElementById("likeBtn");
+
+  if (favBtn) {
+    favBtn.disabled = true;
+    favBtn.innerText = "投稿停止中";
+    favBtn.style.opacity = "0.5";
+    favBtn.style.cursor = "not-allowed";
+  }
+
+  if (likeBtn) {
+    likeBtn.disabled = true;
+    likeBtn.innerText = "投稿停止中";
+    likeBtn.style.opacity = "0.5";
+    likeBtn.style.cursor = "not-allowed";
+  }
+
+  return;
+}
 
   // 変数名を data ではなく あなたのコードの novel に合わせています [cite: 65, 66]
   if (novel.is_char_visible && novel.char_setting && novel.char_setting.trim() !== "") {
