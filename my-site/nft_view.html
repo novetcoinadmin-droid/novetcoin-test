@@ -87,6 +87,27 @@
     box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
 
+.report-nft-image-btn {
+    position: fixed;
+    top: 100px;
+    right: 18px;
+    z-index: 120;
+    background: #fff;
+    color: #cc3333;
+    border: 1px solid #cc3333;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.report-nft-image-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .bookmark-toggle-btn.bookmarked {
     background: var(--main-purple);
     color: #fff;
@@ -199,6 +220,10 @@ body.panel-hidden .page-counter {
     🔖 しおり
 </button>
 
+<button id="reportNftImageBtn" class="report-nft-image-btn" onclick="reportCurrentNftImage()">
+    🚩 通報
+</button>
+
     <div class="work-display-area">
         <div class="page-spread" id="mainSpread">
             <div class="text-half" id="viewContent"></div>
@@ -237,6 +262,119 @@ let currentPageIdx = 0;
 let currentUser = null;
 let currentNftId = null;
 let savedBookmark = null;
+
+function getCurrentDisplayedImageUrl() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return "";
+
+    const img = illustArea.querySelector("img");
+    return img ? img.src : "";
+}
+
+async function reportCurrentNftImage() {
+    const params = new URLSearchParams(window.location.search);
+    const nftId = params.get("id");
+    const imageUrl = getCurrentDisplayedImageUrl();
+
+    if (!nftId || !nftData) {
+        alert("NFT作品情報を確認できませんでした。");
+        return;
+    }
+
+    if (!imageUrl) {
+        alert("現在表示中のページに通報できる画像がありません。");
+        return;
+    }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        alert("通報にはログインが必要です。");
+        location.href = "../portal/login.html";
+        return;
+    }
+
+    const ok = confirm(
+        "現在表示中の画像を通報します。\n\n" +
+        "全年齢向けNFT作品として不適切な画像と判定された場合、このNFT作品全体が停止されます。\n\n" +
+        "通報しますか？"
+    );
+
+    if (!ok) return;
+
+    const reason = prompt(
+        "通報理由を入力してください。\n例：全年齢向けとして不適切な画像が含まれている",
+        "全年齢向けとして不適切な画像が含まれている"
+    );
+
+    if (reason === null) return;
+
+    const btn = document.getElementById("reportNftImageBtn");
+    const originalText = btn ? btn.innerText : "";
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "判定中...";
+    }
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke(
+            "report-nft-image-leonardo-moderation",
+            {
+                body: {
+                    nft_id: nftId,
+                    image_url: imageUrl,
+                    episode_index: typeof currentEpIdx === "number" ? currentEpIdx : null,
+                    page_index: typeof currentPageIdx === "number" ? currentPageIdx : null,
+                    reason: reason.trim() || "全年齢向けとして不適切な画像が含まれている"
+                }
+            }
+        );
+
+        if (error) {
+            console.error("NFT画像通報Functionエラー:", error);
+            alert("通報処理に失敗しました。時間をおいて再度お試しください。");
+            return;
+        }
+
+        if (data?.already_reported) {
+            alert("このNFT作品はすでに通報済みです。");
+            return;
+        }
+
+        if (data?.decision === "retry_later") {
+            alert("Leonardo側が一時的に混雑しています。時間をおいて再度お試しください。");
+            return;
+        }
+
+        if (data?.decision === "already_suspended") {
+            alert("このNFT作品はすでに停止されています。");
+            location.href = "purchased.html";
+            return;
+        }
+
+        if (data?.decision === "suspended") {
+            alert(
+                "画像チェックにより、全年齢向けNFT作品として不適切な画像が確認されたため、このNFT作品は停止されました。"
+            );
+            location.href = "purchased.html";
+            return;
+        }
+
+        alert(
+            "通報を受け付けました。\n画像チェックでは、この画像は自動停止対象ではないと判断されました。"
+        );
+
+    } catch (err) {
+        console.error("NFT画像通報処理エラー:", err);
+        alert("通報処理中にエラーが発生しました。");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText || "🚩 通報";
+        }
+    }
+}
 
 async function initViewer() {
     const params = new URLSearchParams(window.location.search);
