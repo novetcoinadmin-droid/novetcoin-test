@@ -1,14 +1,113 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>作品詳細・購入確認 | Novet</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
         .container { max-width: 900px; margin: 40px auto; display: flex; gap: 40px; background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .cover-area { flex: 1; }
-        .info-area { flex: 1.2; display: flex; flex-direction: column; }
+        .cover-area {
+    flex: 1.05;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-area {
+    flex: 0.95;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    max-width: 1280px;
+    margin: 40px auto;
+    display: flex;
+    gap: 28px;
+    background: white;
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    align-items: flex-start;
+}
+
+.review-area {
+    flex: 0 0 260px;
+    max-height: 560px;
+    border-right: 1px solid #eee;
+    padding-right: 22px;
+    display: flex;
+    flex-direction: column;
+}
+
+.cover-area {
+    flex: 0 0 430px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 320px;
+}
+
+.review-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #6a0dad;
+    margin-bottom: 8px;
+}
+
+.review-note {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.review-list {
+    max-height: 460px;
+    overflow-y: auto;
+    padding-right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.review-empty {
+    font-size: 13px;
+    color: #999;
+    background: #fafafa;
+    border: 1px dashed #ddd;
+    border-radius: 12px;
+    padding: 14px;
+    line-height: 1.6;
+}
+
+.review-card {
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+}
+
+.review-card-header {
+    font-size: 12px;
+    color: #777;
+    margin-bottom: 6px;
+}
+
+.review-card-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+}
         .cover-img { width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .price-tag { font-size: 28px; font-weight: bold; color: #6a0dad; margin: 20px 0; display: flex; align-items: center; gap: 10px; }
         .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
@@ -19,24 +118,82 @@
         .btn-buy:hover:not(:disabled) { background: #5a0a9d; transform: translateY(-2px); }
         .nav-back { text-decoration: none; color: #666; font-size: 14px; margin-bottom: 20px; display: inline-block; }
     </style>
-</head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
 <div class="container">
-    <div class="cover-area">
-        <a href="market.html" class="nav-back">← マーケットへ戻る</a>
-        <img id="nftCover" src="" class="cover-img" alt="作品表紙">
+    <div class="review-area">
+        <div class="review-title">購入者レビュー</div>
+        <div class="review-note">
+            購入者は1作品につき1回だけレビューできます。<br>
+            レビューは最大200文字までです。
+        </div>
+
+        <div id="reviewList" class="review-list">
+            <div class="review-empty">
+                まだレビューはありません。<br>
+                購入後に最初のレビューを投稿できます。
+            </div>
+        </div>
+        <div id="reviewFormArea" style="display:none; margin-top:14px; border-top:1px solid #eee; padding-top:12px;">
+    <div style="font-size:13px; font-weight:bold; color:#6a0dad; margin-bottom:8px;">
+        レビューを書く
     </div>
+
+    <textarea
+        id="reviewText"
+        maxlength="200"
+        placeholder="この作品の感想を10〜200文字で入力してください。"
+        oninput="updateReviewCounter()"
+        style="
+            width:100%;
+            min-height:90px;
+            box-sizing:border-box;
+            border:1px solid #ddd;
+            border-radius:10px;
+            padding:10px;
+            font-size:13px;
+            line-height:1.6;
+            resize:vertical;
+        "
+    ></textarea>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+        <span id="reviewCounter" style="font-size:11px; color:#999;">0 / 200</span>
+        <button
+            id="submitReviewBtn"
+            onclick="submitReview()"
+            style="
+                border:none;
+                background:#6a0dad;
+                color:white;
+                border-radius:999px;
+                padding:8px 14px;
+                font-size:12px;
+                font-weight:bold;
+                cursor:pointer;
+            "
+        >
+            レビュー投稿
+        </button>
+    </div>
+</div>
+    </div>
+
+    <div class="cover-area">
+    <a href="market.html" class="nav-back">← マーケットへ戻る</a>
+    <img id="nftCover" src="" class="cover-img" alt="作品表紙">
+</div>
 
     <div class="info-area">
         <h1 id="nftTitle" style="margin: 0 0 10px 0; font-size: 24px;">読み込み中...</h1>
         <div id="creatorName" style="color: #6a0dad;">@-------</div>>
 
         <table class="meta-table">
-            <tr><th>イラスト</th><td id="nftIllust">---</td></tr>
-            <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
-            <tr><th>ミント日</th><td id="nftDate">---</td></tr>
-        </table>
+    <tr><th>挿絵</th><td id="nftIllustCount">---</td></tr>
+    <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
+    <tr><th>出品日</th><td id="nftDate">---</td></tr>
+</table>
 
         <div class="price-tag">
             <span>💎</span>
@@ -223,6 +380,8 @@ async function fetchOnchainNvtBalance(walletAddress) {
 
 let currentUser = null;
 let targetNft = null;
+let hasPurchasedAccess = false;
+let existingOwnReview = false;
 
 async function init() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -292,7 +451,119 @@ if (currentUser) {
 
     // 🌟 creatorName も一緒に画面描画へ渡す
     renderDetails(myNvt, creatorName);
-    await checkIfPurchased();
+await checkIfPurchased();
+await loadReviews();
+}
+
+function getImageUrlFromAsset(asset) {
+    if (!asset) return "";
+
+    if (typeof asset === "string") {
+        return asset;
+    }
+
+    if (typeof asset !== "object") {
+        return "";
+    }
+
+    return (
+        asset.image_url ||
+        asset.imageUrl ||
+        asset.file_url ||
+        asset.url ||
+        asset.cover_image ||
+        asset.cover_image_url ||
+        ""
+    );
+}
+
+function countNftImagesAndRemoved(content) {
+    let visibleCount = 0;
+    let removedCount = 0;
+
+    function inspectAsset(asset) {
+        if (!asset) return;
+
+        if (typeof asset === "string") {
+            if (asset.trim()) visibleCount++;
+            return;
+        }
+
+        if (typeof asset !== "object") return;
+
+        if (asset.mode === "double" || asset.left || asset.right) {
+            inspectAsset(asset.left);
+            inspectAsset(asset.right);
+            return;
+        }
+
+        const hasKnownImageField =
+            Object.prototype.hasOwnProperty.call(asset, "image_url") ||
+            Object.prototype.hasOwnProperty.call(asset, "imageUrl") ||
+            Object.prototype.hasOwnProperty.call(asset, "file_url") ||
+            Object.prototype.hasOwnProperty.call(asset, "url") ||
+            Object.prototype.hasOwnProperty.call(asset, "cover_image") ||
+            Object.prototype.hasOwnProperty.call(asset, "cover_image_url");
+
+        const imageUrl = getImageUrlFromAsset(asset);
+
+        if (imageUrl) {
+            visibleCount++;
+        } else if (hasKnownImageField) {
+            removedCount++;
+        }
+    }
+
+    const rawContent = content || {};
+
+    if (rawContent.cover_image || rawContent.cover_image_url || rawContent.image_url) {
+        visibleCount++;
+    }
+
+    const directAssets = rawContent.assets || {};
+    Object.values(directAssets).forEach(inspectAsset);
+
+    const episodes = rawContent.episodes;
+
+    if (Array.isArray(episodes)) {
+        episodes.forEach((ep) => {
+            Object.values(ep.assets || {}).forEach(inspectAsset);
+        });
+    } else if (episodes && typeof episodes === "object") {
+        Object.values(episodes).forEach((ep) => {
+            Object.values(ep.assets || {}).forEach(inspectAsset);
+        });
+    }
+
+    return {
+        visibleCount,
+        removedCount
+    };
+}
+
+function countNftTextCharacters(content) {
+    let total = 0;
+
+    function addPages(pages) {
+        if (!Array.isArray(pages)) return;
+
+        pages.forEach((page) => {
+            total += String(page || "").replace(/\s/g, "").length;
+        });
+    }
+
+    const rawContent = content || {};
+    const episodes = rawContent.episodes;
+
+    if (Array.isArray(episodes)) {
+        episodes.forEach((ep) => addPages(ep.pages));
+    } else if (episodes && typeof episodes === "object") {
+        Object.values(episodes).forEach((ep) => addPages(ep.pages));
+    } else {
+        addPages(rawContent.pages);
+    }
+
+    return total;
 }
 
 // 🌟 creatorName を受け取るように修正
@@ -300,9 +571,22 @@ function renderDetails(myNvt, creatorName) {
     document.getElementById("nftTitle").innerText = targetNft.title_at_mint;
     document.getElementById("nftCover").src = targetNft.cover_image_url;
     document.getElementById("nftPrice").innerText = targetNft.price_nvt;
-    document.getElementById("nftIllust").innerText = targetNft.illustrator_name || "不明";
-    document.getElementById("nftCharCount").innerText = targetNft.char_count?.toLocaleString() || "---";
-    document.getElementById("nftDate").innerText = new Date(targetNft.minted_at).toLocaleDateString();
+    const imageStats = countNftImagesAndRemoved(targetNft.nft_content || {});
+const charCount = countNftTextCharacters(targetNft.nft_content || {});
+
+document.getElementById("nftIllustCount").innerText =
+    `${imageStats.visibleCount.toLocaleString()} 枚`;
+
+document.getElementById("nftRemovedImageCount").innerText =
+    `${imageStats.removedCount.toLocaleString()} 枚`;
+
+document.getElementById("nftCharCount").innerText =
+    `${charCount.toLocaleString()} 字`;
+
+document.getElementById("nftDate").innerText =
+    targetNft.created_at
+        ? new Date(targetNft.created_at).toLocaleDateString()
+        : "---";
 
     const creatorElement = document.getElementById("creatorName");
     if (creatorElement) {
@@ -360,6 +644,8 @@ const { data: logs, error } = await supabaseClient
     // 履歴が見つかった場合（すでに購入済み）
     if (logs && logs.length > 0) {
         const btn = document.getElementById("buyButton");
+        hasPurchasedAccess = true;
+        updateReviewFormVisibility();
         btn.innerText = "🎉 購入済み（本編を読む）";
         btn.style.background = "#4CAF50"; // 緑色に変更
         btn.style.color = "white";
@@ -372,6 +658,185 @@ const { data: logs, error } = await supabaseClient
         };
     }
 }
+
+function escapeReviewHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function updateReviewCounter() {
+    const textarea = document.getElementById("reviewText");
+    const counter = document.getElementById("reviewCounter");
+
+    if (!textarea || !counter) return;
+
+    counter.innerText = `${textarea.value.length} / 200`;
+}
+
+function updateReviewFormVisibility() {
+    const formArea = document.getElementById("reviewFormArea");
+    if (!formArea) return;
+
+    const canReview =
+        !!currentUser &&
+        !!targetNft &&
+        hasPurchasedAccess === true &&
+        existingOwnReview !== true &&
+        currentUser.id !== targetNft.owner_id;
+
+    formArea.style.display = canReview ? "block" : "none";
+}
+
+async function loadReviews() {
+    const list = document.getElementById("reviewList");
+    if (!list || !targetNft) return;
+
+    const { data: reviews, error } = await supabaseClient
+        .from("nnft_reviews")
+        .select("reviewer_user_id, review_text, created_at")
+        .eq("nft_metadata_id", targetNft.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+    if (error) {
+        console.error("レビュー取得エラー:", error);
+        list.innerHTML = `
+            <div class="review-empty">
+                レビューの読み込みに失敗しました。
+            </div>
+        `;
+        return;
+    }
+
+    existingOwnReview =
+        !!currentUser &&
+        Array.isArray(reviews) &&
+        reviews.some((review) => review.reviewer_user_id === currentUser.id);
+
+    if (!reviews || reviews.length === 0) {
+        list.innerHTML = `
+            <div class="review-empty">
+                まだレビューはありません。<br>
+                購入後に最初のレビューを投稿できます。
+            </div>
+        `;
+        updateReviewFormVisibility();
+        return;
+    }
+
+    const userIds = [...new Set(reviews.map((review) => review.reviewer_user_id).filter(Boolean))];
+
+    let profileMap = {};
+
+    if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabaseClient
+            .from("profiles")
+            .select("id, username")
+            .in("id", userIds);
+
+        if (!profileError && profiles) {
+            profileMap = Object.fromEntries(
+                profiles.map((profile) => [profile.id, profile.username || "購入者"])
+            );
+        }
+    }
+
+    list.innerHTML = reviews.map((review) => {
+        const reviewerName = profileMap[review.reviewer_user_id] || "購入者";
+        const dateText = review.created_at
+            ? new Date(review.created_at).toLocaleDateString()
+            : "";
+
+        return `
+            <div class="review-card">
+                <div class="review-card-header">
+                    @${escapeReviewHtml(reviewerName)} ・ ${escapeReviewHtml(dateText)}
+                </div>
+                <div class="review-card-text">
+                    ${escapeReviewHtml(review.review_text)}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    updateReviewFormVisibility();
+}
+
+async function submitReview() {
+    if (!currentUser || !targetNft) {
+        alert("ログイン情報または作品情報を確認できませんでした。");
+        return;
+    }
+
+    if (!hasPurchasedAccess) {
+        alert("レビュー投稿は購入済みユーザーのみ可能です。");
+        return;
+    }
+
+    if (existingOwnReview) {
+        alert("この作品にはすでにレビュー済みです。");
+        return;
+    }
+
+    const textarea = document.getElementById("reviewText");
+    const btn = document.getElementById("submitReviewBtn");
+
+    const reviewText = textarea ? textarea.value.trim() : "";
+
+    if (reviewText.length < 10) {
+        alert("レビューは10文字以上で入力してください。");
+        return;
+    }
+
+    if (reviewText.length > 200) {
+        alert("レビューは200文字以内で入力してください。");
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "投稿中...";
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from("nnft_reviews")
+            .insert({
+                nft_metadata_id: targetNft.id,
+                reviewer_user_id: currentUser.id,
+                review_text: reviewText
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        alert("レビューを投稿しました。");
+
+        if (textarea) {
+            textarea.value = "";
+        }
+
+        updateReviewCounter();
+        await loadReviews();
+
+    } catch (err) {
+        console.error("レビュー投稿エラー:", err);
+        alert("レビュー投稿に失敗しました。すでにレビュー済みの可能性があります。");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "レビュー投稿";
+        }
+    }
+}
+
+window.submitReview = submitReview;
+window.updateReviewCounter = updateReviewCounter;
 
 async function processPurchase() {
     if (!currentUser || !targetNft) {
