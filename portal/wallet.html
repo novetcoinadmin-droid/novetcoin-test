@@ -542,6 +542,38 @@ function calcConvert() {
   }
 }
 
+async function executeConvert() {
+  const inputVal = parseFloat(document.getElementById("convertInput").value);
+
+  if (isNaN(inputVal) || inputVal <= 0) {
+    alert("購入に使うNVT数量を入力してください。");
+    return;
+  }
+
+  if (!currentProfile || inputVal > Number(currentProfile.nvt_balance || 0)) {
+    alert("NVT残高が不足しています。");
+    return;
+  }
+
+  const grossNpAmount = Math.floor(inputVal * RATE);
+  const feeNpAmount = NVT_TO_NP_DISPLAY_FEE_NP;
+  const finalNpAmount = Math.max(0, grossNpAmount - feeNpAmount);
+
+  if (finalNpAmount <= 0) {
+    alert("手数料差し引き後の受け取りNPが0以下になるため、この数量では購入できません。");
+    return;
+  }
+
+  pendingNpPurchaseQuote = {
+    nvtAmount: inputVal,
+    grossNpAmount,
+    feeNpAmount,
+    finalNpAmount
+  };
+
+  openNpPurchaseModal(pendingNpPurchaseQuote);
+}
+
 window.calcConvert = calcConvert;
 
 function openNpPurchaseModal(quote) {
