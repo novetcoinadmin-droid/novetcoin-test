@@ -375,6 +375,13 @@ async function reportCurrentAdultNftImage() {
             location.href = "purchased.html";
             return;
         }
+        if (data?.decision === "image_removed") {
+    alert(
+        "AI判定により、未加工の露骨な描写が確認されたため、通報された画像を非表示にしました。"
+    );
+    location.reload();
+    return;
+}
 
         if (data?.decision === "reported") {
             alert(
