@@ -246,8 +246,8 @@ h1 {
     </div>
 
     <p style="font-size:12px; color:#777; line-height:1.6; margin-bottom:10px;">
-      投げ銭レビューは誰でも閲覧できます。レビュー欄だけスクロールできます。
-    </p>
+  作品に届いた投げ銭レビューを確認できます。未読レビューは確認後に既読へ変更できます。
+</p>
 
     <div id="reviewListArea" class="review-scroll-area">
       <p style="color:#999; font-size:13px;">レビューを読み込みます。</p>
@@ -398,7 +398,7 @@ function displayNovels(novels) {
         </button>
 
         <button
-          onclick="alert('レビュー一覧は次の手順で接続します。')"
+          onclick="openNovelTipReviews('${w.id}')"
           ${hasTipReviews ? '' : 'disabled'}
           style="margin-right:5px; background:${hasTipReviews ? '#00897b' : '#ddd'}; color:${hasTipReviews ? 'white' : '#888'}; border:none; padding:5px 10px; border-radius:3px; cursor:${hasTipReviews ? 'pointer' : 'not-allowed'};"
         >
@@ -410,6 +410,164 @@ function displayNovels(novels) {
     `;
     area.appendChild(div);
   });
+}
+
+function closeReviewModal() {
+  const overlay = document.getElementById("reviewModalOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+  }
+}
+
+async function openNovelTipReviews(novelId) {
+  const overlay = document.getElementById("reviewModalOverlay");
+  const titleEl = document.getElementById("reviewModalTitle");
+  const listArea = document.getElementById("reviewListArea");
+
+  if (!overlay || !titleEl || !listArea) {
+    alert("レビュー表示エリアが見つかりません。");
+    return;
+  }
+
+  const novel = novels.find(n => n.id === novelId);
+  const novelTitle = novel?.title || "作品";
+
+  titleEl.innerText = `投げ銭レビュー：${novelTitle}`;
+  listArea.innerHTML = `<p style="color:#999; font-size:13px;">レビューを読み込み中...</p>`;
+  overlay.style.display = "flex";
+
+  try {
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+    if (!user) {
+      listArea.innerHTML = `<p style="color:#999; font-size:13px;">ログイン情報を確認できませんでした。</p>`;
+      return;
+    }
+
+    const { data: reviews, error: reviewError } = await window.supabaseClient
+      .from("novel_tip_reviews")
+      .select("id, review_text, amount_np, author_receive_np, is_read, created_at, author_user_id")
+      .eq("novel_id", novelId);
+
+    if (reviewError) throw reviewError;
+
+    if (!reviews || reviews.length === 0) {
+      listArea.innerHTML = `<p style="color:#999; font-size:13px;">まだ投げ銭レビューはありません。</p>`;
+      return;
+    }
+
+    const reviewIds = reviews.map(r => r.id);
+
+    const { data: reactions, error: reactionError } = await window.supabaseClient
+      .from("novel_tip_review_reactions")
+      .select("review_id, reaction_type")
+      .in("review_id", reviewIds);
+
+    if (reactionError) {
+      console.error("レビュー評価取得失敗:", reactionError);
+    }
+
+    const reactionCountsByReviewId = {};
+
+    (reactions || []).forEach(row => {
+      if (!reactionCountsByReviewId[row.review_id]) {
+        reactionCountsByReviewId[row.review_id] = {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        };
+      }
+
+      if (row.reaction_type === "heart") {
+        reactionCountsByReviewId[row.review_id].heart += 1;
+      } else if (row.reaction_type === "thinking") {
+        reactionCountsByReviewId[row.review_id].thinking += 1;
+      } else if (row.reaction_type === "shocked") {
+        reactionCountsByReviewId[row.review_id].shocked += 1;
+      }
+
+      reactionCountsByReviewId[row.review_id].total += 1;
+    });
+
+    const sortedReviews = reviews
+      .map(review => ({
+        ...review,
+        reactions: reactionCountsByReviewId[review.id] || {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        }
+      }))
+      .sort((a, b) => {
+        if (b.reactions.total !== a.reactions.total) {
+          return b.reactions.total - a.reactions.total;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+    listArea.innerHTML = sortedReviews.map(review => {
+      const dateText = review.created_at
+        ? new Date(review.created_at).toLocaleString("ja-JP")
+        : "";
+
+      const unreadClass = review.is_read ? "" : " review-unread";
+
+      return `
+        <div class="review-item${unreadClass}">
+          <div class="review-meta">
+            ${review.is_read ? "既読" : "未読"} / ${dateText} / 投げ銭 ${review.amount_np}NP
+          </div>
+          <div class="review-text">${escapeHtml(review.review_text || "")}</div>
+          <div class="review-reactions">
+            <span>❤️ ${review.reactions.heart}</span>
+            <span>🤔 ${review.reactions.thinking}</span>
+            <span>😨 ${review.reactions.shocked}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // 作者本人が開いた場合、未読レビューを既読化する
+    const unreadReviews = sortedReviews.filter(review =>
+      review.author_user_id === user.id && review.is_read === false
+    );
+
+    for (const review of unreadReviews) {
+      const { error: markError } = await window.supabaseClient.rpc(
+        "mark_novel_tip_review_read",
+        {
+          p_review_id: review.id
+        }
+      );
+
+      if (markError) {
+        console.error("レビュー既読化失敗:", markError);
+      }
+    }
+
+    if (unreadReviews.length > 0) {
+      await fetchNovels();
+    }
+
+  } catch (err) {
+    console.error("レビュー一覧取得エラー:", err);
+    listArea.innerHTML = `
+      <p style="color:#d32f2f; font-size:13px;">
+        レビューの読み込みに失敗しました。
+      </p>
+    `;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 // --- 4. 投稿状態の切り替え（報酬ロジック維持版） ---
