@@ -390,9 +390,111 @@ async function initViewer() {
 currentUser = session.user;
 
     try {
-        const { data: nft } = await supabaseClient.from('nft_metadata').select('*').eq('id', nftId).single();
-        if (!nft) throw new Error("作品が見つかりません");
-        nftData = nft;
+        const { data: nft } = await supabaseClient
+    .from('nft_metadata')
+    .select('*')
+    .eq('id', nftId)
+    .single();
+
+if (!nft) throw new Error("作品が見つかりません");
+
+// --- 停止中NFTは購入者でもURL直アクセスできないようにする ---
+if (nft.review_status === "suspended") {
+    const textArea = document.getElementById("viewContent");
+    const illustArea = document.getElementById("illustContent");
+    const counter = document.getElementById("pageCounter");
+    const tocList = document.getElementById("tocList");
+    const viewTitle = document.getElementById("viewTitle");
+    const viewAuthor = document.getElementById("viewAuthor");
+
+    if (textArea) {
+        textArea.style.writingMode = "horizontal-tb";
+        textArea.style.padding = "0";
+        textArea.innerHTML = `
+            <div style="
+                height:100%;
+                display:flex;
+                flex-direction:column;
+                align-items:center;
+                justify-content:center;
+                text-align:center;
+                padding:40px;
+                box-sizing:border-box;
+                background:#fdfdfd;
+            ">
+                <h1 style="font-size:24px; color:#cc3333; margin-bottom:18px;">
+                    このNFT作品は現在停止中です
+                </h1>
+                <p style="font-size:14px; color:#666; line-height:1.8;">
+                    この作品は通報または審査により、現在閲覧できません。<br>
+                    作者による修正後、再公開される場合があります。
+                </p>
+                <a href="purchased.html" style="
+                    margin-top:28px;
+                    padding:10px 22px;
+                    border-radius:999px;
+                    border:1px solid var(--main-purple);
+                    color:var(--main-purple);
+                    text-decoration:none;
+                    font-size:13px;
+                    font-weight:bold;
+                ">
+                    ← 本棚に戻る
+                </a>
+            </div>
+        `;
+    }
+
+    if (illustArea) {
+        illustArea.classList.remove("double-illust-mode");
+        illustArea.innerHTML = `
+            <div style="color:#999; font-size:13px; text-align:center; padding:20px;">
+                停止中のため画像は表示できません。
+            </div>
+        `;
+    }
+
+    if (counter) {
+        counter.innerText = "停止中";
+    }
+
+    if (tocList) {
+        tocList.innerHTML = `
+            <li class="toc-item active">
+                停止中のため目次は表示できません。
+            </li>
+        `;
+    }
+
+    if (viewTitle) {
+        viewTitle.innerText = nft.title_at_mint || "停止中のNFT作品";
+    }
+
+    if (viewAuthor) {
+        viewAuthor.innerText = "停止中";
+    }
+
+    document.querySelectorAll(".page-btn").forEach((btn) => {
+        btn.disabled = true;
+    });
+
+    const bookmarkBtn = document.getElementById("bookmarkBtn");
+    if (bookmarkBtn) {
+        bookmarkBtn.disabled = true;
+        bookmarkBtn.style.display = "none";
+    }
+
+    const reportBtn = document.getElementById("reportNftImageBtn");
+    if (reportBtn) {
+        reportBtn.disabled = true;
+        reportBtn.style.display = "none";
+    }
+
+    document.getElementById("overlay").style.display = "none";
+    return;
+}
+
+nftData = nft;
         
         // 🌟 魔法の翻訳機：どんなデータ形式でもエラーを出さずに目次配列にする
         let rawContent = nft.nft_content || {};
