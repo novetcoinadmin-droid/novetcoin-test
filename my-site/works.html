@@ -53,6 +53,7 @@
           <li onclick="changeSort('created_at')" id="sort-created_at" class="active">新着順</li>
           <li onclick="changeSort('views')" id="sort-views">閲覧ランキング</li>
           <li onclick="changeSort('likes')" id="sort-likes">いいねランキング</li>
+          <li onclick="changeSort('tip_total_np')" id="sort-tip_total_np">投げ銭ランキング</li>
           <li onclick="changeSort('char_count')" id="sort-char_count">文字数順</li>
         </ul>
       </div>
@@ -106,8 +107,13 @@ async function fetchNovels() {
     builder = builder.ilike('title', `%${query}%`);
   }
 
-  // 新着・閲覧・いいね・文字数はDB側で並べ替え
-  builder = builder.order(currentSort, { ascending: false });
+  // 投げ銭ランキング以外はDB側で並べ替え
+  // tip_total_np は novel_tip_reviews の集計値なので、取得後にJS側で並べ替えます。
+  if (currentSort !== "tip_total_np") {
+    builder = builder.order(currentSort, { ascending: false });
+  } else {
+    builder = builder.order("created_at", { ascending: false });
+  }
 
   const { data: novels, error } = await builder;
 
@@ -152,15 +158,33 @@ async function fetchNovels() {
     }
   }
 
-  // B. リストの描画
-  novels.forEach(n => {
-    const li = document.createElement("li");
-    const penName = n.authors ? n.authors.author_name : "不明な作家";
-
+  const displayNovels = novels.map(n => {
     const stats = reviewStatsByNovelId[n.id] || {
       review_count: 0,
       tip_total_np: 0
     };
+
+    return {
+      ...n,
+      review_count: stats.review_count,
+      tip_total_np: stats.tip_total_np
+    };
+  });
+
+  // 投げ銭ランキングだけJS側で並べ替え
+  if (currentSort === "tip_total_np") {
+    displayNovels.sort((a, b) => {
+      const tipDiff = Number(b.tip_total_np || 0) - Number(a.tip_total_np || 0);
+      if (tipDiff !== 0) return tipDiff;
+
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }
+
+  // B. リストの描画
+  displayNovels.forEach(n => {
+    const li = document.createElement("li");
+    const penName = n.authors ? n.authors.author_name : "不明な作家";
     
     // 公開話数だけカウント
     const epCount = Array.isArray(n.content)
@@ -190,8 +214,8 @@ async function fetchNovels() {
         <span style="margin-left:15px; color:#999;">
           👁 ${n.views || 0}
           ❤️ ${n.likes || 0}
-          💬 ${stats.review_count || 0}
-          🎁 ${Number(stats.tip_total_np || 0).toLocaleString()}NP
+          💬 ${n.review_count || 0}
+          🎁 ${Number(n.tip_total_np || 0).toLocaleString()}NP
         </span>
       </span>
     `;
