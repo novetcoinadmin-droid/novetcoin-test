@@ -542,6 +542,51 @@ function calcConvert() {
   }
 }
 
+async function fetchLatestNvtNpRateSnapshot() {
+  const { data, error } = await window.supabaseClient
+    .from("nvt_np_rate_snapshots")
+    .select(`
+      id,
+      floor_np_rate,
+      market_np_rate,
+      applied_np_rate,
+      rate_source,
+      rate_status,
+      rate_note,
+      fetched_at,
+      valid_until
+    `)
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("NVT/NPレート取得エラー:", error);
+  }
+
+  if (!data) {
+    return {
+      id: null,
+      floor_np_rate: 150,
+      market_np_rate: null,
+      applied_np_rate: 150,
+      rate_source: "floor",
+      rate_status: "fallback_floor",
+      rate_note: "レート取得に失敗したため、下限150NPを使用しました。"
+    };
+  }
+
+  const appliedRate = Number(data.applied_np_rate || 150);
+
+  return {
+    ...data,
+    applied_np_rate:
+      Number.isFinite(appliedRate) && appliedRate > 0
+        ? appliedRate
+        : 150
+  };
+}
+
 async function executeConvert() {
   const inputVal = parseFloat(document.getElementById("convertInput").value);
 
@@ -555,9 +600,12 @@ async function executeConvert() {
     return;
   }
 
-  const grossNpAmount = Math.floor(inputVal * RATE);
-  const feeNpAmount = NVT_TO_NP_DISPLAY_FEE_NP;
-  const finalNpAmount = Math.max(0, grossNpAmount - feeNpAmount);
+  const rateSnapshot = await fetchLatestNvtNpRateSnapshot();
+const appliedRate = Number(rateSnapshot.applied_np_rate || 150);
+
+const grossNpAmount = Math.floor(inputVal * appliedRate);
+const feeNpAmount = NVT_TO_NP_DISPLAY_FEE_NP;
+const finalNpAmount = Math.max(0, grossNpAmount - feeNpAmount);
 
   if (finalNpAmount <= 0) {
     alert("手数料差し引き後の受け取りNPが0以下になるため、この数量では購入できません。");
@@ -565,11 +613,17 @@ async function executeConvert() {
   }
 
   pendingNpPurchaseQuote = {
-    nvtAmount: inputVal,
-    grossNpAmount,
-    feeNpAmount,
-    finalNpAmount
-  };
+  nvtAmount: inputVal,
+  grossNpAmount,
+  feeNpAmount,
+  finalNpAmount,
+  rateSnapshotId: rateSnapshot.id,
+  appliedNpRate: appliedRate,
+  floorNpRate: Number(rateSnapshot.floor_np_rate || 150),
+  marketNpRate: rateSnapshot.market_np_rate,
+  rateSource: rateSnapshot.rate_source,
+  rateStatus: rateSnapshot.rate_status
+};
 
   openNpPurchaseModal(pendingNpPurchaseQuote);
 }
