@@ -208,8 +208,47 @@ async function fetchNovels() {
 
     if (novelError) throw novelError;
 
-    novels = data;
-    displayNovels(data); 
+    const novelList = data || [];
+    const novelIds = novelList.map(n => n.id);
+
+    let tipCountsByNovelId = {};
+
+    if (novelIds.length > 0) {
+      const { data: tipRows, error: tipError } = await window.supabaseClient
+        .from('novel_tip_reviews')
+        .select('novel_id, is_read')
+        .eq('author_user_id', user.id)
+        .in('novel_id', novelIds);
+
+      if (tipError) {
+        console.error("投げ銭レビュー件数取得失敗:", tipError);
+      } else {
+        (tipRows || []).forEach(row => {
+          if (!tipCountsByNovelId[row.novel_id]) {
+            tipCountsByNovelId[row.novel_id] = {
+              unread: 0,
+              read: 0
+            };
+          }
+
+          if (row.is_read) {
+            tipCountsByNovelId[row.novel_id].read += 1;
+          } else {
+            tipCountsByNovelId[row.novel_id].unread += 1;
+          }
+        });
+      }
+    }
+
+    novels = novelList.map(novel => ({
+      ...novel,
+      tip_counts: tipCountsByNovelId[novel.id] || {
+        unread: 0,
+        read: 0
+      }
+    }));
+
+    displayNovels(novels); 
 
   } catch (err) {
     console.error("データ取得失敗:", err);
@@ -241,6 +280,10 @@ function displayNovels(novels) {
       statusText = "<span style='color:#f57f17;'>【⚠️内容精査中】</span>";
     }
 
+    const tipUnread = w.tip_counts?.unread || 0;
+    const tipRead = w.tip_counts?.read || 0;
+    const hasTipReviews = (tipUnread + tipRead) > 0;
+
     const div = document.createElement("div");
     div.className = "work-item";
     div.style = rowStyle;
@@ -252,11 +295,21 @@ function displayNovels(novels) {
       </div>
       <div class="actions">
         <button onclick="editWork('${w.id}')" style="margin-right:5px;">編集</button>
+
         <button onclick="togglePublish('${w.id}', ${isPublished})" 
                 ${w.review_status === 'suspended' ? 'disabled' : ''}
                 style="margin-right:5px; background: ${isPublished ? '#666' : '#6a0dad'}; color:white; border:none; padding:5px 10px; border-radius:3px; cursor: ${w.review_status === 'suspended' ? 'not-allowed' : 'pointer'}; opacity: ${w.review_status === 'suspended' ? '0.5' : '1'};">
           ${isPublished ? '投稿停止' : '投稿'}
         </button>
+
+        <button
+          onclick="alert('レビュー一覧は次の手順で接続します。')"
+          ${hasTipReviews ? '' : 'disabled'}
+          style="margin-right:5px; background:${hasTipReviews ? '#00897b' : '#ddd'}; color:${hasTipReviews ? 'white' : '#888'}; border:none; padding:5px 10px; border-radius:3px; cursor:${hasTipReviews ? 'pointer' : 'not-allowed'};"
+        >
+          レビュー 未読${tipUnread} / 既読${tipRead}
+        </button>
+
         ${!isPublished ? `<button onclick="deleteWork('${w.id}')" style="background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">削除</button>` : ''}
       </div>
     `;
