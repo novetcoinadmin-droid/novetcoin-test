@@ -94,7 +94,7 @@
 </div>
 
     <div class="convert-section">
-        <h3>🔄 NVT を NP に変換する</h3>
+        <h3>💎 NVTでNPを買う</h3>
         <p style="font-size: 12px; color: #666; margin-bottom: 15px;">現在のレート: <strong>1 NVT = 150 NP</strong></p>
         
         <div class="input-group">
@@ -107,7 +107,7 @@
             <span style="font-weight: bold; color: #666;">NP</span>
         </div>
         
-        <button id="convertBtn" class="btn-convert" onclick="executeConvert()" disabled>NPに変換する</button>
+        <button id="convertBtn" class="btn-convert" onclick="executeConvert()" disabled>NPを買う</button>
     </div>
     <div class="purchase-section" style="margin-top: 30px; padding: 20px; background: #fdfaf6; border: 1px solid #e1d4f2; border-radius: 10px;">
         <h3 style="font-size: 15px; margin-top: 0; color: var(--main-purple);">💳 NPを購入する（チャージ）</h3>
@@ -178,6 +178,59 @@
 </div>
 
 </div>
+<div id="npPurchaseModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    width:min(520px, calc(100vw - 32px));
+    background:white;
+    border-radius:16px;
+    padding:24px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+  ">
+    <h2 style="margin:0 0 14px; color:#6a0dad; font-size:20px;">NVTでNPを買う</h2>
+
+    <div id="npPurchaseQuoteBody" style="font-size:14px; line-height:1.9; color:#333;"></div>
+
+    <div id="npPurchaseProgress" style="display:none; margin-top:14px; font-size:13px; color:#666; line-height:1.7;">
+      処理を開始しています。画面を閉じずにお待ちください。
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:22px;">
+      <button id="cancelNpPurchaseBtn" type="button" onclick="closeNpPurchaseModal()" style="
+        flex:1;
+        padding:12px;
+        border:1px solid #ccc;
+        border-radius:10px;
+        background:white;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+        キャンセル
+      </button>
+
+      <button id="confirmNpPurchaseBtn" type="button" onclick="confirmNpPurchaseFromModal()" style="
+        flex:1;
+        padding:12px;
+        border:none;
+        border-radius:10px;
+        background:#d4ac0d;
+        color:#000;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+        NPを買う
+      </button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import {
   createDynamicClient,
@@ -218,6 +271,9 @@ let currentWalletAddress = "";
 let dynamicWalletAccount = null;
 let pendingWithdrawRequests = [];
 const RATE = 150;
+const NVT_TO_NP_DISPLAY_FEE_NP = 4;
+
+let pendingNpPurchaseQuote = null;
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
 const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
@@ -479,7 +535,7 @@ function calcConvert() {
 
   if (currentProfile && inputVal <= currentProfile.nvt_balance) {
     btn.disabled = false;
-    btn.innerText = "NPに変換する";
+    btn.innerText = "NPを買う";
   } else {
     btn.disabled = true;
     btn.innerText = "NVT残高が不足しています";
@@ -488,48 +544,103 @@ function calcConvert() {
 
 window.calcConvert = calcConvert;
 
-async function executeConvert() {
-  const inputVal = parseFloat(document.getElementById("convertInput").value);
+function openNpPurchaseModal(quote) {
+  const modal = document.getElementById("npPurchaseModal");
+  const body = document.getElementById("npPurchaseQuoteBody");
+  const progress = document.getElementById("npPurchaseProgress");
+  const cancelBtn = document.getElementById("cancelNpPurchaseBtn");
+  const confirmBtn = document.getElementById("confirmNpPurchaseBtn");
 
-  if (isNaN(inputVal) || inputVal <= 0) {
-    alert("変換するNVT数量を入力してください。");
+  if (!modal || !body) return;
+
+  body.innerHTML = `
+    <div><strong>支払うNVT：</strong>${quote.nvtAmount.toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT（時価）</div>
+    <div><strong>購入予定NP：</strong>${quote.grossNpAmount.toLocaleString("ja-JP")} NP（1NP = 1円）</div>
+    <div><strong>手数料相当：</strong>0.06 POL（約 ${quote.feeNpAmount.toLocaleString("ja-JP")} NP）</div>
+    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+      <strong>受け取り予定NP：</strong>
+      <span style="color:#6a0dad; font-size:18px; font-weight:bold;">
+        ${quote.finalNpAmount.toLocaleString("ja-JP")} NP
+      </span>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:#777;">
+      ※「NPを買う」を押した後は、処理中のキャンセルはできません。<br>
+      ※トランザクション実行には、ウォレット側で少量のPOLが必要です。
+    </div>
+  `;
+
+  if (progress) {
+    progress.style.display = "none";
+    progress.innerText = "処理を開始しています。画面を閉じずにお待ちください。";
+  }
+
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+    cancelBtn.style.opacity = "1";
+  }
+
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.innerText = "NPを買う";
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeNpPurchaseModal() {
+  const modal = document.getElementById("npPurchaseModal");
+  if (modal) modal.style.display = "none";
+  pendingNpPurchaseQuote = null;
+}
+
+async function confirmNpPurchaseFromModal() {
+  if (!pendingNpPurchaseQuote) {
+    alert("見積もり情報を確認できませんでした。");
     return;
   }
 
-  const expectedNpAmount = Math.floor(inputVal * RATE);
-
-  const ok = confirm(
-    [
-      `${inputVal} NVT を NP に変換します。`,
-      "",
-      `送金先: ${OPERATION_WALLET_ADDRESS}`,
-      `予定付与NP: ${expectedNpAmount} NP`,
-      "",
-      "DynamicウォレットからOperation WalletへNVT送金が発生します。",
-      "実行しますか？"
-    ].join("\n")
-  );
-
-  if (!ok) return;
-
+  const quote = pendingNpPurchaseQuote;
   const btn = document.getElementById("convertBtn");
-  btn.disabled = true;
-  btn.innerText = "NVT送金中...";
+  const progress = document.getElementById("npPurchaseProgress");
+  const cancelBtn = document.getElementById("cancelNpPurchaseBtn");
+  const confirmBtn = document.getElementById("confirmNpPurchaseBtn");
+
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.style.opacity = "0.5";
+  }
+
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerText = "処理中...";
+  }
+
+  if (progress) {
+    progress.style.display = "block";
+    progress.innerText = "ガス見積もりを確認しています...";
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "NP購入処理中...";
+  }
 
   try {
     const txHash = await sendNvtFromDynamicWallet({
-  toAddress: OPERATION_WALLET_ADDRESS,
-  amountNvt: inputVal,
-  checkNvtToNpGas: true
-});
+      toAddress: OPERATION_WALLET_ADDRESS,
+      amountNvt: quote.nvtAmount,
+      checkNvtToNpGas: true
+    });
 
-    btn.innerText = "NP反映中...";
+    if (progress) {
+      progress.innerText = "NVT送金を確認しています...";
+    }
 
     const { data: confirmResult, error: confirmError } =
       await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
         body: {
           tx_hash: txHash,
-          note: "wallet.htmlからNVTをNPへ変換"
+          note: "wallet.htmlからNVTでNPを購入"
         }
       });
 
@@ -538,14 +649,20 @@ async function executeConvert() {
     }
 
     if (!confirmResult?.success) {
-      throw new Error(confirmResult?.error || "NP変換確認に失敗しました");
+      throw new Error(confirmResult?.error || "NP購入確認に失敗しました");
+    }
+
+    if (progress) {
+      progress.innerText = "NP残高へ反映しました。";
     }
 
     alert(
-      "NVT→NP変換が完了しました。\n" +
+      "NP購入が完了しました。\n" +
       "tx_hash: " + txHash + "\n" +
-      "付与NP: " + confirmResult.final_np_amount
+      "受け取りNP: " + confirmResult.final_np_amount
     );
+
+    closeNpPurchaseModal();
 
     document.getElementById("convertInput").value = "";
     document.getElementById("receiveInput").value = "";
@@ -554,13 +671,33 @@ async function executeConvert() {
     await fetchHistory();
   } catch (err) {
     console.error(err);
-    alert("NVT→NP変換に失敗しました: " + (err?.message || String(err)));
+
+    alert("NP購入に失敗しました: " + (err?.message || String(err)));
+
+    if (progress) {
+      progress.innerText = "処理に失敗しました。内容を確認して、時間をおいてやり直してください。";
+    }
   } finally {
-    btn.disabled = false;
-    btn.innerText = "NPに変換する";
-    calcConvert();
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "NPを買う";
+      calcConvert();
+    }
+
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerText = "NPを買う";
+    }
+
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.style.opacity = "1";
+    }
   }
 }
+
+window.closeNpPurchaseModal = closeNpPurchaseModal;
+window.confirmNpPurchaseFromModal = confirmNpPurchaseFromModal;
 
 window.executeConvert = executeConvert;
 
