@@ -639,8 +639,9 @@ function openNpPurchaseModal(quote) {
 
   if (!modal || !body) return;
 
-  body.innerHTML = `
+    body.innerHTML = `
     <div><strong>支払うNVT：</strong>${quote.nvtAmount.toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT（時価）</div>
+    <div><strong>適用レート：</strong>1 NVT = ${quote.appliedNpRate.toLocaleString("ja-JP", { maximumFractionDigits: 4 })} NP</div>
     <div><strong>購入予定NP：</strong>${quote.grossNpAmount.toLocaleString("ja-JP")} NP（1NP = 1円）</div>
     <div><strong>手数料相当：</strong>0.06 POL（約 ${quote.feeNpAmount.toLocaleString("ja-JP")} NP）</div>
     <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
@@ -725,9 +726,10 @@ async function confirmNpPurchaseFromModal() {
     const { data: confirmResult, error: confirmError } =
       await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
         body: {
-          tx_hash: txHash,
-          note: "wallet.htmlからNVTでNPを購入"
-        }
+  tx_hash: txHash,
+  rate_snapshot_id: quote.rateSnapshotId,
+  note: "wallet.htmlからNVTでNPを購入"
+}
       });
 
     if (confirmError) {
