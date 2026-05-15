@@ -34,10 +34,11 @@
         <div id="creatorName" style="color: #6a0dad;">@-------</div>>
 
         <table class="meta-table">
-            <tr><th>イラスト</th><td id="nftIllust">---</td></tr>
-            <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
-            <tr><th>ミント日</th><td id="nftDate">---</td></tr>
-        </table>
+    <tr><th>挿絵</th><td id="nftIllustCount">---</td></tr>
+    <tr><th>削除画像</th><td id="nftRemovedImageCount">---</td></tr>
+    <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
+    <tr><th>出品日</th><td id="nftDate">---</td></tr>
+</table>
 
         <div class="price-tag">
             <span>💎</span>
@@ -296,14 +297,138 @@ if (currentUser) {
     await checkIfPurchased();
 }
 
+function getImageUrlFromAsset(asset) {
+    if (!asset) return "";
+
+    if (typeof asset === "string") {
+        return asset;
+    }
+
+    if (typeof asset !== "object") {
+        return "";
+    }
+
+    return (
+        asset.image_url ||
+        asset.imageUrl ||
+        asset.file_url ||
+        asset.url ||
+        asset.cover_image ||
+        asset.cover_image_url ||
+        ""
+    );
+}
+
+function countNftImagesAndRemoved(content) {
+    let visibleCount = 0;
+    let removedCount = 0;
+
+    function inspectAsset(asset) {
+        if (!asset) return;
+
+        if (typeof asset === "string") {
+            if (asset.trim()) visibleCount++;
+            return;
+        }
+
+        if (typeof asset !== "object") return;
+
+        if (asset.mode === "double" || asset.left || asset.right) {
+            inspectAsset(asset.left);
+            inspectAsset(asset.right);
+            return;
+        }
+
+        const hasKnownImageField =
+            Object.prototype.hasOwnProperty.call(asset, "image_url") ||
+            Object.prototype.hasOwnProperty.call(asset, "imageUrl") ||
+            Object.prototype.hasOwnProperty.call(asset, "file_url") ||
+            Object.prototype.hasOwnProperty.call(asset, "url") ||
+            Object.prototype.hasOwnProperty.call(asset, "cover_image") ||
+            Object.prototype.hasOwnProperty.call(asset, "cover_image_url");
+
+        const imageUrl = getImageUrlFromAsset(asset);
+
+        if (imageUrl) {
+            visibleCount++;
+        } else if (hasKnownImageField) {
+            removedCount++;
+        }
+    }
+
+    const rawContent = content || {};
+
+    if (rawContent.cover_image || rawContent.cover_image_url || rawContent.image_url) {
+        visibleCount++;
+    }
+
+    const directAssets = rawContent.assets || {};
+    Object.values(directAssets).forEach(inspectAsset);
+
+    const episodes = rawContent.episodes;
+
+    if (Array.isArray(episodes)) {
+        episodes.forEach((ep) => {
+            Object.values(ep.assets || {}).forEach(inspectAsset);
+        });
+    } else if (episodes && typeof episodes === "object") {
+        Object.values(episodes).forEach((ep) => {
+            Object.values(ep.assets || {}).forEach(inspectAsset);
+        });
+    }
+
+    return {
+        visibleCount,
+        removedCount
+    };
+}
+
+function countNftTextCharacters(content) {
+    let total = 0;
+
+    function addPages(pages) {
+        if (!Array.isArray(pages)) return;
+
+        pages.forEach((page) => {
+            total += String(page || "").replace(/\s/g, "").length;
+        });
+    }
+
+    const rawContent = content || {};
+    const episodes = rawContent.episodes;
+
+    if (Array.isArray(episodes)) {
+        episodes.forEach((ep) => addPages(ep.pages));
+    } else if (episodes && typeof episodes === "object") {
+        Object.values(episodes).forEach((ep) => addPages(ep.pages));
+    } else {
+        addPages(rawContent.pages);
+    }
+
+    return total;
+}
+
 // 🌟 creatorName を受け取るように修正
 function renderDetails(myNvt, creatorName) {
     document.getElementById("nftTitle").innerText = targetNft.title_at_mint;
     document.getElementById("nftCover").src = targetNft.cover_image_url;
     document.getElementById("nftPrice").innerText = targetNft.price_nvt;
-    document.getElementById("nftIllust").innerText = targetNft.illustrator_name || "不明";
-    document.getElementById("nftCharCount").innerText = targetNft.char_count?.toLocaleString() || "---";
-    document.getElementById("nftDate").innerText = new Date(targetNft.minted_at).toLocaleDateString();
+    const imageStats = countNftImagesAndRemoved(targetNft.nft_content || {});
+const charCount = countNftTextCharacters(targetNft.nft_content || {});
+
+document.getElementById("nftIllustCount").innerText =
+    `${imageStats.visibleCount.toLocaleString()} 枚`;
+
+document.getElementById("nftRemovedImageCount").innerText =
+    `${imageStats.removedCount.toLocaleString()} 枚`;
+
+document.getElementById("nftCharCount").innerText =
+    `${charCount.toLocaleString()} 字`;
+
+document.getElementById("nftDate").innerText =
+    targetNft.created_at
+        ? new Date(targetNft.created_at).toLocaleDateString()
+        : "---";
 
     const creatorElement = document.getElementById("creatorName");
     if (creatorElement) {
