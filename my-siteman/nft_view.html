@@ -351,11 +351,10 @@ async function reportCurrentAdultNftImage() {
             }
         );
 
-        if (error) {
-            console.error("成人向けNFT画像通報Functionエラー:", error);
-            alert("通報処理に失敗しました。時間をおいて再度お試しください。");
-            return;
-        }
+        if (data?.already_reported) {
+    alert("この画像はすでに通報済みです。");
+    return;
+}
 
         if (data?.already_reported) {
             alert("この成人向けNFT作品はすでに通報済みです。");
