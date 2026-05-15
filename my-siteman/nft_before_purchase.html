@@ -8,8 +8,77 @@
     <style>
         body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 0; color: #333; }
         .container { max-width: 900px; margin: 40px auto; display: flex; gap: 40px; background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .cover-area { flex: 1; }
-        .info-area { flex: 1.2; display: flex; flex-direction: column; }
+        .cover-area {
+    flex: 1.05;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.info-area {
+    flex: 0.95;
+    display: flex;
+    flex-direction: column;
+}
+
+.review-area {
+    margin-top: 18px;
+    border-top: 1px solid #eee;
+    padding-top: 16px;
+}
+
+.review-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #6a0dad;
+    margin-bottom: 8px;
+}
+
+.review-note {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.review-list {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.review-empty {
+    font-size: 13px;
+    color: #999;
+    background: #fafafa;
+    border: 1px dashed #ddd;
+    border-radius: 12px;
+    padding: 14px;
+    line-height: 1.6;
+}
+
+.review-card {
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+}
+
+.review-card-header {
+    font-size: 12px;
+    color: #777;
+    margin-bottom: 6px;
+}
+
+.review-card-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+}
         .cover-img { width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .price-tag { font-size: 28px; font-weight: bold; color: #6a0dad; margin: 20px 0; display: flex; align-items: center; gap: 10px; }
         .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
@@ -25,9 +94,24 @@
 
 <div class="container">
     <div class="cover-area">
-        <a href="market.html" class="nav-back">← マーケットへ戻る</a>
-        <img id="nftCover" src="" class="cover-img" alt="作品表紙">
+    <a href="market.html" class="nav-back">← マーケットへ戻る</a>
+    <img id="nftCover" src="" class="cover-img" alt="作品表紙">
+
+    <div class="review-area">
+        <div class="review-title">購入者レビュー</div>
+        <div class="review-note">
+            購入者は1作品につき1回だけレビューできます。<br>
+            レビューは最大200文字までです。
+        </div>
+
+        <div id="reviewList" class="review-list">
+            <div class="review-empty">
+                まだレビューはありません。<br>
+                購入後に最初のレビューを投稿できます。
+            </div>
+        </div>
     </div>
+</div>
 
     <div class="info-area">
         <h1 id="nftTitle" style="margin: 0 0 10px 0; font-size: 24px;">読み込み中...</h1>
@@ -35,7 +119,7 @@
 
         <table class="meta-table">
     <tr><th>挿絵</th><td id="nftIllustCount">---</td></tr>
-    <tr><th>削除画像</th><td id="nftRemovedImageCount">---</td></tr>
+    <tr><th>通報によって削除された画像</th><td id="nftRemovedImageCount">---</td></tr>
     <tr><th>文字数</th><td id="nftCharCount">--- 字</td></tr>
     <tr><th>出品日</th><td id="nftDate">---</td></tr>
 </table>
