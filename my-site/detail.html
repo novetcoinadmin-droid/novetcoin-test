@@ -47,6 +47,46 @@
     .btn-unfav { background: #eee; color: #888; font-size: 12px; }
     .btn-like { background: #ff4d4d; color: white; }
     .btn-like:disabled { background: #ccc; }
+        .tip-box {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
+
+    .tip-box h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #6a0dad;
+    }
+
+    .tip-note {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .tip-box input,
+    .tip-box textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 8px;
+      font-size: 13px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+      font-family: sans-serif;
+    }
+
+    .tip-box textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .btn-tip {
+      background: #6a0dad;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -104,6 +144,37 @@
       🚩 この作品を通報する
       </button>
 </div>
+      <div id="novelTipBox" class="tip-box">
+        <h4>作品を応援する</h4>
+
+        <p class="tip-note">
+          10NP以上の投げ銭で、この作品に1回だけレビューを送れます。<br>
+          無料配布NPは投げ銭には利用できません。
+        </p>
+
+        <input
+          id="tipAmountInput"
+          type="number"
+          min="10"
+          step="1"
+          value="10"
+          placeholder="投げ銭NP"
+        >
+
+        <textarea
+          id="tipReviewText"
+          maxlength="200"
+          placeholder="レビューを入力してください（10〜200文字）"
+        ></textarea>
+
+        <button
+          id="tipSubmitBtn"
+          class="btn-action btn-tip"
+          onclick="submitNovelTipReview()"
+        >
+          10NPでレビューを送る
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -385,6 +456,119 @@ function renderEpisode(index) {
   document.getElementById("prevBtn").disabled = (index === 0);
   document.getElementById("nextBtn").disabled = (index === flatEpisodes.length - 1);
   window.scrollTo(0, 0);
+}
+
+async function submitNovelTipReview() {
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("投げ銭レビューにはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const amountInput = document.getElementById("tipAmountInput");
+  const reviewInput = document.getElementById("tipReviewText");
+  const submitBtn = document.getElementById("tipSubmitBtn");
+
+  const amountNp = Math.floor(Number(amountInput?.value || 0));
+  const reviewText = (reviewInput?.value || "").trim();
+
+  if (!amountNp || amountNp < 10) {
+    alert("投げ銭は10NP以上で入力してください。");
+    return;
+  }
+
+  if (reviewText.length < 10 || reviewText.length > 200) {
+    alert("レビューは10文字以上200文字以内で入力してください。");
+    return;
+  }
+
+  const ok = confirm(
+    amountNp + "NPでこの作品を応援し、レビューを送信します。\n\n" +
+    "無料配布NPは投げ銭には利用できません。\n" +
+    "投げ銭レビューは、この作品につき1回だけ送信できます。\n\n" +
+    "送信しますか？"
+  );
+
+  if (!ok) return;
+
+  const originalText = submitBtn ? submitBtn.innerText : "";
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "送信中...";
+  }
+
+  try {
+    const { data, error } = await supabaseClient.rpc("create_novel_tip_review", {
+      p_novel_id: novelId,
+      p_amount_np: amountNp,
+      p_review_text: reviewText
+    });
+
+    if (error) {
+      console.error("投げ銭レビューRPCエラー:", error);
+
+      const msg = error.message || "";
+
+      if (msg.includes("INSUFFICIENT_PAID_NP")) {
+        alert("有償NP残高が不足しています。無料配布NPは投げ銭には利用できません。");
+        return;
+      }
+
+      if (msg.includes("ALREADY_TIPPED")) {
+        alert("この作品にはすでに投げ銭レビュー済みです。");
+        return;
+      }
+
+      if (msg.includes("SELF_TIP_NOT_ALLOWED")) {
+        alert("自分の作品には投げ銭できません。");
+        return;
+      }
+
+      if (msg.includes("MIN_TIP_AMOUNT")) {
+        alert("投げ銭は10NP以上です。");
+        return;
+      }
+
+      if (msg.includes("INVALID_REVIEW_LENGTH")) {
+        alert("レビューは10文字以上200文字以内で入力してください。");
+        return;
+      }
+
+      alert("投げ銭レビューの送信に失敗しました。時間をおいて再度お試しください。");
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    alert(
+      "投げ銭レビューを送信しました。\n\n" +
+      "作者受取: " + (result?.author_receive_np ?? amountNp - 1) + "NP"
+    );
+
+    if (amountInput) amountInput.disabled = true;
+    if (reviewInput) reviewInput.disabled = true;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = "レビュー送信済み";
+    }
+
+  } catch (err) {
+    console.error("投げ銭レビュー送信エラー:", err);
+    alert("投げ銭レビュー送信中にエラーが発生しました。");
+  } finally {
+    if (submitBtn && !submitBtn.disabled) {
+      submitBtn.innerText = originalText || "10NPでレビューを送る";
+    }
+  }
 }
 
 async function pushLike() {
