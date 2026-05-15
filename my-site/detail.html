@@ -87,6 +87,59 @@
       background: #6a0dad;
       color: white;
     }
+        .public-review-box {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
+
+    .public-review-box h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #6a0dad;
+    }
+
+    .public-review-note {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .public-review-scroll {
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .public-review-item {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fafafa;
+    }
+
+    .public-review-meta {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 6px;
+    }
+
+    .public-review-text {
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      margin-bottom: 8px;
+    }
+
+    .public-review-reactions {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+      color: #555;
+    }
+
   </style>
 </head>
 <body>
@@ -174,6 +227,17 @@
         >
           10NPでレビューを送る
         </button>
+              <div id="publicReviewBox" class="public-review-box">
+        <h4>投げ銭レビュー</h4>
+
+        <p class="public-review-note">
+          この作品に届いた投げ銭レビューです。レビュー欄だけスクロールできます。
+        </p>
+
+        <div id="publicReviewList" class="public-review-scroll">
+          <p style="font-size:12px; color:#999;">レビューを読み込みます。</p>
+        </div>
+      </div>
       </div>
     </div>
   </div>
@@ -405,7 +469,8 @@ if (novel.review_status === "suspended") {
     });
   }
 
-  renderUI();
+    renderUI();
+  loadPublicNovelTipReviews();
 }
 
 function renderUI() {
@@ -456,6 +521,124 @@ function renderEpisode(index) {
   document.getElementById("prevBtn").disabled = (index === 0);
   document.getElementById("nextBtn").disabled = (index === flatEpisodes.length - 1);
   window.scrollTo(0, 0);
+}
+
+async function loadPublicNovelTipReviews() {
+  const listArea = document.getElementById("publicReviewList");
+
+  if (!listArea || !novelId) return;
+
+  listArea.innerHTML = `<p style="font-size:12px; color:#999;">レビューを読み込み中...</p>`;
+
+  try {
+    const { data: reviews, error: reviewError } = await supabaseClient
+      .from("novel_tip_reviews")
+      .select("id, review_text, amount_np, author_receive_np, created_at")
+      .eq("novel_id", novelId);
+
+    if (reviewError) throw reviewError;
+
+    if (!reviews || reviews.length === 0) {
+      listArea.innerHTML = `
+        <p style="font-size:12px; color:#999; line-height:1.6;">
+          まだ投げ銭レビューはありません。
+        </p>
+      `;
+      return;
+    }
+
+    const reviewIds = reviews.map(r => r.id);
+
+    const { data: reactions, error: reactionError } = await supabaseClient
+      .from("novel_tip_review_reactions")
+      .select("review_id, reaction_type")
+      .in("review_id", reviewIds);
+
+    if (reactionError) {
+      console.error("公開レビュー評価取得失敗:", reactionError);
+    }
+
+    const reactionCountsByReviewId = {};
+
+    (reactions || []).forEach(row => {
+      if (!reactionCountsByReviewId[row.review_id]) {
+        reactionCountsByReviewId[row.review_id] = {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        };
+      }
+
+      if (row.reaction_type === "heart") {
+        reactionCountsByReviewId[row.review_id].heart += 1;
+      } else if (row.reaction_type === "thinking") {
+        reactionCountsByReviewId[row.review_id].thinking += 1;
+      } else if (row.reaction_type === "shocked") {
+        reactionCountsByReviewId[row.review_id].shocked += 1;
+      }
+
+      reactionCountsByReviewId[row.review_id].total += 1;
+    });
+
+    const sortedReviews = reviews
+      .map(review => ({
+        ...review,
+        reactions: reactionCountsByReviewId[review.id] || {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        }
+      }))
+      .sort((a, b) => {
+        if (b.reactions.total !== a.reactions.total) {
+          return b.reactions.total - a.reactions.total;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+    listArea.innerHTML = sortedReviews.map(review => {
+      const dateText = review.created_at
+        ? new Date(review.created_at).toLocaleDateString("ja-JP")
+        : "";
+
+      return `
+        <div class="public-review-item">
+          <div class="public-review-meta">
+            ${dateText} / 投げ銭 ${review.amount_np}NP
+          </div>
+
+          <div class="public-review-text">
+            ${escapeHtml(review.review_text || "")}
+          </div>
+
+          <div class="public-review-reactions">
+            <span>❤️ ${review.reactions.heart}</span>
+            <span>🤔 ${review.reactions.thinking}</span>
+            <span>😨 ${review.reactions.shocked}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("公開レビュー読み込みエラー:", err);
+    listArea.innerHTML = `
+      <p style="font-size:12px; color:#d32f2f; line-height:1.6;">
+        レビューの読み込みに失敗しました。
+      </p>
+    `;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 async function submitNovelTipReview() {
