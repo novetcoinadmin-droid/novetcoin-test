@@ -140,6 +140,26 @@
       color: #555;
     }
 
+        .reaction-btn {
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .reaction-btn:hover {
+      background: #f3e8ff;
+    }
+
+    .reaction-btn.active {
+      border-color: #6a0dad;
+      background: #f3e8ff;
+      color: #6a0dad;
+      font-weight: bold;
+    }
+
   </style>
 </head>
 <body>
@@ -531,6 +551,8 @@ async function loadPublicNovelTipReviews() {
   listArea.innerHTML = `<p style="font-size:12px; color:#999;">レビューを読み込み中...</p>`;
 
   try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
     const { data: reviews, error: reviewError } = await supabaseClient
       .from("novel_tip_reviews")
       .select("id, review_text, amount_np, author_receive_np, created_at")
@@ -556,6 +578,24 @@ async function loadPublicNovelTipReviews() {
 
     if (reactionError) {
       console.error("公開レビュー評価取得失敗:", reactionError);
+    }
+
+    let myReactionByReviewId = {};
+
+    if (user) {
+      const { data: myReactions, error: myReactionError } = await supabaseClient
+        .from("novel_tip_review_reactions")
+        .select("review_id, reaction_type")
+        .eq("user_id", user.id)
+        .in("review_id", reviewIds);
+
+      if (myReactionError) {
+        console.error("自分のレビュー評価取得失敗:", myReactionError);
+      } else {
+        (myReactions || []).forEach(row => {
+          myReactionByReviewId[row.review_id] = row.reaction_type;
+        });
+      }
     }
 
     const reactionCountsByReviewId = {};
@@ -589,7 +629,8 @@ async function loadPublicNovelTipReviews() {
           thinking: 0,
           shocked: 0,
           total: 0
-        }
+        },
+        myReaction: myReactionByReviewId[review.id] || null
       }))
       .sort((a, b) => {
         if (b.reactions.total !== a.reactions.total) {
@@ -614,9 +655,26 @@ async function loadPublicNovelTipReviews() {
           </div>
 
           <div class="public-review-reactions">
-            <span>❤️ ${review.reactions.heart}</span>
-            <span>🤔 ${review.reactions.thinking}</span>
-            <span>😨 ${review.reactions.shocked}</span>
+            <button
+              class="reaction-btn ${review.myReaction === 'heart' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'heart')"
+            >
+              ❤️ ${review.reactions.heart}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'thinking' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'thinking')"
+            >
+              🤔 ${review.reactions.thinking}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'shocked' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'shocked')"
+            >
+              😨 ${review.reactions.shocked}
+            </button>
           </div>
         </div>
       `;
@@ -629,6 +687,45 @@ async function loadPublicNovelTipReviews() {
         レビューの読み込みに失敗しました。
       </p>
     `;
+  }
+}
+
+async function setNovelTipReviewReaction(reviewId, reactionType) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("スタンプ評価にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  if (!["heart", "thinking", "shocked"].includes(reactionType)) {
+    alert("不正なスタンプです。");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from("novel_tip_review_reactions")
+      .upsert(
+        {
+          review_id: reviewId,
+          user_id: user.id,
+          reaction_type: reactionType,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: "review_id,user_id"
+        }
+      );
+
+    if (error) throw error;
+
+    await loadPublicNovelTipReviews();
+
+  } catch (err) {
+    console.error("レビュー評価エラー:", err);
+    alert("スタンプ評価に失敗しました。時間をおいて再度お試しください。");
   }
 }
 
