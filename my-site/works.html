@@ -50,7 +50,7 @@
       <div class="side-box">
         <h3>並べ替え</h3>
         <ul class="side-list" id="sortMenu">
-          <li onclick="changeSort('id')" id="sort-id" class="active">新着順</li>
+          <li onclick="changeSort('created_at')" id="sort-created_at" class="active">新着順</li>
           <li onclick="changeSort('views')" id="sort-views">閲覧ランキング</li>
           <li onclick="changeSort('likes')" id="sort-likes">いいねランキング</li>
           <li onclick="changeSort('char_count')" id="sort-char_count">文字数順</li>
@@ -72,27 +72,41 @@
 // 共通auth-check.js側のSupabaseクライアントを使う
 const supabaseClient = window.supabaseClient;
 
-let currentSort = 'id';
+let currentSort = 'created_at';
 
 // --- 2. 作品データ取得 ---
 async function fetchNovels() {
   const list = document.getElementById("worksList");
-  const query = document.getElementById("searchInput").value;
+  const searchInput = document.getElementById("searchInput");
+  const listTitle = document.getElementById("listTitle");
+
+  const query = (searchInput?.value || "").trim();
+  const params = new URLSearchParams(location.search);
+  const filterAuthorId = params.get("filterAuthor");
+
+  if (listTitle) {
+    listTitle.innerText = filterAuthorId ? "作者の作品一覧" : "一般本棚";
+  }
 
   // A. データ取得条件の構築
   let builder = supabaseClient
     .from('novels')
-    .select('*, authors!inner(author_name, zone)') // ★変更
+    .select('*, authors!inner(author_name, zone)')
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'main'); // ★追加：全年齢ゾーンのみ！// ★【追加】公開停止作品は除外する
+    .eq('authors.zone', 'main');
+
+  // detail.html の「作者の作品一覧」から来た場合だけ作者で絞る
+  if (filterAuthorId) {
+    builder = builder.eq('author_id', filterAuthorId);
+  }
 
   // 検索クエリがあれば適用
   if (query) {
     builder = builder.ilike('title', `%${query}%`);
   }
 
-  // ソート適用
+  // 新着・閲覧・いいね・文字数はDB側で並べ替え
   builder = builder.order(currentSort, { ascending: false });
 
   const { data: novels, error } = await builder;
@@ -104,20 +118,61 @@ async function fetchNovels() {
   }
 
   list.innerHTML = "";
+
   if (!novels || novels.length === 0) {
     list.innerHTML = "<li style='text-align:center; padding:50px; color:#999;'>公開作品が見つかりません</li>";
     return;
+  }
+
+  const novelIds = novels.map(n => n.id);
+
+  // 投げ銭レビュー数・投げ銭総額を取得
+  const reviewStatsByNovelId = {};
+
+  if (novelIds.length > 0) {
+    const { data: tipRows, error: tipError } = await supabaseClient
+      .from("novel_tip_reviews")
+      .select("novel_id, amount_np")
+      .in("novel_id", novelIds);
+
+    if (tipError) {
+      console.error("投げ銭レビュー集計取得エラー:", tipError);
+    } else {
+      (tipRows || []).forEach(row => {
+        if (!reviewStatsByNovelId[row.novel_id]) {
+          reviewStatsByNovelId[row.novel_id] = {
+            review_count: 0,
+            tip_total_np: 0
+          };
+        }
+
+        reviewStatsByNovelId[row.novel_id].review_count += 1;
+        reviewStatsByNovelId[row.novel_id].tip_total_np += Number(row.amount_np || 0);
+      });
+    }
   }
 
   // B. リストの描画
   novels.forEach(n => {
     const li = document.createElement("li");
     const penName = n.authors ? n.authors.author_name : "不明な作家";
-    
-    // 話数のカウント
-    const epCount = (n.content || []).reduce((acc, chap) => acc + (chap.episodes ? chap.episodes.length : 0), 0);
 
-    // ★【追加】ステータスに応じたバッジ（マーク）の生成
+    const stats = reviewStatsByNovelId[n.id] || {
+      review_count: 0,
+      tip_total_np: 0
+    };
+    
+    // 公開話数だけカウント
+    const epCount = Array.isArray(n.content)
+      ? n.content.reduce((acc, chap) => {
+          const publicEpisodes = Array.isArray(chap.episodes)
+            ? chap.episodes.filter(epi => epi.is_public === true)
+            : [];
+          return acc + publicEpisodes.length;
+        }, 0)
+      : 0;
+
+    // ステータスに応じたバッジ
     let statusBadge = "";
     if (n.review_status === 'reported') {
       statusBadge = '<span style="background:#ff4d4d; color:white; font-size:10px; padding:2px 6px; border-radius:3px; margin-left:8px; vertical-align:middle;">⚠️ 精査中</span>';
@@ -132,7 +187,12 @@ async function fetchNovels() {
       </div>
       <span class="meta">
         作者：${penName} （全 ${epCount} 話 / ${ (n.char_count || 0).toLocaleString() } 文字）
-        <span style="margin-left:15px; color:#999;">👁 ${n.views || 0}  ❤️ ${n.likes || 0}</span>
+        <span style="margin-left:15px; color:#999;">
+          👁 ${n.views || 0}
+          ❤️ ${n.likes || 0}
+          💬 ${stats.review_count || 0}
+          🎁 ${Number(stats.tip_total_np || 0).toLocaleString()}NP
+        </span>
       </span>
     `;
     list.appendChild(li);
