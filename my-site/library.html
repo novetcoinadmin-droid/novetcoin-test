@@ -147,6 +147,7 @@ const { data: nfts, error: nError } = await supabaseClient
     .eq('owner_id', session.user.id)
     .eq('authors.zone', 'main')
     .not('minted_at', 'is', null)
+    .or('review_status.is.null,review_status.neq.suspended')
     .order('minted_at', { ascending: false });
 
 if (window.renderNovetSharedRightPanel) {
