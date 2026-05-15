@@ -87,6 +87,27 @@
     box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
 
+.report-adult-nft-image-btn {
+    position: fixed;
+    top: 100px;
+    right: 18px;
+    z-index: 120;
+    background: #fff;
+    color: #cc3333;
+    border: 1px solid #cc3333;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.report-adult-nft-image-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .bookmark-toggle-btn.bookmarked {
     background: var(--main-purple);
     color: #fff;
@@ -198,6 +219,9 @@ body.panel-hidden .page-counter {
 <button id="bookmarkBtn" class="bookmark-toggle-btn not-bookmarked" onclick="saveCurrentBookmark()">
     🔖 しおり
 </button>
+<button id="reportAdultNftImageBtn" class="report-adult-nft-image-btn" onclick="reportCurrentAdultNftImage()">
+    🚩 通報
+</button>
 
     <div class="work-display-area">
         <div class="page-spread" id="mainSpread">
@@ -237,6 +261,142 @@ let currentPageIdx = 0;
 let currentUser = null;
 let currentNftId = null;
 let savedBookmark = null;
+
+function getCurrentDisplayedAdultImageUrl() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return "";
+
+    const images = Array.from(illustArea.querySelectorAll("img"));
+
+    if (images.length === 0) {
+        return "";
+    }
+
+    if (images.length === 1) {
+        return images[0].src || "";
+    }
+
+    const choice = prompt(
+        "2枚絵が表示されています。\n通報する画像を選んでください。\n\n1：左側の画像\n2：右側の画像",
+        "1"
+    );
+
+    if (choice === null) return "";
+
+    if (choice.trim() === "2") {
+        return images[1]?.src || "";
+    }
+
+    return images[0]?.src || "";
+}
+
+async function reportCurrentAdultNftImage() {
+    const params = new URLSearchParams(window.location.search);
+    const nftId = params.get("id");
+    const imageUrl = getCurrentDisplayedAdultImageUrl();
+
+    if (!nftId || !nftData) {
+        alert("NFT作品情報を確認できませんでした。");
+        return;
+    }
+
+    if (!imageUrl) {
+        alert("現在表示中のページに通報できる画像がありません。");
+        return;
+    }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        alert("通報にはログインが必要です。");
+        location.href = "../portal/login.html";
+        return;
+    }
+
+    const ok = confirm(
+        "現在表示中の画像を通報します。\n\n" +
+        "成人向け作品では、NSFW表現そのものは停止対象ではありません。\n" +
+        "未加工の男性器・女性器・挿入シーンが明確に確認できる場合のみ、このNFT作品全体が停止されます。\n\n" +
+        "通報しますか？"
+    );
+
+    if (!ok) return;
+
+    const reason = prompt(
+        "通報理由を入力してください。\n例：未加工の露骨な部分が確認できる",
+        "未加工の露骨な部分が確認できる"
+    );
+
+    if (reason === null) return;
+
+    const btn = document.getElementById("reportAdultNftImageBtn");
+    const originalText = btn ? btn.innerText : "";
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "判定中...";
+    }
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke(
+            "report-adult-nft-image-gemini-moderation",
+            {
+                body: {
+                    nft_id: nftId,
+                    image_url: imageUrl,
+                    episode_index: typeof currentEpIdx === "number" ? currentEpIdx : null,
+                    page_index: typeof currentPageIdx === "number" ? currentPageIdx : null,
+                    reason: reason.trim() || "未加工の露骨な部分が確認できる"
+                }
+            }
+        );
+
+        if (error) {
+            console.error("成人向けNFT画像通報Functionエラー:", error);
+            alert("通報処理に失敗しました。時間をおいて再度お試しください。");
+            return;
+        }
+
+        if (data?.already_reported) {
+            alert("この成人向けNFT作品はすでに通報済みです。");
+            return;
+        }
+
+        if (data?.decision === "already_suspended") {
+            alert("このNFT作品はすでに停止されています。");
+            location.href = "purchased.html";
+            return;
+        }
+
+        if (data?.decision === "suspended") {
+            alert(
+                "AI判定により、未加工の露骨な描写が確認されたため、このNFT作品は停止されました。"
+            );
+            location.href = "purchased.html";
+            return;
+        }
+
+        if (data?.decision === "reported") {
+            alert(
+                "通報を受け付けました。\nAI判定では自動停止までは行わず、確認対象として記録されました。"
+            );
+            return;
+        }
+
+        alert(
+            "通報を受け付けました。\nAI判定では、この画像は自動停止対象ではないと判断されました。"
+        );
+
+    } catch (err) {
+        console.error("成人向けNFT画像通報処理エラー:", err);
+        alert("通報処理中にエラーが発生しました。");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText || "🚩 通報";
+        }
+    }
+}
 
 async function initViewer() {
     const params = new URLSearchParams(window.location.search);
