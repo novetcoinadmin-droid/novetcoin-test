@@ -158,10 +158,11 @@ async function init() {
 // 棚のデータを読み込む
 async function loadShelves() {
     const { data: allNfts, error } = await supabaseClient
-    .from('nft_metadata')
-    .select('*, authors!inner(zone)')
-    .eq('is_listing', true)
-    .eq('authors.zone', 'main');
+.from('nft_metadata')
+.select('*, authors!inner(zone)')
+.eq('is_listing', true)
+.eq('authors.zone', 'main')
+.or('review_status.is.null,review_status.neq.suspended');
 
 
     if (error) return console.error(error);
