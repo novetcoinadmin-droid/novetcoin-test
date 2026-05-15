@@ -222,6 +222,23 @@ const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
 const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
+const NVT_TO_NP_USER_FEE_POL = 0.06; // ユーザー表示用の固定手数料相当
+const NVT_TO_NP_INTERNAL_MAX_GAS_POL = "0.03"; // 内部ガス上限
+const NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS = 10000;
+
+function withTimeout(promise, ms, timeoutMessage) {
+  let timer;
+
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
+}
 
 const publicClient = createPublicClient({
   chain: polygon,
@@ -321,7 +338,11 @@ async function prepareDynamicWalletAccount() {
   return dynamicWalletAccount;
 }
 
-async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
+async function sendNvtFromDynamicWallet({
+  toAddress,
+  amountNvt,
+  checkNvtToNpGas = false
+}) {
   if (!dynamicWalletAccount) {
     await prepareDynamicWalletAccount();
   }
@@ -341,6 +362,39 @@ async function sendNvtFromDynamicWallet({ toAddress, amountNvt }) {
     functionName: "transfer",
     args: [toAddress, amountRaw],
   });
+
+  // NVTでNPを買う時だけ、送信前にガス見積もりを確認する
+  if (checkNvtToNpGas) {
+    const fromAddress = dynamicWalletAccount.address;
+
+    const [gasEstimate, gasPrice] = await withTimeout(
+      Promise.all([
+        publicClient.estimateGas({
+          account: fromAddress,
+          to: NVT_CONTRACT_ADDRESS,
+          data,
+          value: 0n,
+        }),
+        publicClient.getGasPrice(),
+      ]),
+      NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS,
+      "ガス見積もりに時間がかかったため、処理を中止しました。時間をおいてやり直してください。"
+    );
+
+    const estimatedGasCostRaw = gasEstimate * gasPrice;
+    const maxGasCostRaw = parseUnits(NVT_TO_NP_INTERNAL_MAX_GAS_POL, 18);
+
+    console.log("NVT→NP ガス見積もり:", {
+      gasEstimate: gasEstimate.toString(),
+      gasPrice: gasPrice.toString(),
+      estimatedPol: formatUnits(estimatedGasCostRaw, 18),
+      maxPol: NVT_TO_NP_INTERNAL_MAX_GAS_POL,
+    });
+
+    if (estimatedGasCostRaw > maxGasCostRaw) {
+      throw new Error("現在POLが想定より高いため、時間をおいてやり直してください。");
+    }
+  }
 
   const txHash = await walletClient.sendTransaction({
     to: NVT_CONTRACT_ADDRESS,
@@ -464,9 +518,10 @@ async function executeConvert() {
 
   try {
     const txHash = await sendNvtFromDynamicWallet({
-      toAddress: OPERATION_WALLET_ADDRESS,
-      amountNvt: inputVal
-    });
+  toAddress: OPERATION_WALLET_ADDRESS,
+  amountNvt: inputVal,
+  checkNvtToNpGas: true
+});
 
     btn.innerText = "NP反映中...";
 
