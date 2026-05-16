@@ -158,7 +158,7 @@ document.getElementById("isCharVisible").checked = data.is_char_visible || false
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (user) {
     const { data: profile } = await supabaseClient.from('profiles').select('is_frozen').eq('id', user.id).single();
-    if (profile && profile.is_frozen) location.href = 'penalty.html';
+    if (profile && profile.is_frozen) location.href = '../portal/penalty.html';
   }
 
   renderTree();

@@ -695,7 +695,7 @@ async function checkAccountStatus() {
       .single();
 
     if (profile && profile.is_frozen) {
-      window.location.replace('penalty.html');
+      window.location.replace('../portal/penalty.html');
       return true;
     }
   }

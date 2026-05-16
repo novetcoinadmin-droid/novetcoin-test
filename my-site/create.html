@@ -82,7 +82,7 @@ async function checkAccountStatus(user) {
     .single();
 
   if (profile && profile.is_frozen) {
-    window.location.replace('../my-site/penalty.html'); // パスを調整
+    window.location.replace('../portal/penalty.html'); // パスを調整
     return true;
   }
   return false;
