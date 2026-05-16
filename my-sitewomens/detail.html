@@ -10,7 +10,16 @@
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
     
     /* メニュー */
-    .menu { background: #333; height: 50px; display: flex; align-items: center; padding: 0 20px; }
+    .menu {
+  background: #333;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
     .menu a { color: white; margin-right: 20px; text-decoration: none; font-size: 14px; }
     
     .layout { display: flex; max-width: 1200px; margin: 30px auto; gap: 20px; align-items: flex-start; }
@@ -47,6 +56,122 @@
     .btn-unfav { background: #eee; color: #888; font-size: 12px; }
     .btn-like { background: #ff4d4d; color: white; }
     .btn-like:disabled { background: #ccc; }
+    /* 投げ銭レビュー投稿欄 */
+.tip-box {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #eee;
+}
+
+.tip-box h4 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #6a0dad;
+}
+
+.tip-note {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.tip-box input,
+.tip-box textarea {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px;
+  font-size: 13px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  font-family: sans-serif;
+}
+
+.tip-box textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.btn-tip {
+  background: #6a0dad;
+  color: white;
+}
+
+/* 公開レビュー欄 */
+.public-review-box {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #eee;
+}
+
+.public-review-box h4 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #6a0dad;
+}
+
+.public-review-note {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.public-review-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.public-review-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: #fafafa;
+}
+
+.public-review-meta {
+  font-size: 11px;
+  color: #777;
+  margin-bottom: 6px;
+}
+
+.public-review-text {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+
+.public-review-reactions {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #555;
+}
+
+/* スタンプボタン */
+.reaction-btn {
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reaction-btn:hover {
+  background: #f3e8ff;
+}
+
+.reaction-btn.active {
+  border-color: #6a0dad;
+  background: #f3e8ff;
+  color: #6a0dad;
+  font-weight: bold;
+}
   </style>
 <style>body { background: #fdeff2 !important; }</style></head>
 <body>
@@ -104,6 +229,48 @@
       🚩 この作品を通報する
       </button>
 </div>
+      <div id="novelTipBox" class="tip-box">
+        <h4>作品を応援する</h4>
+
+        <p class="tip-note">
+          10NP以上の投げ銭で、この作品に1回だけレビューを送れます。<br>
+          無料配布NPは投げ銭には利用できません。
+        </p>
+
+        <input
+          id="tipAmountInput"
+          type="number"
+          min="10"
+          step="1"
+          value="10"
+          placeholder="投げ銭NP"
+        >
+
+        <textarea
+          id="tipReviewText"
+          maxlength="200"
+          placeholder="レビューを入力してください（10〜200文字）"
+        ></textarea>
+
+        <button
+          id="tipSubmitBtn"
+          class="btn-action btn-tip"
+          onclick="submitNovelTipReview()"
+        >
+          10NPでレビューを送る
+        </button>
+              <div id="publicReviewBox" class="public-review-box">
+        <h4>投げ銭レビュー</h4>
+
+        <p class="public-review-note">
+          この作品に届いた投げ銭レビューです。レビュー欄だけスクロールできます。
+        </p>
+
+        <div id="publicReviewList" class="public-review-scroll">
+          <p style="font-size:12px; color:#999;">レビューを読み込みます。</p>
+        </div>
+      </div>
+      </div>
     </div>
   </div>
 </div>
@@ -131,10 +298,93 @@ async function checkBannedContent(text) {
 }
 
 async function reportNovel() {
-  alert(
-    "通報機能は、AI判定処理を安全なサーバー側処理へ移行中です。\n" +
-    "公開前に再開予定です。"
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("通報にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const ok = confirm(
+    "この話をAI通報します。\n\n" +
+    "全年齢向けとして明確に問題のある性的・卑猥表現がある場合、AI判定により作品が停止されることがあります。\n\n" +
+    "通報しますか？"
   );
+
+  if (!ok) return;
+
+  const reason = prompt(
+    "通報理由を入力してください。\n例：全年齢向けとして不適切な性的表現がある",
+    "全年齢向けとして不適切な表現がある"
+  );
+
+  if (reason === null) return;
+
+  const btn = event?.target;
+  const originalText = btn ? btn.innerText : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "AI判定中...";
+  }
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      "report-novel-ai-moderation",
+      {
+        body: {
+          novel_id: novelId,
+          episode_index: currentIndex,
+          reason: reason.trim() || "全年齢向けとして不適切な表現がある"
+        }
+      }
+    );
+
+    if (error) {
+      console.error("通報Functionエラー:", error);
+      alert("通報処理に失敗しました。時間をおいて再度お試しください。");
+      return;
+    }
+
+    if (data?.already_reported) {
+      alert("この作品はすでに通報済みです。");
+      return;
+    }
+
+    if (data?.decision === "suspended") {
+      alert(
+        "AI判定により、全年齢向けとして不適切な表現が確認されたため、この作品は停止されました。"
+      );
+      location.href = "works.html";
+      return;
+    }
+
+    if (data?.decision === "reported") {
+      alert(
+        "通報を受け付けました。\nAI判定では自動停止までは行わず、確認対象として記録されました。"
+      );
+      return;
+    }
+
+    alert(
+      "通報を受け付けました。\nAI判定では、現在表示中の話について自動停止対象ではないと判断されました。"
+    );
+
+  } catch (err) {
+    console.error("通報処理エラー:", err);
+    alert("通報処理中にエラーが発生しました。");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText || "🚩 この作品を通報する";
+    }
+  }
 }
 
 // --- 4. 初期化処理 ---
@@ -167,6 +417,56 @@ async function init() {
   // --- ★ここからキャラクター設定の表示判定を追加 ---
   const charSection = document.getElementById("charSection");
   const charContent = document.getElementById("charContent");
+  // --- 投稿停止中の作品はURL直アクセスでも本文を表示しない ---
+if (novel.review_status === "suspended") {
+  const penName = novel.authors ? novel.authors.author_name : "不明な作家";
+
+  document.getElementById("sidePenName").innerText = penName;
+  document.getElementById("sideViews").innerText = novel.views || 0;
+  document.getElementById("sideLikes").innerText = novel.likes || 0;
+  document.getElementById("sideFavs").innerText = "0";
+
+  document.getElementById("displayChapTitle").innerText = "";
+  document.getElementById("displayEpiTitle").innerText = "この作品は現在、投稿停止中です";
+  document.getElementById("displayBody").innerText =
+    "この作品は通報または審査により、現在閲覧できません。\n作者による修正後、再公開される場合があります。";
+
+  const charSection = document.getElementById("charSection");
+  if (charSection) {
+    charSection.style.display = "none";
+  }
+
+  const tocArea = document.getElementById("tocArea");
+  if (tocArea) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        投稿停止中のため、目次は表示できません。
+      </p>
+    `;
+  }
+
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+
+  const favBtn = document.getElementById("favBtn");
+  const likeBtn = document.getElementById("likeBtn");
+
+  if (favBtn) {
+    favBtn.disabled = true;
+    favBtn.innerText = "投稿停止中";
+    favBtn.style.opacity = "0.5";
+    favBtn.style.cursor = "not-allowed";
+  }
+
+  if (likeBtn) {
+    likeBtn.disabled = true;
+    likeBtn.innerText = "投稿停止中";
+    likeBtn.style.opacity = "0.5";
+    likeBtn.style.cursor = "not-allowed";
+  }
+
+  return;
+}
 
   // 変数名を data ではなく あなたのコードの novel に合わせています [cite: 65, 66]
   if (novel.is_char_visible && novel.char_setting && novel.char_setting.trim() !== "") {
@@ -201,7 +501,8 @@ async function init() {
     });
   }
 
-  renderUI();
+    renderUI();
+  loadPublicNovelTipReviews();
 }
 
 function renderUI() {
@@ -252,6 +553,314 @@ function renderEpisode(index) {
   document.getElementById("prevBtn").disabled = (index === 0);
   document.getElementById("nextBtn").disabled = (index === flatEpisodes.length - 1);
   window.scrollTo(0, 0);
+}
+
+async function loadPublicNovelTipReviews() {
+  const listArea = document.getElementById("publicReviewList");
+
+  if (!listArea || !novelId) return;
+
+  listArea.innerHTML = `<p style="font-size:12px; color:#999;">レビューを読み込み中...</p>`;
+
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    const { data: reviews, error: reviewError } = await supabaseClient
+      .from("novel_tip_reviews")
+      .select("id, review_text, amount_np, author_receive_np, created_at")
+      .eq("novel_id", novelId);
+
+    if (reviewError) throw reviewError;
+
+    if (!reviews || reviews.length === 0) {
+      listArea.innerHTML = `
+        <p style="font-size:12px; color:#999; line-height:1.6;">
+          まだ投げ銭レビューはありません。
+        </p>
+      `;
+      return;
+    }
+
+    const reviewIds = reviews.map(r => r.id);
+
+    const { data: reactions, error: reactionError } = await supabaseClient
+      .from("novel_tip_review_reactions")
+      .select("review_id, reaction_type")
+      .in("review_id", reviewIds);
+
+    if (reactionError) {
+      console.error("公開レビュー評価取得失敗:", reactionError);
+    }
+
+    let myReactionByReviewId = {};
+
+    if (user) {
+      const { data: myReactions, error: myReactionError } = await supabaseClient
+        .from("novel_tip_review_reactions")
+        .select("review_id, reaction_type")
+        .eq("user_id", user.id)
+        .in("review_id", reviewIds);
+
+      if (myReactionError) {
+        console.error("自分のレビュー評価取得失敗:", myReactionError);
+      } else {
+        (myReactions || []).forEach(row => {
+          myReactionByReviewId[row.review_id] = row.reaction_type;
+        });
+      }
+    }
+
+    const reactionCountsByReviewId = {};
+
+    (reactions || []).forEach(row => {
+      if (!reactionCountsByReviewId[row.review_id]) {
+        reactionCountsByReviewId[row.review_id] = {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        };
+      }
+
+      if (row.reaction_type === "heart") {
+        reactionCountsByReviewId[row.review_id].heart += 1;
+      } else if (row.reaction_type === "thinking") {
+        reactionCountsByReviewId[row.review_id].thinking += 1;
+      } else if (row.reaction_type === "shocked") {
+        reactionCountsByReviewId[row.review_id].shocked += 1;
+      }
+
+      reactionCountsByReviewId[row.review_id].total += 1;
+    });
+
+    const sortedReviews = reviews
+      .map(review => ({
+        ...review,
+        reactions: reactionCountsByReviewId[review.id] || {
+          heart: 0,
+          thinking: 0,
+          shocked: 0,
+          total: 0
+        },
+        myReaction: myReactionByReviewId[review.id] || null
+      }))
+      .sort((a, b) => {
+        if (b.reactions.total !== a.reactions.total) {
+          return b.reactions.total - a.reactions.total;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+    listArea.innerHTML = sortedReviews.map(review => {
+      const dateText = review.created_at
+        ? new Date(review.created_at).toLocaleDateString("ja-JP")
+        : "";
+
+      return `
+        <div class="public-review-item">
+          <div class="public-review-meta">
+            ${dateText} / 投げ銭 ${review.amount_np}NP
+          </div>
+
+          <div class="public-review-text">
+            ${escapeHtml(review.review_text || "")}
+          </div>
+
+          <div class="public-review-reactions">
+            <button
+              class="reaction-btn ${review.myReaction === 'heart' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'heart')"
+            >
+              ❤️ ${review.reactions.heart}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'thinking' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'thinking')"
+            >
+              🤔 ${review.reactions.thinking}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'shocked' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'shocked')"
+            >
+              😨 ${review.reactions.shocked}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("公開レビュー読み込みエラー:", err);
+    listArea.innerHTML = `
+      <p style="font-size:12px; color:#d32f2f; line-height:1.6;">
+        レビューの読み込みに失敗しました。
+      </p>
+    `;
+  }
+}
+
+async function setNovelTipReviewReaction(reviewId, reactionType) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("スタンプ評価にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  if (!["heart", "thinking", "shocked"].includes(reactionType)) {
+    alert("不正なスタンプです。");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from("novel_tip_review_reactions")
+      .upsert(
+        {
+          review_id: reviewId,
+          user_id: user.id,
+          reaction_type: reactionType,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: "review_id,user_id"
+        }
+      );
+
+    if (error) throw error;
+
+    await loadPublicNovelTipReviews();
+
+  } catch (err) {
+    console.error("レビュー評価エラー:", err);
+    alert("スタンプ評価に失敗しました。時間をおいて再度お試しください。");
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function submitNovelTipReview() {
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("投げ銭レビューにはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const amountInput = document.getElementById("tipAmountInput");
+  const reviewInput = document.getElementById("tipReviewText");
+  const submitBtn = document.getElementById("tipSubmitBtn");
+
+  const amountNp = Math.floor(Number(amountInput?.value || 0));
+  const reviewText = (reviewInput?.value || "").trim();
+
+  if (!amountNp || amountNp < 10) {
+    alert("投げ銭は10NP以上で入力してください。");
+    return;
+  }
+
+  if (reviewText.length < 10 || reviewText.length > 200) {
+    alert("レビューは10文字以上200文字以内で入力してください。");
+    return;
+  }
+
+  const ok = confirm(
+    amountNp + "NPでこの作品を応援し、レビューを送信します。\n\n" +
+    "無料配布NPは投げ銭には利用できません。\n" +
+    "投げ銭レビューは、この作品につき1回だけ送信できます。\n\n" +
+    "送信しますか？"
+  );
+
+  if (!ok) return;
+
+  const originalText = submitBtn ? submitBtn.innerText : "";
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "送信中...";
+  }
+
+  try {
+    const { data, error } = await supabaseClient.rpc("create_novel_tip_review", {
+      p_novel_id: novelId,
+      p_amount_np: amountNp,
+      p_review_text: reviewText
+    });
+
+    if (error) {
+      console.error("投げ銭レビューRPCエラー:", error);
+
+      const msg = error.message || "";
+
+      if (msg.includes("INSUFFICIENT_PAID_NP")) {
+        alert("有償NP残高が不足しています。無料配布NPは投げ銭には利用できません。");
+        return;
+      }
+
+      if (msg.includes("ALREADY_TIPPED")) {
+        alert("この作品にはすでに投げ銭レビュー済みです。");
+        return;
+      }
+
+      if (msg.includes("SELF_TIP_NOT_ALLOWED")) {
+        alert("自分の作品には投げ銭できません。");
+        return;
+      }
+
+      if (msg.includes("MIN_TIP_AMOUNT")) {
+        alert("投げ銭は10NP以上です。");
+        return;
+      }
+
+      if (msg.includes("INVALID_REVIEW_LENGTH")) {
+        alert("レビューは10文字以上200文字以内で入力してください。");
+        return;
+      }
+
+      alert("投げ銭レビューの送信に失敗しました。時間をおいて再度お試しください。");
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    alert(
+      "投げ銭レビューを送信しました。\n\n" +
+      "作者受取: " + (result?.author_receive_np ?? amountNp - 1) + "NP"
+    );
+
+    if (amountInput) amountInput.disabled = true;
+    if (reviewInput) reviewInput.disabled = true;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = "レビュー送信済み";
+    }
+
+  } catch (err) {
+    console.error("投げ銭レビュー送信エラー:", err);
+    alert("投げ銭レビュー送信中にエラーが発生しました。");
+  } finally {
+    if (submitBtn && !submitBtn.disabled) {
+      submitBtn.innerText = originalText || "10NPでレビューを送る";
+    }
+  }
 }
 
 async function pushLike() {
