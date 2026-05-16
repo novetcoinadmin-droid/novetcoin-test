@@ -374,6 +374,53 @@ let estimateResult = null;
 let dynamicWalletAccount = null;
 let hasActiveWithdrawRequest = false;
 let activeWithdrawRequest = null;
+let withdrawPenaltyStatus = null;
+
+function hasActivePenaltyForWithdraw() {
+  return !!withdrawPenaltyStatus?.has_active_penalty;
+}
+
+async function refreshWithdrawPenaltyStatus() {
+  try {
+    const { data, error } = await window.supabaseClient.rpc("get_my_active_penalty_case");
+
+    if (error) {
+      console.warn("ペナルティ状態取得エラー:", error);
+      return null;
+    }
+
+    withdrawPenaltyStatus = data || null;
+    return withdrawPenaltyStatus;
+  } catch (err) {
+    console.warn("ペナルティ状態確認に失敗:", err);
+    return null;
+  }
+}
+
+function renderWithdrawPenaltyBlocked() {
+  setWithdrawFormDisabled(true);
+  clearEstimateView();
+
+  const remainingNvt = Number(withdrawPenaltyStatus?.remaining_nvt_debt || 0);
+  const remainingNp = Number(withdrawPenaltyStatus?.remaining_np_debt || 0);
+
+  warningArea.innerHTML = `
+    <div class="error-box">
+      アカウント制限中のため、出金申請は現在利用できません。<br>
+      返還または停止期間の終了後に再開できます。<br><br>
+      残り返還額：${remainingNvt.toLocaleString("ja-JP")} NVT / ${remainingNp.toLocaleString("ja-JP")} NP<br><br>
+      <button
+        type="button"
+        onclick="location.href='penalty.html'"
+        style="padding:10px 14px; border:none; border-radius:8px; background:#6a0dad; color:white; font-weight:bold; cursor:pointer;"
+      >
+        返還・制限内容を確認する
+      </button>
+    </div>
+  `;
+
+  setMessage("アカウント制限中のため、出金申請は保留されています。", "error");
+}
 
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
@@ -537,8 +584,16 @@ async function initPage() {
 
   currentUser = user;
 
-  await loadProfile();
+    await loadProfile();
   await loadSettings();
+
+  await refreshWithdrawPenaltyStatus();
+
+  if (hasActivePenaltyForWithdraw()) {
+    renderWithdrawPenaltyBlocked();
+    bindEvents();
+    return;
+  }
 
   const hasActive = await checkActiveWithdrawRequest();
 
@@ -735,12 +790,14 @@ function updateSubmitState() {
 }
 
 async function createWithdrawRequest() {
-  setMessage("");
+  await refreshWithdrawPenaltyStatus();
 
-  if (!estimateResult) {
-    setMessage("先に手数料計算を行ってください。", "error");
+  if (hasActivePenaltyForWithdraw()) {
+    renderWithdrawPenaltyBlocked();
     return;
   }
+
+  setMessage("");
 
   if (estimateResult.fee_block_reason) {
     setMessage("現在の条件では出金申請できません。", "error");
