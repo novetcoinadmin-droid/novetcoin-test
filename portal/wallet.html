@@ -274,6 +274,191 @@ const RATE = 150;
 const NVT_TO_NP_DISPLAY_FEE_NP = 4;
 
 let pendingNpPurchaseQuote = null;
+let walletPenaltyStatus = null;
+let walletPenaltyObserver = null;
+let walletPenaltyClickGuardInstalled = false;
+
+function walletHasActivePenalty() {
+  return !!walletPenaltyStatus?.has_active_penalty;
+}
+
+function ensureWalletPenaltyNotice() {
+  let box = document.getElementById("walletPenaltyNotice");
+
+  if (box) return box;
+
+  const addressBox = document.getElementById("walletAddressBox");
+
+  box = document.createElement("div");
+  box.id = "walletPenaltyNotice";
+  box.style.display = "none";
+  box.style.marginTop = "14px";
+  box.style.padding = "14px";
+  box.style.border = "1px solid #f5c2c7";
+  box.style.background = "#fff5f5";
+  box.style.borderRadius = "10px";
+  box.style.color = "#842029";
+  box.style.fontSize = "13px";
+  box.style.lineHeight = "1.7";
+
+  if (addressBox && addressBox.parentNode) {
+    addressBox.parentNode.insertBefore(box, addressBox.nextSibling);
+  }
+
+  return box;
+}
+
+function renderWalletPenaltyNotice() {
+  const box = ensureWalletPenaltyNotice();
+
+  if (!walletHasActivePenalty()) {
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+
+  const remainingNvt = Number(walletPenaltyStatus.remaining_nvt_debt || 0);
+  const remainingNp = Number(walletPenaltyStatus.remaining_np_debt || 0);
+
+  box.style.display = "block";
+  box.innerHTML = `
+    <strong>アカウント制限中です。</strong><br>
+    制限中は、出金・NVTでNPを買う・報酬受け取りを利用できません。<br>
+    残り返還額：${remainingNvt.toLocaleString("ja-JP")} NVT / ${remainingNp.toLocaleString("ja-JP")} NP
+    <div style="margin-top:10px;">
+      <button
+        type="button"
+        onclick="location.href='penalty.html'"
+        style="padding:9px 12px; border:none; border-radius:8px; background:#6a0dad; color:white; font-weight:bold; cursor:pointer;"
+      >
+        返還・制限内容を確認する
+      </button>
+    </div>
+  `;
+}
+
+function markPenaltyLockedElement(el, label) {
+  if (!el) return;
+
+  el.dataset.penaltyLocked = "true";
+  el.dataset.penaltyLabel = label || "この操作";
+
+  if ("disabled" in el) {
+    el.disabled = true;
+  }
+
+  el.style.opacity = "0.55";
+  el.style.cursor = "not-allowed";
+}
+
+function applyWalletPenaltyLocks() {
+  if (!walletHasActivePenalty()) return;
+
+  renderWalletPenaltyNotice();
+
+  markPenaltyLockedElement(
+    document.getElementById("claimTextRewardBtn"),
+    "投稿報酬の受け取り"
+  );
+
+  markPenaltyLockedElement(
+    document.getElementById("convertBtn"),
+    "NVTでNPを買う"
+  );
+
+  markPenaltyLockedElement(
+    document.getElementById("confirmNpPurchaseBtn"),
+    "NVTでNPを買う"
+  );
+
+  const convertInput = document.getElementById("convertInput");
+  if (convertInput) {
+    convertInput.disabled = true;
+    convertInput.placeholder = "アカウント制限中は利用できません";
+  }
+
+  const withdrawLink = document.querySelector('.web3-section a[href="withdraw.html"]');
+  if (withdrawLink) {
+    markPenaltyLockedElement(withdrawLink, "出金申請");
+    const withdrawButton = withdrawLink.querySelector("button");
+    markPenaltyLockedElement(withdrawButton, "出金申請");
+    if (withdrawButton) {
+      withdrawButton.innerText = "アカウント制限中は出金できません";
+    }
+  }
+
+  const pendingWithdrawButtons = document.querySelectorAll(
+    "#pendingWithdrawList button"
+  );
+
+  pendingWithdrawButtons.forEach((btn) => {
+    markPenaltyLockedElement(btn, "出金の完了");
+    btn.innerText = "アカウント制限中は出金保留";
+  });
+}
+
+function installWalletPenaltyClickGuard() {
+  if (walletPenaltyClickGuardInstalled) return;
+  walletPenaltyClickGuardInstalled = true;
+
+  document.addEventListener("click", (event) => {
+    if (!walletHasActivePenalty()) return;
+
+    const locked = event.target?.closest?.('[data-penalty-locked="true"]');
+
+    if (!locked) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const label = locked.dataset.penaltyLabel || "この操作";
+
+    alert(
+      "アカウント制限中のため、" + label + "は利用できません。\n\n" +
+      "返還または停止期間の終了後に再開できます。"
+    );
+  }, true);
+}
+
+function installWalletPenaltyObserver() {
+  if (walletPenaltyObserver) return;
+
+  walletPenaltyObserver = new MutationObserver(() => {
+    if (walletHasActivePenalty()) {
+      applyWalletPenaltyLocks();
+    }
+  });
+
+  walletPenaltyObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["disabled", "style"]
+  });
+}
+
+async function refreshWalletPenaltyStatus() {
+  try {
+    const { data, error } = await window.supabaseClient.rpc("get_my_active_penalty_case");
+
+    if (error) {
+      console.warn("ペナルティ状態取得エラー:", error);
+      return;
+    }
+
+    walletPenaltyStatus = data || null;
+
+    if (walletHasActivePenalty()) {
+      renderWalletPenaltyNotice();
+      applyWalletPenaltyLocks();
+      installWalletPenaltyClickGuard();
+      installWalletPenaltyObserver();
+    }
+
+  } catch (err) {
+    console.warn("ペナルティ状態確認に失敗:", err);
+  }
+}
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
 const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
 const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
@@ -336,8 +521,10 @@ async function initWallet() {
 
   currentUser = user;
 
-  document.getElementById("walletUserId").innerText =
-    `ID: ${user.id.substring(0, 8)}...`;
+await refreshWalletPenaltyStatus();
+
+document.getElementById("walletUserId").innerText =
+  `ID: ${user.id.substring(0, 8)}...`;
 
   await fetchBalances();
   await fetchHistory();
