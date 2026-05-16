@@ -2,153 +2,571 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>アカウント凍結解除・報酬返還 | Novet</title>
+  <title>アカウント制限・返還手続き | Novet</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    body { font-family: sans-serif; background: #fdf2f2; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    .penalty-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 480px; text-align: center; border-top: 8px solid #6a0dad; }
-    h1 { color: #6a0dad; font-size: 22px; margin-bottom: 10px; }
-    p { color: #666; font-size: 14px; line-height: 1.6; }
-    .debt-box { background: #f8f0ff; padding: 20px; border-radius: 12px; margin: 25px 0; }
-    .debt-label { font-size: 12px; color: #6a0dad; font-weight: bold; }
-    .debt-amount { font-size: 32px; font-weight: bold; color: #333; margin: 5px 0; }
-    
-    .btn-pay { background: #6a0dad; color: white; border: none; padding: 16px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-bottom: 15px; transition: opacity 0.2s; }
-    .btn-pay:disabled { background: #ccc; cursor: not-allowed; }
-    
-    /* インポート（ガワ）ボタンのスタイル */
-    .btn-import { background: white; color: #666; border: 1px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 13px; }
-    
-    .logout-link { display: block; margin-top: 20px; color: #999; text-decoration: underline; font-size: 12px; cursor: pointer; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: sans-serif;
+      background: #fdf2f2;
+      margin: 0;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .page-wrap {
+      width: min(920px, 94vw);
+      margin: 40px auto;
+    }
+
+    .penalty-card {
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border-top: 8px solid #6a0dad;
+    }
+
+    h1 {
+      color: #6a0dad;
+      font-size: 24px;
+      margin: 0 0 10px;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 24px 0 10px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    p {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .notice {
+      background: #fff8e1;
+      border: 1px solid #ffe0a3;
+      color: #7a4b00;
+      padding: 12px;
+      border-radius: 10px;
+      margin: 16px 0;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .debt-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .debt-box {
+      background: #f8f0ff;
+      padding: 18px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .debt-label {
+      font-size: 12px;
+      color: #6a0dad;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .debt-amount {
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.6;
+    }
+
+    .section {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+
+    .item-list {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      background: white;
+      padding: 10px;
+    }
+
+    .debt-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .debt-item:last-child {
+      border-bottom: none;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px;
+      margin-top: 10px;
+    }
+
+    .btn-primary {
+      background: #6a0dad;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #555;
+      border: 1px solid #ddd;
+    }
+
+    .btn-danger {
+      background: #d32f2f;
+      color: white;
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      color: #888;
+      cursor: not-allowed;
+      border: none;
+    }
+
+    input {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .mono {
+      font-family: monospace;
+      word-break: break-all;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      color: #444;
+    }
+
+    .logout-link {
+      display: block;
+      margin-top: 22px;
+      color: #999;
+      text-decoration: underline;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .loading {
+      text-align: center;
+      color: #777;
+      padding: 30px 0;
+    }
+
+    @media (max-width: 700px) {
+      .debt-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .penalty-card {
+        padding: 22px;
+      }
+    }
   </style>
 </head>
-<body>
 
-<div class="penalty-card">
-  <h1>報酬の返還と制限解除</h1>
-  <p>規約違反判定に伴い、当該作品で得られた報酬の返還が必要です。<br>以下の額を返還することで、アカウントの全機能が再開されます。</p>
-  
-  <div class="debt-box">
-    <div class="debt-label">必要返還額</div>
-    <div class="debt-amount"><span id="displayDebt">0</span> <small style="font-size:14px;">NVT / NP</small></div>
-    <div style="font-size:11px; color:#999; margin-top:5px;">(現在の保有残高: <span id="currentBalance">0</span>)</div>
+<body>
+  <div class="page-wrap">
+    <div class="penalty-card">
+      <h1>アカウント制限・返還手続き</h1>
+
+      <p style="text-align:center;">
+        規約違反判定に伴い、現在このアカウントには一部機能制限が適用されています。
+      </p>
+
+      <div id="contentArea" class="loading">
+        ペナルティ情報を確認しています...
+      </div>
+
+      <span class="logout-link" onclick="forceLogout()">ログアウトしてトップへ戻る</span>
+    </div>
   </div>
 
-  <button id="payBtn" class="btn-pay" onclick="handleReturn()">報酬を返還して再開する</button>
-  
-  <button class="btn-import" onclick="alert('外部ウォレットからのインポート機能は現在準備中です。直接運営へお問い合わせください。')">
-    📥 外部からNVTをインポートする
-  </button>
+  <script src="auth-check.js"></script>
 
-  <span class="logout-link" onclick="forceLogout()">ログアウトしてトップへ戻る</span>
-</div>
+  <script>
+    const supabaseClient = window.supabaseClient;
+    let activePenalty = null;
 
-<script src="auth-check.js"></script>
-<script>
-// --- 1. Supabase設定 ---
-// Supabase設定は auth-check.js で共通読み込み済み
+    const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
 
-let userProfile = null;
-
-// --- 2. 初期化 ---
-async function initPenalty() {
-
-  const { data: profile } = await supabaseClient
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile || !profile.is_frozen) {
-    // 凍結されていなければトップへ
-    window.location.replace("index.html");
-    return;
-  }
-
-  userProfile = profile;
-  const debt = profile.penalty_debt || 0;
-  const balance = (profile.nvt_balance || 0) + (profile.np_balance || 0);
-  const frozenAt = new Date(profile.frozen_at || new Date()); // 凍結開始日を取得
-
-  // 1. 基本データの表示
-  document.getElementById("displayDebt").innerText = debt.toLocaleString();
-  document.getElementById("currentBalance").innerText = balance.toLocaleString();
-
-  const btn = document.getElementById("payBtn");
-
-  // 2. 判定ロジック
-  if (debt > 0 && balance >= debt) {
-    // 【パターンA】返還すべき資産があり、かつ残高が足りている場合
-    btn.disabled = false;
-    btn.innerText = "報酬を返還して再開する";
-  } else {
-    // 【パターンB】資産が0、または残高不足の場合（時間ロック）
-    const waitDays = (profile.violation_count >= 2) ? 14 : 7; // 2回目以降は14日、初回は7日
-    const unlockDate = new Date(frozenAt.getTime() + waitDays * 24 * 60 * 60 * 1000);
-    const now = new Date();
-
-    if (now < unlockDate) {
-      // まだ待機期間中の場合
-      btn.disabled = true;
-      const diff = unlockDate - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      btn.innerText = `再開まであと ${days}日 ${hours}時間`;
-    } else {
-      // 待機期間が終了している場合
-      btn.disabled = false;
-      btn.innerText = "待機期間が終了しました。再開する";
+    function formatNumber(value) {
+      const n = Number(value || 0);
+      if (!Number.isFinite(n)) return "0";
+      return n.toLocaleString();
     }
-  }
-} // ← ここで initPenalty 関数の終わりをしっかり閉じます
 
-// --- 3. 返還処理 ---
-async function handleReturn() {
-  if (!confirm("報酬を返還し、アカウントを再開しますか？")) return;
+    function formatDateTime(value) {
+      if (!value) return "未設定";
+      return new Date(value).toLocaleString("ja-JP");
+    }
 
-  const debt = userProfile.penalty_debt;
-  let newNvt = userProfile.nvt_balance || 0;
-  let newNp = userProfile.np_balance || 0;
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-  // 返還ロジック: まずNVTから引き、足りない分をNPから引く
-  let remainingDebt = debt;
-  if (newNvt >= remainingDebt) {
-    newNvt -= remainingDebt;
-    remainingDebt = 0;
-  } else {
-    remainingDebt -= newNvt;
-    newNvt = 0;
-    newNp -= remainingDebt;
-  }
+    function debtTypeLabel(type) {
+      const map = {
+        text_reward_nvt: "投稿報酬NVT",
+        nnft_sale_nvt: "有償作品販売利益NVT",
+        tip_np: "投げ銭NP",
+        manual_adjustment: "運営調整"
+      };
+      return map[type] || type || "返還対象";
+    }
 
-  try {
-    const { error } = await supabaseClient
-      .from('profiles')
-      .update({
-        nvt_balance: newNvt,
-        np_balance: newNp,
-        is_frozen: false,
-        penalty_debt: 0,
-        violation_count: 0 // 返還をもってカウントをリセット
-      })
-      .eq('id', userProfile.id);
+    async function initPenalty() {
+      const contentArea = document.getElementById("contentArea");
 
-    if (error) throw error;
+      const { data: { user } } = await supabaseClient.auth.getUser();
 
-    alert("返還が完了しました。アカウント制限を解除します。");
-    window.location.replace("../portal/account.html");
-  } catch (err) {
-    console.error(err);
-    alert("処理に失敗しました。");
-  }
-}
+      if (!user) {
+        location.href = "login.html";
+        return;
+      }
 
-async function forceLogout() {
-  await supabaseClient.auth.signOut();
-  window.location.replace("index.html");
-}
+      try {
+        const { data, error } = await supabaseClient.rpc("get_my_active_penalty_case");
 
-initPenalty();
-</script>
+        if (error) throw error;
+
+        activePenalty = data;
+
+        if (!data?.has_active_penalty) {
+          contentArea.innerHTML = `
+            <div class="notice">
+              現在、有効なペナルティはありません。
+            </div>
+            <button class="btn btn-primary" onclick="location.href='account.html'">
+              アカウント管理へ戻る
+            </button>
+          `;
+          return;
+        }
+
+        renderPenalty(data);
+
+      } catch (err) {
+        console.error("ペナルティ情報取得エラー:", err);
+        contentArea.innerHTML = `
+          <div class="notice">
+            ペナルティ情報の取得に失敗しました。時間をおいて再度お試しください。
+          </div>
+          <p class="small">${escapeHtml(err.message || String(err))}</p>
+        `;
+      }
+    }
+
+    function renderPenalty(data) {
+      const contentArea = document.getElementById("contentArea");
+
+      const remainingNvt = Number(data.remaining_nvt_debt || 0);
+      const remainingNp = Number(data.remaining_np_debt || 0);
+      const profile = data.profile || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      const isWaiting = data.penalty_type === "waiting_period";
+      const isRepayment = data.penalty_type === "repayment_required";
+
+      const walletAddress = profile.dynamic_wallet_address || profile.wallet_address || "";
+
+      const itemsHtml = items.length > 0
+        ? items.map(item => `
+            <div class="debt-item">
+              <b>${escapeHtml(debtTypeLabel(item.debt_type))}</b><br>
+              NVT: ${formatNumber(item.amount_nvt)} / NP: ${formatNumber(item.amount_np)}
+              ${item.note ? `<br><span class="small">${escapeHtml(item.note)}</span>` : ""}
+            </div>
+          `).join("")
+        : `<p class="small">返還対象明細はありません。</p>`;
+
+      contentArea.innerHTML = `
+        <div class="notice">
+          アカウント制限中は、出金・NVTでNPを買う・報酬受け取りなど一部機能が利用できません。<br>
+          ただし、残高確認と返還手続きは利用できます。
+        </div>
+
+        <div class="debt-grid">
+          <div class="debt-box">
+            <div class="debt-label">残りNVT返還額</div>
+            <div class="debt-amount">${formatNumber(remainingNvt)} <small>NVT</small></div>
+          </div>
+
+          <div class="debt-box">
+            <div class="debt-label">残りNP返還額</div>
+            <div class="debt-amount">${formatNumber(remainingNp)} <small>NP</small></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>制限内容</h2>
+          <p>
+            種別：${isWaiting ? "7日停止型" : "返還型"}<br>
+            理由：${escapeHtml(data.reason || "規約違反判定に伴う制限")}<br>
+            開始：${formatDateTime(data.frozen_at)}<br>
+            停止終了予定：${formatDateTime(data.penalty_until)}
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>返還対象明細</h2>
+          <div class="item-list">
+            ${itemsHtml}
+          </div>
+        </div>
+
+        ${isWaiting ? renderWaitingSection(data) : ""}
+
+        ${isRepayment ? renderRepaymentSection(data, walletAddress) : ""}
+
+        <button class="btn btn-secondary" onclick="location.href='wallet.html'">
+          ウォレットで残高・アドレスを確認する
+        </button>
+      `;
+
+      updateWaitingButtonState(data);
+    }
+
+    function renderWaitingSection(data) {
+      return `
+        <div class="section">
+          <h2>停止期間による解除</h2>
+          <p class="small">
+            返還対象となる報酬・利益がないため、停止期間終了後にアカウントを再開できます。
+          </p>
+          <button id="resolveWaitingBtn" class="btn btn-primary" onclick="resolveWaitingPenalty()">
+            停止期間を確認しています...
+          </button>
+        </div>
+      `;
+    }
+
+    function updateWaitingButtonState(data) {
+      const btn = document.getElementById("resolveWaitingBtn");
+      if (!btn) return;
+
+      const until = data.penalty_until ? new Date(data.penalty_until) : null;
+      const now = new Date();
+
+      if (!until) {
+        btn.disabled = true;
+        btn.innerText = "停止終了日時が未設定です";
+        return;
+      }
+
+      if (now < until) {
+        const diff = until.getTime() - now.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        btn.disabled = true;
+        btn.innerText = `再開まであと ${days}日 ${hours}時間`;
+        return;
+      }
+
+      btn.disabled = false;
+      btn.innerText = "停止期間が終了しました。再開する";
+    }
+
+    function renderRepaymentSection(data, walletAddress) {
+      const remainingNvt = Number(data.remaining_nvt_debt || 0);
+      const remainingNp = Number(data.remaining_np_debt || 0);
+      const paidNp = Number(data.profile?.paid_np_balance || 0);
+
+      const canRepayNp = remainingNp > 0 && paidNp >= remainingNp;
+
+      return `
+        <div class="section">
+          <h2>NP返還</h2>
+          <p class="small">
+            NP返還は有償NPからのみ行います。無料配布NPは返還原資に使いません。<br>
+            現在の有償NP：${formatNumber(paidNp)} NP
+          </p>
+
+          <button
+            class="btn btn-primary"
+            onclick="repayNpDebt()"
+            ${canRepayNp ? "" : "disabled"}
+          >
+            ${remainingNp > 0
+              ? (canRepayNp ? `${formatNumber(remainingNp)}NPを返還する` : "有償NPが不足しています")
+              : "NP返還はありません"
+            }
+          </button>
+        </div>
+
+        <div class="section">
+          <h2>NVT返還</h2>
+
+          <p class="small">
+            NVT返還は、ユーザーDynamicウォレットからOperation WalletへNVTを送金した後、
+            そのtx_hashを入力して確認します。
+          </p>
+
+          <p class="small">あなたの登録ウォレット：</p>
+          <div class="mono">${escapeHtml(walletAddress || "ウォレット未登録")}</div>
+
+          <p class="small" style="margin-top:10px;">返還先 Operation Wallet：</p>
+          <div class="mono">${OPERATION_WALLET_ADDRESS}</div>
+
+          <input
+            id="nvtRepaymentTxHash"
+            type="text"
+            placeholder="NVT返還tx_hashを入力"
+            ${remainingNvt > 0 ? "" : "disabled"}
+          >
+
+          <button
+            class="btn btn-primary"
+            onclick="confirmNvtRepayment()"
+            ${remainingNvt > 0 ? "" : "disabled"}
+          >
+            ${remainingNvt > 0 ? "NVT返還tx_hashを確認する" : "NVT返還はありません"}
+          </button>
+        </div>
+      `;
+    }
+
+    async function repayNpDebt() {
+      if (!confirm("有償NPを返還します。よろしいですか？")) return;
+
+      try {
+        const { data, error } = await supabaseClient.rpc("repay_my_penalty_np_debt");
+
+        if (error) throw error;
+
+        alert(data?.resolved
+          ? "NP返還が完了し、アカウント制限を解除しました。"
+          : "NP返還が完了しました。"
+        );
+
+        if (data?.resolved) {
+          location.href = "account.html";
+          return;
+        }
+
+        await initPenalty();
+
+      } catch (err) {
+        console.error("NP返還エラー:", err);
+        alert(err.message || "NP返還に失敗しました。");
+      }
+    }
+
+    async function confirmNvtRepayment() {
+      const input = document.getElementById("nvtRepaymentTxHash");
+      const txHash = (input?.value || "").trim();
+
+      if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+        alert("tx_hashの形式が正しくありません。");
+        return;
+      }
+
+      if (!confirm("このtx_hashでNVT返還を確認します。よろしいですか？")) return;
+
+      try {
+        const { data, error } = await supabaseClient.functions.invoke(
+          "confirm-penalty-nvt-repayment",
+          {
+            body: {
+              tx_hash: txHash,
+              penalty_case_id: activePenalty?.case_id
+            }
+          }
+        );
+
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(data?.error || "NVT返還確認に失敗しました。");
+        }
+
+        alert(data.resolved
+          ? "NVT返還が完了し、アカウント制限を解除しました。"
+          : "NVT返還を確認しました。"
+        );
+
+        if (data.resolved) {
+          location.href = "account.html";
+          return;
+        }
+
+        await initPenalty();
+
+      } catch (err) {
+        console.error("NVT返還確認エラー:", err);
+        alert(err.message || "NVT返還確認に失敗しました。");
+      }
+    }
+
+    async function resolveWaitingPenalty() {
+      if (!confirm("停止期間の終了を確認し、アカウントを再開します。よろしいですか？")) return;
+
+      try {
+        const { data, error } = await supabaseClient.rpc("resolve_my_waiting_penalty");
+
+        if (error) throw error;
+
+        alert("アカウント制限を解除しました。");
+        location.href = "account.html";
+
+      } catch (err) {
+        console.error("停止解除エラー:", err);
+        alert(err.message || "停止解除に失敗しました。");
+      }
+    }
+
+    async function forceLogout() {
+      await supabaseClient.auth.signOut();
+      location.href = "../my-site/index.html";
+    }
+
+    initPenalty();
+  </script>
 </body>
 </html>
