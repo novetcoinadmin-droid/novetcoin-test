@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <title>作品一覧 - 本棚</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -10,7 +9,16 @@
     /* スタイル部分は以前のままでOKです（省略） */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
-    .menu { background: #333; height: 50px; display: flex; align-items: center; padding: 0 20px; }
+    .menu {
+  background: #333;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
     .menu a { color: white; margin-right: 20px; text-decoration: none; font-size: 14px; line-height: 50px; }
     .layout { display: flex; max-width: 1200px; margin: 30px auto; gap: 20px; }
     .left { width: 220px; }
@@ -32,7 +40,7 @@
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
   </style>
-</head>
+<style>body { background: #2c2e33 !important; }</style></head>
 <body>
 
   <div class="menu">
@@ -95,7 +103,7 @@ async function fetchNovels() {
     .select('*, authors!inner(author_name, zone)')
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'main');
+    .eq('authors.zone', 'mens');
 
   // detail.html の「作者の作品一覧」から来た場合だけ作者で絞る
   if (filterAuthorId) {

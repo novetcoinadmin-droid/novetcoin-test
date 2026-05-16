@@ -39,11 +39,12 @@ body {
   width: 800px;
   margin: 20px auto 0;
   font-size: 14px;
+  color: #fff; /* ★ 矢印（←）を白にする */
 }
 
 .back-link a {
   text-decoration: none;
-  color: #333;
+  color: #fff; /* ★ リンクの文字を白にする */
 }
 
 /* メイン中央 */
@@ -135,7 +136,7 @@ h1 {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.55);
   z-index: 9999;
   align-items: center;
   justify-content: center;
@@ -145,9 +146,10 @@ h1 {
   width: min(700px, 92vw);
   max-height: 80vh;
   background: #fff;
+  color: #333;
   border-radius: 10px;
   padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
 }
 
 .review-modal-header {
@@ -167,6 +169,7 @@ h1 {
 .review-close-btn {
   border: none;
   background: #eee;
+  color: #333;
   padding: 6px 12px;
   border-radius: 5px;
   cursor: pointer;
@@ -209,8 +212,10 @@ h1 {
 .review-unread {
   border-left: 4px solid #00897b;
 }
-
 </style>
+<style>body { background: #2c2e33 !important; }</style>
+</head>
+
 </head>
 
 <body>
