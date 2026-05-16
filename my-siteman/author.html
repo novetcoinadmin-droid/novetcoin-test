@@ -216,12 +216,13 @@ h1 {
 <style>body { background: #2c2e33 !important; }</style>
 </head>
 
+</head>
+
 <body>
 
 <div class="menu">
   <a href="index.html">トップ</a>
   <a href="works.html">本棚</a>
-  <a href="nft_mint.html">NNFTへ</a>
 </div>
 
 <div class="back-link">
@@ -242,217 +243,355 @@ h1 {
   <div id="workList"></div>
 
 </div> <!-- ★ここで閉じる -->
+<div id="reviewModalOverlay" class="review-modal-overlay">
+  <div class="review-modal">
+    <div class="review-modal-header">
+      <h2 id="reviewModalTitle">投げ銭レビュー</h2>
+      <button class="review-close-btn" onclick="closeReviewModal()">閉じる</button>
+    </div>
 
+    <p style="font-size:12px; color:#777; line-height:1.6; margin-bottom:10px;">
+  作品に届いた投げ銭レビューを確認できます。未読レビューは確認後に既読へ変更できます。
+</p>
+
+    <div id="reviewListArea" class="review-scroll-area">
+      <p style="color:#999; font-size:13px;">レビューを読み込みます。</p>
+    </div>
+  </div>
+</div>
 <script src="../portal/auth-check.js"></script>
 <script>
 // --- 1. 初期設定 ---
-// window.supabaseClient は auth-check.js から引き継ぎ
-const authorId = localStorage.getItem("authorId");
-let novels = [];
-let currentUser = null;
+// Supabase設定は auth-check.js で共通読み込み済み
 
-// --- 2. データの取得 ---
-async function fetchNovels() {
-  const authorId = localStorage.getItem("authorId");
-  
-  // IDがない場合は、不正なリクエストを投げる前にマイページへ戻す
-  if (!authorId || authorId === "null") {
-    console.warn("authorIdが見つかりません。account.htmlに戻ります。");
-    location.href = "../portal/account.html"; 
+const params = new URLSearchParams(location.search);
+const novelId = params.get("id"); 
+
+let currentNovel = null;
+let flatEpisodes = [];
+let currentIndex = 0;
+
+// --- 2. 禁止ワードチェック関数（独立して定義） ---
+async function checkBannedContent(text) {
+  // 今回のテストワード「いまから検証します」を含めています
+  const bannedWords = ["いまから検証します", "不適切ワード1", "不適切ワード2"]; 
+  for (let word of bannedWords) {
+    if (text.includes(word)) return { found: true, word: word };
+  }
+  return { found: false };
+}
+
+async function reportNovel() {
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
     return;
   }
-  
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("通報にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const ok = confirm(
+    "この話をAI通報します。\n\n" +
+    "全年齢向けとして明確に問題のある性的・卑猥表現がある場合、AI判定により作品が停止されることがあります。\n\n" +
+    "通報しますか？"
+  );
+
+  if (!ok) return;
+
+  const reason = prompt(
+    "通報理由を入力してください。\n例：全年齢向けとして不適切な性的表現がある",
+    "全年齢向けとして不適切な表現がある"
+  );
+
+  if (reason === null) return;
+
+  const btn = event?.target;
+  const originalText = btn ? btn.innerText : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "AI判定中...";
+  }
+
   try {
-    // window.supabaseClient を使用
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
-    
-    if (!user) {
-      location.href = "../portal/login.html";
+    const { data, error } = await supabaseClient.functions.invoke(
+      "report-novel-ai-moderation",
+      {
+        body: {
+          novel_id: novelId,
+          episode_index: currentIndex,
+          reason: reason.trim() || "全年齢向けとして不適切な表現がある"
+        }
+      }
+    );
+
+    if (error) {
+      console.error("通報Functionエラー:", error);
+      alert("通報処理に失敗しました。時間をおいて再度お試しください。");
       return;
     }
-    currentUser = user;
 
-    // 作家名取得
-    const { data: author, error: authorError } = await window.supabaseClient
-      .from('authors')
-      .select('*')
-      .eq('id', authorId)
-      .single();
-
-    if (authorError) throw authorError;
-    document.getElementById("displayAuthorName").innerText = author?.author_name || "不明な作家";
-
-    // 作品取得
-    const { data, error: novelError } = await window.supabaseClient
-      .from('novels')
-      .select('*')
-      .eq('author_id', authorId)
-      .order('created_at', { ascending: false });
-
-    if (novelError) throw novelError;
-
-    const novelList = data || [];
-    const novelIds = novelList.map(n => n.id);
-
-    let tipCountsByNovelId = {};
-
-    if (novelIds.length > 0) {
-      const { data: tipRows, error: tipError } = await window.supabaseClient
-        .from('novel_tip_reviews')
-        .select('novel_id, is_read')
-        .eq('author_user_id', user.id)
-        .in('novel_id', novelIds);
-
-      if (tipError) {
-        console.error("投げ銭レビュー件数取得失敗:", tipError);
-      } else {
-        (tipRows || []).forEach(row => {
-          if (!tipCountsByNovelId[row.novel_id]) {
-            tipCountsByNovelId[row.novel_id] = {
-              unread: 0,
-              read: 0
-            };
-          }
-
-          if (row.is_read) {
-            tipCountsByNovelId[row.novel_id].read += 1;
-          } else {
-            tipCountsByNovelId[row.novel_id].unread += 1;
-          }
-        });
-      }
+    if (data?.already_reported) {
+      alert("この作品はすでに通報済みです。");
+      return;
     }
 
-    novels = novelList.map(novel => ({
-      ...novel,
-      tip_counts: tipCountsByNovelId[novel.id] || {
-        unread: 0,
-        read: 0
-      }
-    }));
+    if (data?.decision === "suspended") {
+      alert(
+        "AI判定により、全年齢向けとして不適切な表現が確認されたため、この作品は停止されました。"
+      );
+      location.href = "works.html";
+      return;
+    }
 
-    displayNovels(novels); 
+    if (data?.decision === "reported") {
+      alert(
+        "通報を受け付けました。\nAI判定では自動停止までは行わず、確認対象として記録されました。"
+      );
+      return;
+    }
+
+    alert(
+      "通報を受け付けました。\nAI判定では、現在表示中の話について自動停止対象ではないと判断されました。"
+    );
 
   } catch (err) {
-    console.error("データ取得失敗:", err);
-  }
-}
-
-// --- 3. 作品リストを表示 ---
-function displayNovels(novels) {
-  const area = document.getElementById("workList"); 
-  if (!area) return;
-  area.innerHTML = "";
-
-  if (!novels || novels.length === 0) {
-    area.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>作品がありません</p>";
-    return;
-  }
-
-  novels.forEach((w) => {
-    const isPublished = w.published === true;
-    let statusNotice = "";
-    let statusText = isPublished ? "【投稿済み】" : "【未投稿】";
-    let rowStyle = "display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee;";
-
-    if (w.review_status === 'suspended') {
-      statusText = "<span style='color:#d32f2f;'>【🚫規約違反による停止】</span>";
-      rowStyle += "background: #fff0f0;";
-      statusNotice = `<div style="font-size: 11px; color: #d32f2f; margin-bottom: 5px; font-weight: bold;">※この作品は規約違反のため運営により公開停止されています。</div>`;
-    } else if (w.review_status === 'reported') {
-      statusText = "<span style='color:#f57f17;'>【⚠️内容精査中】</span>";
+    console.error("通報処理エラー:", err);
+    alert("通報処理中にエラーが発生しました。");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText || "🚩 この作品を通報する";
     }
-
-    const tipUnread = w.tip_counts?.unread || 0;
-    const tipRead = w.tip_counts?.read || 0;
-    const hasTipReviews = (tipUnread + tipRead) > 0;
-
-    const div = document.createElement("div");
-    div.className = "work-item";
-    div.style = rowStyle;
-    
-    div.innerHTML = `
-      <div style="flex: 1;">
-        ${statusNotice}
-        <span>${statusText} <strong>${w.title}</strong></span>
-      </div>
-      <div class="actions">
-        <button onclick="editWork('${w.id}')" style="margin-right:5px;">編集</button>
-
-        <button onclick="togglePublish('${w.id}', ${isPublished})" 
-                ${w.review_status === 'suspended' ? 'disabled' : ''}
-                style="margin-right:5px; background: ${isPublished ? '#666' : '#6a0dad'}; color:white; border:none; padding:5px 10px; border-radius:3px; cursor: ${w.review_status === 'suspended' ? 'not-allowed' : 'pointer'}; opacity: ${w.review_status === 'suspended' ? '0.5' : '1'};">
-          ${isPublished ? '投稿停止' : '投稿'}
-        </button>
-
-        <button
-          onclick="openNovelTipReviews('${w.id}')"
-          ${hasTipReviews ? '' : 'disabled'}
-          style="margin-right:5px; background:${hasTipReviews ? '#00897b' : '#ddd'}; color:${hasTipReviews ? 'white' : '#888'}; border:none; padding:5px 10px; border-radius:3px; cursor:${hasTipReviews ? 'pointer' : 'not-allowed'};"
-        >
-          レビュー 未読${tipUnread} / 既読${tipRead}
-        </button>
-
-        ${!isPublished ? `<button onclick="deleteWork('${w.id}')" style="background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">削除</button>` : ''}
-      </div>
-    `;
-    area.appendChild(div);
-  });
-}
-
-function closeReviewModal() {
-  const overlay = document.getElementById("reviewModalOverlay");
-  if (overlay) {
-    overlay.style.display = "none";
   }
 }
 
-async function openNovelTipReviews(novelId) {
-  const overlay = document.getElementById("reviewModalOverlay");
-  const titleEl = document.getElementById("reviewModalTitle");
-  const listArea = document.getElementById("reviewListArea");
-
-  if (!overlay || !titleEl || !listArea) {
-    alert("レビュー表示エリアが見つかりません。");
+// --- 4. 初期化処理 ---
+async function init() {
+  if (!novelId) {
+    document.getElementById("displayEpiTitle").innerText = "エラー：URLから作品IDが消失しています";
+    document.getElementById("displayBody").innerText = "現在のURL: " + location.href + "\n\n※プログラムではなく、ブラウザやローカルサーバーが勝手にURLを書き換えています。";
     return;
   }
 
-  const novel = novels.find(n => n.id === novelId);
-  const novelTitle = novel?.title || "作品";
-
-  titleEl.innerText = `投げ銭レビュー：${novelTitle}`;
-  listArea.innerHTML = `<p style="color:#999; font-size:13px;">レビューを読み込み中...</p>`;
-  overlay.style.display = "flex";
-
-  try {
-    const { data: { user } } = await window.supabaseClient.auth.getUser();
-
-    if (!user) {
-      listArea.innerHTML = `<p style="color:#999; font-size:13px;">ログイン情報を確認できませんでした。</p>`;
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabaseClient.from('profiles').select('is_frozen').eq('id', user.id).single();
+    if (profile && profile.is_frozen) {
+      location.href = 'penalty.html';
       return;
     }
+  }
 
-    const { data: reviews, error: reviewError } = await window.supabaseClient
+  const { data: novel, error } = await supabaseClient.from('novels').select('*, authors(author_name)').eq('id', novelId).maybeSingle();
+  if (error || !novel) {
+    console.error("🚨 取得エラーの正体:", error);
+    console.log("取得できたデータ:", novel);
+    alert("エラーが発生しました。F12を押してコンソールを見てください。");
+    return;
+  }
+
+  currentNovel = novel;
+
+  // --- ★ここからキャラクター設定の表示判定を追加 ---
+  const charSection = document.getElementById("charSection");
+  const charContent = document.getElementById("charContent");
+  // --- 投稿停止中の作品はURL直アクセスでも本文を表示しない ---
+if (novel.review_status === "suspended") {
+  const penName = novel.authors ? novel.authors.author_name : "不明な作家";
+
+  document.getElementById("sidePenName").innerText = penName;
+  document.getElementById("sideViews").innerText = novel.views || 0;
+  document.getElementById("sideLikes").innerText = novel.likes || 0;
+  document.getElementById("sideFavs").innerText = "0";
+
+  document.getElementById("displayChapTitle").innerText = "";
+  document.getElementById("displayEpiTitle").innerText = "この作品は現在、投稿停止中です";
+  document.getElementById("displayBody").innerText =
+    "この作品は通報または審査により、現在閲覧できません。\n作者による修正後、再公開される場合があります。";
+
+  const charSection = document.getElementById("charSection");
+  if (charSection) {
+    charSection.style.display = "none";
+  }
+
+  const tocArea = document.getElementById("tocArea");
+  if (tocArea) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        投稿停止中のため、目次は表示できません。
+      </p>
+    `;
+  }
+
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+
+  const favBtn = document.getElementById("favBtn");
+  const likeBtn = document.getElementById("likeBtn");
+
+  if (favBtn) {
+    favBtn.disabled = true;
+    favBtn.innerText = "投稿停止中";
+    favBtn.style.opacity = "0.5";
+    favBtn.style.cursor = "not-allowed";
+  }
+
+  if (likeBtn) {
+    likeBtn.disabled = true;
+    likeBtn.innerText = "投稿停止中";
+    likeBtn.style.opacity = "0.5";
+    likeBtn.style.cursor = "not-allowed";
+  }
+
+  return;
+}
+
+  // 変数名を data ではなく あなたのコードの novel に合わせています [cite: 65, 66]
+  if (novel.is_char_visible && novel.char_setting && novel.char_setting.trim() !== "") {
+    if (charSection && charContent) {
+      charSection.style.display = "block";
+      charContent.innerText = novel.char_setting;
+    }
+  } else if (charSection) {
+    charSection.style.display = "none";
+  }
+  // --- ★ここまで ---
+
+  // 閲覧数の更新（既存の処理をそのまま下に続けて残します） 
+  supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
+  supabaseClient.from('novels').update({ views: (novel.views || 0) + 1 }).eq('id', novelId).then();
+
+    flatEpisodes = [];
+
+  if (Array.isArray(novel.content)) {
+    novel.content.forEach(chap => {
+      const publicEpisodes = Array.isArray(chap.episodes)
+        ? chap.episodes.filter(epi => epi.is_public === true)
+        : [];
+
+      publicEpisodes.forEach(epi => {
+        flatEpisodes.push({
+          chapTitle: chap.title || "",
+          title: epi.title || "無題",
+          content: epi.content || ""
+        });
+      });
+    });
+  }
+
+    renderUI();
+  loadPublicNovelTipReviews();
+}
+
+function renderUI() {
+  const penName = currentNovel.authors ? currentNovel.authors.author_name : "不明な作家";
+  document.getElementById("sidePenName").innerText = penName;
+  document.getElementById("sideViews").innerText = (currentNovel.views || 0) + 1;
+  document.getElementById("sideLikes").innerText = currentNovel.likes || 0;
+  document.getElementById("authorWorksLink").href = `works.html?filterAuthor=${currentNovel.author_id}`;
+
+  const tocArea = document.getElementById("tocArea");
+
+  // 公開中の話が1つもない場合
+  if (!flatEpisodes || flatEpisodes.length === 0) {
+    tocArea.innerHTML = `
+      <p style="font-size:13px; color:#999; line-height:1.6;">
+        現在公開中の話はありません。
+      </p>
+    `;
+
+    document.getElementById("displayChapTitle").innerText = "";
+    document.getElementById("displayEpiTitle").innerText = "現在公開中の話はありません";
+    document.getElementById("displayBody").innerText =
+      "この作品は投稿済みですが、作者が現在公開している話はありません。";
+
+    document.getElementById("prevBtn").disabled = true;
+    document.getElementById("nextBtn").disabled = true;
+
+    checkLikeStatus();
+    return;
+  }
+
+  // 公開中の話がある場合
+  tocArea.innerHTML = flatEpisodes.map((e, i) => `
+    <div class="toc-item" onclick="renderEpisode(${i})"><span>${e.title}</span></div>
+  `).join("");
+
+  renderEpisode(0);
+  checkLikeStatus();
+}
+
+function renderEpisode(index) {
+  if (index < 0 || index >= flatEpisodes.length) return;
+  currentIndex = index;
+  const epi = flatEpisodes[index];
+  document.getElementById("displayChapTitle").innerText = epi.chapTitle;
+  document.getElementById("displayEpiTitle").innerText = epi.title;
+  document.getElementById("displayBody").innerText = epi.content;
+  document.getElementById("prevBtn").disabled = (index === 0);
+  document.getElementById("nextBtn").disabled = (index === flatEpisodes.length - 1);
+  window.scrollTo(0, 0);
+}
+
+async function loadPublicNovelTipReviews() {
+  const listArea = document.getElementById("publicReviewList");
+
+  if (!listArea || !novelId) return;
+
+  listArea.innerHTML = `<p style="font-size:12px; color:#999;">レビューを読み込み中...</p>`;
+
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    const { data: reviews, error: reviewError } = await supabaseClient
       .from("novel_tip_reviews")
-      .select("id, review_text, amount_np, author_receive_np, is_read, created_at, author_user_id")
+      .select("id, review_text, amount_np, author_receive_np, created_at")
       .eq("novel_id", novelId);
 
     if (reviewError) throw reviewError;
 
     if (!reviews || reviews.length === 0) {
-      listArea.innerHTML = `<p style="color:#999; font-size:13px;">まだ投げ銭レビューはありません。</p>`;
+      listArea.innerHTML = `
+        <p style="font-size:12px; color:#999; line-height:1.6;">
+          まだ投げ銭レビューはありません。
+        </p>
+      `;
       return;
     }
 
     const reviewIds = reviews.map(r => r.id);
 
-    const { data: reactions, error: reactionError } = await window.supabaseClient
+    const { data: reactions, error: reactionError } = await supabaseClient
       .from("novel_tip_review_reactions")
       .select("review_id, reaction_type")
       .in("review_id", reviewIds);
 
     if (reactionError) {
-      console.error("レビュー評価取得失敗:", reactionError);
+      console.error("公開レビュー評価取得失敗:", reactionError);
+    }
+
+    let myReactionByReviewId = {};
+
+    if (user) {
+      const { data: myReactions, error: myReactionError } = await supabaseClient
+        .from("novel_tip_review_reactions")
+        .select("review_id, reaction_type")
+        .eq("user_id", user.id)
+        .in("review_id", reviewIds);
+
+      if (myReactionError) {
+        console.error("自分のレビュー評価取得失敗:", myReactionError);
+      } else {
+        (myReactions || []).forEach(row => {
+          myReactionByReviewId[row.review_id] = row.reaction_type;
+        });
+      }
     }
 
     const reactionCountsByReviewId = {};
@@ -486,7 +625,8 @@ async function openNovelTipReviews(novelId) {
           thinking: 0,
           shocked: 0,
           total: 0
-        }
+        },
+        myReaction: myReactionByReviewId[review.id] || null
       }))
       .sort((a, b) => {
         if (b.reactions.total !== a.reactions.total) {
@@ -497,55 +637,91 @@ async function openNovelTipReviews(novelId) {
 
     listArea.innerHTML = sortedReviews.map(review => {
       const dateText = review.created_at
-        ? new Date(review.created_at).toLocaleString("ja-JP")
+        ? new Date(review.created_at).toLocaleDateString("ja-JP")
         : "";
 
-      const unreadClass = review.is_read ? "" : " review-unread";
-
       return `
-        <div class="review-item${unreadClass}">
-          <div class="review-meta">
-            ${review.is_read ? "既読" : "未読"} / ${dateText} / 投げ銭 ${review.amount_np}NP
+        <div class="public-review-item">
+          <div class="public-review-meta">
+            ${dateText} / 投げ銭 ${review.amount_np}NP
           </div>
-          <div class="review-text">${escapeHtml(review.review_text || "")}</div>
-          <div class="review-reactions">
-            <span>❤️ ${review.reactions.heart}</span>
-            <span>🤔 ${review.reactions.thinking}</span>
-            <span>😨 ${review.reactions.shocked}</span>
+
+          <div class="public-review-text">
+            ${escapeHtml(review.review_text || "")}
+          </div>
+
+          <div class="public-review-reactions">
+            <button
+              class="reaction-btn ${review.myReaction === 'heart' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'heart')"
+            >
+              ❤️ ${review.reactions.heart}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'thinking' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'thinking')"
+            >
+              🤔 ${review.reactions.thinking}
+            </button>
+
+            <button
+              class="reaction-btn ${review.myReaction === 'shocked' ? 'active' : ''}"
+              onclick="setNovelTipReviewReaction('${review.id}', 'shocked')"
+            >
+              😨 ${review.reactions.shocked}
+            </button>
           </div>
         </div>
       `;
     }).join("");
 
-    // 作者本人が開いた場合、未読レビューを既読化する
-    const unreadReviews = sortedReviews.filter(review =>
-      review.author_user_id === user.id && review.is_read === false
-    );
-
-    for (const review of unreadReviews) {
-      const { error: markError } = await window.supabaseClient.rpc(
-        "mark_novel_tip_review_read",
-        {
-          p_review_id: review.id
-        }
-      );
-
-      if (markError) {
-        console.error("レビュー既読化失敗:", markError);
-      }
-    }
-
-    if (unreadReviews.length > 0) {
-      await fetchNovels();
-    }
-
   } catch (err) {
-    console.error("レビュー一覧取得エラー:", err);
+    console.error("公開レビュー読み込みエラー:", err);
     listArea.innerHTML = `
-      <p style="color:#d32f2f; font-size:13px;">
+      <p style="font-size:12px; color:#d32f2f; line-height:1.6;">
         レビューの読み込みに失敗しました。
       </p>
     `;
+  }
+}
+
+async function setNovelTipReviewReaction(reviewId, reactionType) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("スタンプ評価にはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  if (!["heart", "thinking", "shocked"].includes(reactionType)) {
+    alert("不正なスタンプです。");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from("novel_tip_review_reactions")
+      .upsert(
+        {
+          review_id: reviewId,
+          user_id: user.id,
+          reaction_type: reactionType,
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: "review_id,user_id"
+        }
+      );
+
+    if (error) throw error;
+
+    await loadPublicNovelTipReviews();
+
+  } catch (err) {
+    console.error("レビュー評価エラー:", err);
+    alert("スタンプ評価に失敗しました。時間をおいて再度お試しください。");
   }
 }
 
@@ -558,148 +734,141 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-// --- 4. 投稿状態の切り替え（報酬ロジック維持版） ---
-async function togglePublish(id, currentPublishedStatus) {
-  const action = currentPublishedStatus ? "本棚から下げて「下書き」に戻しますか？" : "この作品を「本棚」に公開しますか？";
-  if (!confirm(action)) return;
+async function submitNovelTipReview() {
+  if (!novelId || !currentNovel) {
+    alert("作品情報を確認できませんでした。");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    alert("投げ銭レビューにはログインが必要です。");
+    location.href = "../portal/login.html";
+    return;
+  }
+
+  const amountInput = document.getElementById("tipAmountInput");
+  const reviewInput = document.getElementById("tipReviewText");
+  const submitBtn = document.getElementById("tipSubmitBtn");
+
+  const amountNp = Math.floor(Number(amountInput?.value || 0));
+  const reviewText = (reviewInput?.value || "").trim();
+
+  if (!amountNp || amountNp < 10) {
+    alert("投げ銭は10NP以上で入力してください。");
+    return;
+  }
+
+  if (reviewText.length < 10 || reviewText.length > 200) {
+    alert("レビューは10文字以上200文字以内で入力してください。");
+    return;
+  }
+
+  const ok = confirm(
+    amountNp + "NPでこの作品を応援し、レビューを送信します。\n\n" +
+    "無料配布NPは投げ銭には利用できません。\n" +
+    "投げ銭レビューは、この作品につき1回だけ送信できます。\n\n" +
+    "送信しますか？"
+  );
+
+  if (!ok) return;
+
+  const originalText = submitBtn ? submitBtn.innerText : "";
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "送信中...";
+  }
 
   try {
-    const newStatus = !currentPublishedStatus; 
+    const { data, error } = await supabaseClient.rpc("create_novel_tip_review", {
+      p_novel_id: novelId,
+      p_amount_np: amountNp,
+      p_review_text: reviewText
+    });
 
-    const { error } = await window.supabaseClient
-      .from('novels')
-      .update({ published: newStatus })
-      .eq('id', id);
+    if (error) {
+      console.error("投げ銭レビューRPCエラー:", error);
 
-    if (error) throw error;
+      const msg = error.message || "";
 
-        let publishMessage = currentPublishedStatus
-      ? "下書きに戻しました。"
-      : "本棚に投稿しました！";
-
-    if (newStatus === true) {
-      const { data: rewardData, error: rewardError } = await window.supabaseClient.rpc('check_and_grant_reward', { 
-        target_novel_id: id 
-      });
-
-      if (rewardError) {
-        console.error("報酬チェック失敗:", rewardError.message);
-        publishMessage += "\n\n※報酬判定でエラーが発生しました: " + rewardError.message;
-      } else if (rewardData) {
-        if (rewardData.status === 'success') {
-          publishMessage += `\n\n【投稿報酬候補】\n公開中の本文が条件を満たしたため、${rewardData.new_grants} NVT分の報酬候補を作成しました。\n\n報酬は72時間後に確定します。確定前に対象の話を非公開にすると、候補は取り消されます。`;
-        } else if (rewardData.status === 'cancelled_pending') {
-          publishMessage += `\n\n【投稿報酬】\n公開条件を下回ったため、未確定の報酬候補を取り消しました。`;
-        } else if (rewardData.status === 'no_reward_derivative') {
-          publishMessage += `\n\n【投稿報酬】\n二次創作として登録されているため、NVT報酬の対象外です。`;
-        } else if (rewardData.status === 'no_change') {
-          publishMessage += `\n\n【投稿報酬】\n現在、新しく発生する報酬候補はありません。`;
-        } else if (rewardData.status === 'not_found') {
-          publishMessage += `\n\n【投稿報酬】\n報酬判定対象の作品が見つかりませんでした。`;
-        }
+      if (msg.includes("INSUFFICIENT_PAID_NP")) {
+        alert("有償NP残高が不足しています。無料配布NPは投げ銭には利用できません。");
+        return;
       }
+
+      if (msg.includes("ALREADY_TIPPED")) {
+        alert("この作品にはすでに投げ銭レビュー済みです。");
+        return;
+      }
+
+      if (msg.includes("SELF_TIP_NOT_ALLOWED")) {
+        alert("自分の作品には投げ銭できません。");
+        return;
+      }
+
+      if (msg.includes("MIN_TIP_AMOUNT")) {
+        alert("投げ銭は10NP以上です。");
+        return;
+      }
+
+      if (msg.includes("INVALID_REVIEW_LENGTH")) {
+        alert("レビューは10文字以上200文字以内で入力してください。");
+        return;
+      }
+
+      alert("投げ銭レビューの送信に失敗しました。時間をおいて再度お試しください。");
+      return;
     }
 
-    alert(publishMessage);
-    await fetchNovels(); 
-    if (typeof renderRightPanel === 'function') renderRightPanel();
+    const result = Array.isArray(data) ? data[0] : data;
+
+    alert(
+      "投げ銭レビューを送信しました。\n\n" +
+      "作者受取: " + (result?.author_receive_np ?? amountNp - 1) + "NP"
+    );
+
+    if (amountInput) amountInput.disabled = true;
+    if (reviewInput) reviewInput.disabled = true;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = "レビュー送信済み";
+    }
 
   } catch (err) {
-    console.error("更新エラー:", err);
-    alert("状態の更新に失敗しました: " + err.message);
-  }
-}
-
-// --- 5. 作品の削除 ---
-async function deleteWork(id) {
-  if (!confirm("この作品を完全に削除しますか？\n未確定の報酬データもすべて消去されます。")) return;
-
-  try {
-    // 依存データの掃除も window.supabaseClient を使用
-    await window.supabaseClient.from('rewards_pending').delete().eq('novel_id', id);
-    await window.supabaseClient.from('reports').delete().eq('novel_id', id);
-    await window.supabaseClient.from('messages').delete().eq('novel_id', id);
-
-    const { error: mainError } = await window.supabaseClient
-      .from('novels')
-      .delete()
-      .eq('id', id);
-
-    if (mainError) throw mainError;
-
-    alert("作品を完全に削除しました。");
-    await fetchNovels();
-    if (typeof renderRightPanel === 'function') renderRightPanel();
-
-  } catch (err) {
-    console.error("削除エラー:", err);
-    alert(`削除に失敗しました。\n理由: ${err.message}`);
-  }
-}
-
-// --- 6. 画面遷移と作成 ---
-function editWork(id) {
-  localStorage.setItem("editNovelId", id);
-  location.href = "novel_profile.html";
-}
-
-async function createNewWork() {
-  const authorId = localStorage.getItem("authorId");
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-
-  if (!authorId || !user) {
-    alert("作家情報が不足しています。");
-    return;
-  }
-
-  const { data, error } = await window.supabaseClient
-    .from('novels')
-    .insert([{
-      user_id: user.id,
-      author_id: authorId,
-      title: "無題の作品",
-      content: []
-    }])
-    .select()
-    .single();
-
-  if (error) {
-    alert("作品の作成に失敗しました: " + error.message);
-    return;
-  }
-
-  localStorage.setItem("editNovelId", data.id);
-  location.href = "novel_profile.html";
-}
-
-// --- 7. 初期化処理 ---
-async function checkAccountStatus() {
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
-  if (user) {
-    const { data: profile } = await window.supabaseClient
-      .from('profiles')
-      .select('is_frozen')
-      .eq('id', user.id)
-      .single();
-
-    if (profile && profile.is_frozen) {
-      window.location.replace('penalty.html');
-      return true;
+    console.error("投げ銭レビュー送信エラー:", err);
+    alert("投げ銭レビュー送信中にエラーが発生しました。");
+  } finally {
+    if (submitBtn && !submitBtn.disabled) {
+      submitBtn.innerText = originalText || "10NPでレビューを送る";
     }
   }
-  return false;
 }
 
-async function initPage() {
-  const isFrozen = await checkAccountStatus();
-  if (isFrozen) return;
-
-  await fetchNovels();
-  if (typeof renderRightPanel === 'function') renderRightPanel();
+async function pushLike() {
+  const liked = JSON.parse(localStorage.getItem("liked_novels") || "[]");
+  if (liked.includes(novelId)) return;
+  const newLikes = (currentNovel.likes || 0) + 1;
+  await supabaseClient.from('novels').update({ likes: newLikes }).eq('id', novelId);
+  liked.push(novelId);
+  localStorage.setItem("liked_novels", JSON.stringify(liked));
+  document.getElementById("sideLikes").innerText = newLikes;
+  checkLikeStatus();
 }
 
-initPage();
+function checkLikeStatus() {
+  const liked = JSON.parse(localStorage.getItem("liked_novels") || "[]");
+  if (liked.includes(novelId)) {
+    const btn = document.getElementById("likeBtn");
+    btn.disabled = true;
+    btn.innerText = "❤️ いいね済み";
+  }
+}
+
+function moveEpisode(step) { renderEpisode(currentIndex + step); }
+
+init();
 </script>
-
-</body>
 </html>
