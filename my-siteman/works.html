@@ -9,7 +9,16 @@
     /* スタイル部分は以前のままでOKです（省略） */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
-    .menu { background: #333; height: 50px; display: flex; align-items: center; padding: 0 20px; }
+    .menu {
+  background: #333;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
     .menu a { color: white; margin-right: 20px; text-decoration: none; font-size: 14px; line-height: 50px; }
     .layout { display: flex; max-width: 1200px; margin: 30px auto; gap: 20px; }
     .left { width: 220px; }
@@ -49,9 +58,10 @@
       <div class="side-box">
         <h3>並べ替え</h3>
         <ul class="side-list" id="sortMenu">
-          <li onclick="changeSort('id')" id="sort-id" class="active">新着順</li>
+          <li onclick="changeSort('created_at')" id="sort-created_at" class="active">新着順</li>
           <li onclick="changeSort('views')" id="sort-views">閲覧ランキング</li>
           <li onclick="changeSort('likes')" id="sort-likes">いいねランキング</li>
+          <li onclick="changeSort('tip_total_np')" id="sort-tip_total_np">投げ銭ランキング</li>
           <li onclick="changeSort('char_count')" id="sort-char_count">文字数順</li>
         </ul>
       </div>
@@ -68,28 +78,50 @@
 <script src="../portal/auth-check.js"></script>
 <script>
 
-let currentSort = 'id';
+// 共通auth-check.js側のSupabaseクライアントを使う
+const supabaseClient = window.supabaseClient;
+
+let currentSort = 'created_at';
 
 // --- 2. 作品データ取得 ---
 async function fetchNovels() {
   const list = document.getElementById("worksList");
-  const query = document.getElementById("searchInput").value;
+  const searchInput = document.getElementById("searchInput");
+  const listTitle = document.getElementById("listTitle");
+
+  const query = (searchInput?.value || "").trim();
+  const params = new URLSearchParams(location.search);
+  const filterAuthorId = params.get("filterAuthor");
+
+  if (listTitle) {
+    listTitle.innerText = filterAuthorId ? "作者の作品一覧" : "一般本棚";
+  }
 
   // A. データ取得条件の構築
   let builder = supabaseClient
     .from('novels')
-    .select('*, authors!inner(author_name, zone)') // ★変更
+    .select('*, authors!inner(author_name, zone)')
     .eq('published', true)
     .neq('review_status', 'suspended')
     .eq('authors.zone', 'mens');
+
+  // detail.html の「作者の作品一覧」から来た場合だけ作者で絞る
+  if (filterAuthorId) {
+    builder = builder.eq('author_id', filterAuthorId);
+  }
 
   // 検索クエリがあれば適用
   if (query) {
     builder = builder.ilike('title', `%${query}%`);
   }
 
-  // ソート適用
-  builder = builder.order(currentSort, { ascending: false });
+  // 投げ銭ランキング以外はDB側で並べ替え
+  // tip_total_np は novel_tip_reviews の集計値なので、取得後にJS側で並べ替えます。
+  if (currentSort !== "tip_total_np") {
+    builder = builder.order(currentSort, { ascending: false });
+  } else {
+    builder = builder.order("created_at", { ascending: false });
+  }
 
   const { data: novels, error } = await builder;
 
@@ -100,20 +132,79 @@ async function fetchNovels() {
   }
 
   list.innerHTML = "";
+
   if (!novels || novels.length === 0) {
     list.innerHTML = "<li style='text-align:center; padding:50px; color:#999;'>公開作品が見つかりません</li>";
     return;
   }
 
+  const novelIds = novels.map(n => n.id);
+
+  // 投げ銭レビュー数・投げ銭総額を取得
+  const reviewStatsByNovelId = {};
+
+  if (novelIds.length > 0) {
+    const { data: tipRows, error: tipError } = await supabaseClient
+      .from("novel_tip_reviews")
+      .select("novel_id, amount_np")
+      .in("novel_id", novelIds);
+
+    if (tipError) {
+      console.error("投げ銭レビュー集計取得エラー:", tipError);
+    } else {
+      (tipRows || []).forEach(row => {
+        if (!reviewStatsByNovelId[row.novel_id]) {
+          reviewStatsByNovelId[row.novel_id] = {
+            review_count: 0,
+            tip_total_np: 0
+          };
+        }
+
+        reviewStatsByNovelId[row.novel_id].review_count += 1;
+        reviewStatsByNovelId[row.novel_id].tip_total_np += Number(row.amount_np || 0);
+      });
+    }
+  }
+
+  const displayNovels = novels.map(n => {
+    const stats = reviewStatsByNovelId[n.id] || {
+      review_count: 0,
+      tip_total_np: 0
+    };
+
+    return {
+      ...n,
+      review_count: stats.review_count,
+      tip_total_np: stats.tip_total_np
+    };
+  });
+
+  // 投げ銭ランキングだけJS側で並べ替え
+  if (currentSort === "tip_total_np") {
+    displayNovels.sort((a, b) => {
+      const tipDiff = Number(b.tip_total_np || 0) - Number(a.tip_total_np || 0);
+      if (tipDiff !== 0) return tipDiff;
+
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }
+
   // B. リストの描画
-  novels.forEach(n => {
+  displayNovels.forEach(n => {
     const li = document.createElement("li");
     const penName = n.authors ? n.authors.author_name : "不明な作家";
     
-    // 話数のカウント
-    const epCount = (n.content || []).reduce((acc, chap) => acc + (chap.episodes ? chap.episodes.length : 0), 0);
+    // 公開話数だけカウント
+    const epCount = Array.isArray(n.content)
+      ? n.content.reduce((acc, chap) => {
+          const publicEpisodes = Array.isArray(chap.episodes)
+            ? chap.episodes.filter(epi => epi.is_public === true)
+            : [];
+          return acc + publicEpisodes.length;
+        }, 0)
+      : 0;
 
-    // ★【追加】ステータスに応じたバッジ（マーク）の生成
+    // ステータスに応じたバッジ
     let statusBadge = "";
     if (n.review_status === 'reported') {
       statusBadge = '<span style="background:#ff4d4d; color:white; font-size:10px; padding:2px 6px; border-radius:3px; margin-left:8px; vertical-align:middle;">⚠️ 精査中</span>';
@@ -128,7 +219,12 @@ async function fetchNovels() {
       </div>
       <span class="meta">
         作者：${penName} （全 ${epCount} 話 / ${ (n.char_count || 0).toLocaleString() } 文字）
-        <span style="margin-left:15px; color:#999;">👁 ${n.views || 0}  ❤️ ${n.likes || 0}</span>
+        <span style="margin-left:15px; color:#999;">
+          👁 ${n.views || 0}
+          ❤️ ${n.likes || 0}
+          💬 ${n.review_count || 0}
+          🎁 ${Number(n.tip_total_np || 0).toLocaleString()}NP
+        </span>
       </span>
     `;
     list.appendChild(li);
@@ -204,7 +300,7 @@ async function renderRightPanel() {
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
 
-      <a href="account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
+      <a href="../portal/account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
       <button class="logout-btn" onclick="handleLogout()" style="background:none; border:none; color:#999; text-decoration:underline; font-size:11px; cursor:pointer; width:100%; margin-top:10px;">ログアウト</button>
     `;
   } catch (err) {
@@ -222,11 +318,12 @@ fetchNovels();
 renderRightPanel();
 
 // アカウント状態（凍結）をチェックする共通関数
+// アカウント状態（凍結）をチェックする共通関数
 async function checkAccountStatus() {
-  const { data: { user } } = await window.supabaseClient.auth.getUser();
+  const { data: { user } } = await supabaseClient.auth.getUser();
   
   if (user) {
-    const { data: profile } = await window.supabaseClient
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('is_frozen')
       .eq('id', user.id)
