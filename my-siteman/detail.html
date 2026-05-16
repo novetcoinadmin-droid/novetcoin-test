@@ -10,16 +10,16 @@
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
     
     /* メニュー */
-    .menu {
-  background: #333;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
+        .menu {
+      background: #333;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
     .menu a { color: white; margin-right: 20px; text-decoration: none; font-size: 14px; }
     
     .layout { display: flex; max-width: 1200px; margin: 30px auto; gap: 20px; align-items: flex-start; }
@@ -56,124 +56,121 @@
     .btn-unfav { background: #eee; color: #888; font-size: 12px; }
     .btn-like { background: #ff4d4d; color: white; }
     .btn-like:disabled { background: #ccc; }
-    /* 投げ銭レビュー投稿欄 */
-.tip-box {
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px solid #eee;
-}
+        .tip-box {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
 
-.tip-box h4 {
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: #6a0dad;
-}
+    .tip-box h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #6a0dad;
+    }
 
-.tip-note {
-  font-size: 12px;
-  color: #777;
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
+    .tip-note {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
 
-.tip-box input,
-.tip-box textarea {
-  width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 8px;
-  font-size: 13px;
-  margin-top: 6px;
-  margin-bottom: 8px;
-  font-family: sans-serif;
-}
+    .tip-box input,
+    .tip-box textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 8px;
+      font-size: 13px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+      font-family: sans-serif;
+    }
 
-.tip-box textarea {
-  min-height: 80px;
-  resize: vertical;
-}
+    .tip-box textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
 
-.btn-tip {
-  background: #6a0dad;
-  color: white;
-}
+    .btn-tip {
+      background: #6a0dad;
+      color: white;
+    }
+        .public-review-box {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
 
-/* 公開レビュー欄 */
-.public-review-box {
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px solid #eee;
-}
+    .public-review-box h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #6a0dad;
+    }
 
-.public-review-box h4 {
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: #6a0dad;
-}
+    .public-review-note {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
 
-.public-review-note {
-  font-size: 12px;
-  color: #777;
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
+    .public-review-scroll {
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
 
-.public-review-scroll {
-  max-height: 260px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
+    .public-review-item {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fafafa;
+    }
 
-.public-review-item {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 8px;
-  background: #fafafa;
-}
+    .public-review-meta {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 6px;
+    }
 
-.public-review-meta {
-  font-size: 11px;
-  color: #777;
-  margin-bottom: 6px;
-}
+    .public-review-text {
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      margin-bottom: 8px;
+    }
 
-.public-review-text {
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  margin-bottom: 8px;
-}
+    .public-review-reactions {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+      color: #555;
+    }
 
-.public-review-reactions {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  color: #555;
-}
+        .reaction-btn {
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
 
-/* スタンプボタン */
-.reaction-btn {
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
+    .reaction-btn:hover {
+      background: #f3e8ff;
+    }
 
-.reaction-btn:hover {
-  background: #f3e8ff;
-}
+    .reaction-btn.active {
+      border-color: #6a0dad;
+      background: #f3e8ff;
+      color: #6a0dad;
+      font-weight: bold;
+    }
 
-.reaction-btn.active {
-  border-color: #6a0dad;
-  background: #f3e8ff;
-  color: #6a0dad;
-  font-weight: bold;
-}
   </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+</head>
 <body>
 
 <div class="menu">
@@ -275,7 +272,7 @@
   </div>
 </div>
 
-<script src="../portal/auth-check.js"></script>
+<script src="auth-check.js"></script>
 <script>
 // --- 1. 初期設定 ---
 // Supabase設定は auth-check.js で共通読み込み済み
@@ -399,7 +396,7 @@ async function init() {
   if (user) {
     const { data: profile } = await supabaseClient.from('profiles').select('is_frozen').eq('id', user.id).single();
     if (profile && profile.is_frozen) {
-      location.href = 'penalty.html';
+      location.href = '../portal/penalty.html';
       return;
     }
   }
