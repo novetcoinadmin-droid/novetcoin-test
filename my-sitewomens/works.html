@@ -40,7 +40,7 @@
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
   </style>
-<style>body { background: #2c2e33 !important; }</style></head>
+<style>body { background: #fdeff2 !important; }</style></head>
 <body>
 
   <div class="menu">
@@ -103,7 +103,7 @@ async function fetchNovels() {
     .select('*, authors!inner(author_name, zone)')
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'mens');
+    .eq('authors.zone', 'womens');
 
   // detail.html の「作者の作品一覧」から来た場合だけ作者で絞る
   if (filterAuthorId) {
@@ -330,7 +330,7 @@ async function checkAccountStatus() {
       .single();
 
     if (profile && profile.is_frozen) {
-      window.location.replace('../portal/penalty.html');
+      window.location.replace('../portal/../portal/penalty.html');
       return true;
     }
   }

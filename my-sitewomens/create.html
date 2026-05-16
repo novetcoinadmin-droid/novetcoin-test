@@ -79,7 +79,7 @@ async function checkAccountStatus(user) {
     .single();
 
   if (profile && profile.is_frozen) {
-    window.location.replace('penalty.html');
+    window.location.replace('../portal/penalty.html');
     return true;
   }
   return false;
@@ -171,7 +171,7 @@ async function handleViolation(reason) {
   // ★ 3. 強制排除ロジック
   if (isFrozen) {
     alert("【凍結】度重なる警告を無視したため、アカウントを凍結しました。");
-    window.location.replace("penalty.html");
+    window.location.replace("../portal/penalty.html");
   } else {
     // 執筆中の内容を消去して追い出す
     document.getElementById("editorText").value = ""; 

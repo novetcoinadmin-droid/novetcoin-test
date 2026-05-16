@@ -39,12 +39,11 @@ body {
   width: 800px;
   margin: 20px auto 0;
   font-size: 14px;
-  color: #fff; /* ★ 矢印（←）を白にする */
 }
 
 .back-link a {
   text-decoration: none;
-  color: #fff; /* ★ リンクの文字を白にする */
+  color: #333;
 }
 
 /* メイン中央 */
@@ -213,10 +212,8 @@ h1 {
   border-left: 4px solid #00897b;
 }
 </style>
-<style>body { background: #2c2e33 !important; }</style>
-</head>
 
-</head>
+<style>body { background: #fdeff2 !important; }</style></head>
 
 <body>
 
@@ -700,7 +697,7 @@ async function checkAccountStatus() {
       .single();
 
     if (profile && profile.is_frozen) {
-      window.location.replace('penalty.html');
+      window.location.replace('../portal/penalty.html');
       return true;
     }
   }
