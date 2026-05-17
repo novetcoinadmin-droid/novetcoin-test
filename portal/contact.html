@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>お問い合わせ | Novet</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      margin: 0;
+      line-height: 1.8;
+    }
+
+    .menu {
+      background: #333;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .menu a {
+      color: white;
+      margin-right: 20px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 32px auto;
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #6a0dad;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 12px;
+      margin-top: 0;
+    }
+
+    h2 {
+      font-size: 17px;
+      color: #4b0082;
+      margin-top: 28px;
+      border-left: 5px solid #6a0dad;
+      padding-left: 10px;
+    }
+
+    p,
+    li {
+      font-size: 14px;
+      color: #555;
+    }
+
+    .notice {
+      margin: 18px 0;
+      padding: 14px;
+      background: #fff8e1;
+      border: 1px solid #ffe0a3;
+      border-radius: 10px;
+      color: #7a4b00;
+      font-size: 13px;
+    }
+
+    .login-box {
+      margin: 18px 0;
+      padding: 14px;
+      background: #f8f5ff;
+      border: 1px solid #e1d4f2;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      color: #444;
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+
+    select,
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 14px;
+      font-family: sans-serif;
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      line-height: 1.7;
+    }
+
+    .help {
+      font-size: 12px;
+      color: #777;
+      margin-top: 6px;
+    }
+
+    .category-note {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #fafafa;
+      border: 1px solid #eee;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #6a0dad;
+      color: white;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 18px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .message.ok {
+      color: #2e7d32;
+    }
+
+    .message.error {
+      color: #d32f2f;
+    }
+
+    .footer-links {
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    .footer-links a {
+      color: #6a0dad;
+      margin-right: 12px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        margin: 16px;
+        padding: 20px;
+      }
+
+      .menu {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="menu">
+    <a href="../my-site/index.html">トップ</a>
+    <a href="../my-site/works.html">本棚</a>
+    <a href="account.html">アカウント管理</a>
+    <a href="about.html">Novetについて</a>
+  </div>
+
+  <div class="container">
+    <h1>お問い合わせ</h1>
+
+    <p>
+      Novetへの要望、不具合報告、返金に関するお問い合わせを受け付けます。
+      個人運営のため、当面はログイン済みユーザーからのお問い合わせのみ対応します。
+    </p>
+
+    <div class="notice">
+      営業、業務提携、広告掲載、外部サービスの売り込み等のお問い合わせは、現在受け付けていません。
+    </div>
+
+    <div id="loginInfo" class="login-box">
+      ログイン状態を確認しています...
+    </div>
+
+    <form id="contactForm" style="display:none;">
+      <label for="category">お問い合わせ種別</label>
+      <select id="category" required>
+        <option value="">選択してください</option>
+        <option value="request">要望</option>
+        <option value="bug">不具合</option>
+        <option value="refund">返金</option>
+      </select>
+
+      <div id="categoryNote" class="category-note">
+        種別を選択すると、受付内容の説明が表示されます。
+      </div>
+
+      <label for="subject">件名</label>
+      <input
+        type="text"
+        id="subject"
+        maxlength="120"
+        placeholder="例：作品閲覧画面の表示について"
+        required
+      >
+      <div class="help">120文字以内で入力してください。</div>
+
+      <label for="body">お問い合わせ内容</label>
+      <textarea
+        id="body"
+        maxlength="4000"
+        placeholder="できるだけ具体的に入力してください。"
+        required
+      ></textarea>
+      <div class="help">4000文字以内で入力してください。不具合の場合は、発生したページ名・操作内容・表示されたエラーなども記載してください。</div>
+
+      <button type="submit" id="submitBtn" class="btn">
+        お問い合わせを送信する
+      </button>
+
+      <div id="message" class="message"></div>
+    </form>
+
+    <div class="footer-links">
+      <a href="terms.html">利用規約</a>
+      <a href="privacy.html">プライバシーポリシー</a>
+      <a href="tokushoho.html">特定商取引法に基づく表記</a>
+    </div>
+  </div>
+
+  <script src="auth-check.js"></script>
+
+  <script>
+    const supabaseClient = window.supabaseClient;
+
+    let currentUser = null;
+    let currentProfile = null;
+
+    const categoryEl = document.getElementById("category");
+    const categoryNoteEl = document.getElementById("categoryNote");
+    const formEl = document.getElementById("contactForm");
+    const loginInfoEl = document.getElementById("loginInfo");
+    const submitBtn = document.getElementById("submitBtn");
+    const messageEl = document.getElementById("message");
+
+    function setMessage(text, type = "") {
+      messageEl.textContent = text || "";
+      messageEl.className = "message" + (type ? " " + type : "");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function updateCategoryNote() {
+      const value = categoryEl.value;
+
+      if (value === "request") {
+        categoryNoteEl.innerHTML = `
+          <strong>要望：</strong><br>
+          Novetの機能改善、追加してほしい機能、使いにくい点などを送信できます。
+          すべてに返信できるとは限りませんが、今後の改善参考として確認します。
+        `;
+        return;
+      }
+
+      if (value === "bug") {
+        categoryNoteEl.innerHTML = `
+          <strong>不具合：</strong><br>
+          表示崩れ、エラー、動作しない機能などを送信できます。
+          仕様かどうかを確認し、仕様ではない可能性があるものを運営確認対象にします。
+        `;
+        return;
+      }
+
+      if (value === "refund") {
+        categoryNoteEl.innerHTML = `
+          <strong>返金：</strong><br>
+          デジタルコンテンツおよびサイト内サービスの性質上、返金は原則としてお受けできません。
+          ただし、購入した作品が後にペナルティ対象となり閲覧できなくなった場合などは、個別確認の対象になる場合があります。
+        `;
+        return;
+      }
+
+      categoryNoteEl.innerHTML = `
+        種別を選択すると、受付内容の説明が表示されます。
+      `;
+    }
+
+    async function initContactPage() {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+
+      if (!user) {
+        loginInfoEl.innerHTML = `
+          このページはログイン済みユーザー専用です。<br>
+          ログイン画面へ移動します。
+        `;
+
+        setTimeout(() => {
+          location.href = "login.html";
+        }, 800);
+
+        return;
+      }
+
+      currentUser = user;
+
+      const { data: profile, error } = await supabaseClient
+        .from("profiles")
+        .select("id, username, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("profile fetch error:", error);
+      }
+
+      currentProfile = profile || null;
+
+      loginInfoEl.innerHTML = `
+        ログイン中：${escapeHtml(currentProfile?.username || user.email || "ユーザー")}<br>
+        送信されたお問い合わせは、アカウント情報と紐づけて保存されます。
+      `;
+
+      formEl.style.display = "block";
+    }
+
+    async function submitContact(event) {
+      event.preventDefault();
+
+      setMessage("");
+
+      const category = categoryEl.value;
+      const subject = document.getElementById("subject").value.trim();
+      const body = document.getElementById("body").value.trim();
+
+      if (!["request", "bug", "refund"].includes(category)) {
+        setMessage("お問い合わせ種別を選択してください。", "error");
+        return;
+      }
+
+      if (!subject || subject.length > 120) {
+        setMessage("件名は1〜120文字で入力してください。", "error");
+        return;
+      }
+
+      if (!body || body.length > 4000) {
+        setMessage("お問い合わせ内容は1〜4000文字で入力してください。", "error");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "送信中...";
+
+      try {
+        const initialStatus =
+          category === "refund"
+            ? "received"
+            : category === "bug"
+              ? "open"
+              : "received";
+
+        const { error } = await supabaseClient
+          .from("support_tickets")
+          .insert({
+            user_id: currentUser.id,
+            category,
+            subject,
+            body,
+            status: initialStatus,
+            user_email: currentProfile?.email || currentUser.email || null,
+            user_name: currentProfile?.username || null
+          });
+
+        if (error) throw error;
+
+        setMessage("お問い合わせを受け付けました。内容を確認します。", "ok");
+
+        formEl.reset();
+        updateCategoryNote();
+
+      } catch (err) {
+        console.error("contact submit error:", err);
+        setMessage("お問い合わせの送信に失敗しました。時間をおいて再度お試しください。", "error");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "お問い合わせを送信する";
+      }
+    }
+
+    categoryEl.addEventListener("change", updateCategoryNote);
+    formEl.addEventListener("submit", submitContact);
+
+    initContactPage();
+  </script>
+</body>
+</html>
