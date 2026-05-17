@@ -366,67 +366,90 @@
     }
 
     async function submitContact(event) {
-      event.preventDefault();
+  event.preventDefault();
 
-      setMessage("");
+  setMessage("");
 
-      const category = categoryEl.value;
-      const subject = document.getElementById("subject").value.trim();
-      const body = document.getElementById("body").value.trim();
+  const category = categoryEl.value;
+  const subject = document.getElementById("subject").value.trim();
+  const body = document.getElementById("body").value.trim();
 
-      if (!["request", "bug", "refund"].includes(category)) {
-        setMessage("お問い合わせ種別を選択してください。", "error");
-        return;
+  if (!["request", "bug", "refund"].includes(category)) {
+    setMessage("お問い合わせ種別を選択してください。", "error");
+    return;
+  }
+
+  if (!subject || subject.length > 120) {
+    setMessage("件名は1〜120文字で入力してください。", "error");
+    return;
+  }
+
+  if (!body || body.length > 4000) {
+    setMessage("お問い合わせ内容は1〜4000文字で入力してください。", "error");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "送信中...";
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      "submit-support-ticket",
+      {
+        body: {
+          category,
+          subject,
+          body
+        }
       }
+    );
 
-      if (!subject || subject.length > 120) {
-        setMessage("件名は1〜120文字で入力してください。", "error");
-        return;
-      }
-
-      if (!body || body.length > 4000) {
-        setMessage("お問い合わせ内容は1〜4000文字で入力してください。", "error");
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = "送信中...";
-
-      try {
-        const initialStatus =
-          category === "refund"
-            ? "received"
-            : category === "bug"
-              ? "open"
-              : "received";
-
-        const { error } = await supabaseClient
-          .from("support_tickets")
-          .insert({
-            user_id: currentUser.id,
-            category,
-            subject,
-            body,
-            status: initialStatus,
-            user_email: currentProfile?.email || currentUser.email || null,
-            user_name: currentProfile?.username || null
-          });
-
-        if (error) throw error;
-
-        setMessage("お問い合わせを受け付けました。内容を確認します。", "ok");
-
-        formEl.reset();
-        updateCategoryNote();
-
-      } catch (err) {
-        console.error("contact submit error:", err);
-        setMessage("お問い合わせの送信に失敗しました。時間をおいて再度お試しください。", "error");
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "お問い合わせを送信する";
-      }
+    if (error) {
+      throw error;
     }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "お問い合わせの送信に失敗しました。");
+    }
+
+    if (category === "request" && data.priority_flag) {
+      setMessage(
+        "ご要望を受け付けました。これまでのご利用状況を踏まえ、運営確認対象として内容を確認します。",
+        "ok"
+      );
+    } else if (category === "request") {
+      setMessage(
+        "ご要望を受け付けました。内容は今後の改善参考として記録されますが、個別返信を保証するものではありません。",
+        "ok"
+      );
+    } else if (category === "bug") {
+      setMessage(
+        "不具合報告を受け付けました。仕様ではない可能性がある内容は運営確認対象になります。",
+        "ok"
+      );
+    } else if (category === "refund") {
+      setMessage(
+        "返金に関するお問い合わせを受け付けました。確認に必要な情報について、登録メール宛に案内を送信します。",
+        "ok"
+      );
+    } else {
+      setMessage("お問い合わせを受け付けました。", "ok");
+    }
+
+    formEl.reset();
+    updateCategoryNote();
+
+  } catch (err) {
+    console.error("contact submit error:", err);
+    setMessage(
+      "お問い合わせの送信に失敗しました。時間をおいて再度お試しください。",
+      "error"
+    );
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "お問い合わせを送信する";
+  }
+}
 
     categoryEl.addEventListener("change", updateCategoryNote);
     formEl.addEventListener("submit", submitContact);
