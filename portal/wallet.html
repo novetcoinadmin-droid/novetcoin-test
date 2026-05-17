@@ -40,6 +40,35 @@
         .history-table th { color: #888; font-weight: normal; }
         .amt-plus { color: #2ecc71; font-weight: bold; }
         .amt-minus { color: #e74c3c; font-weight: bold; }
+        .legal-footer {
+  margin-top: 60px;
+  padding: 24px 16px;
+  background: #2f2f2f;
+  color: #ddd;
+  text-align: center;
+  font-size: 13px;
+}
+
+.legal-footer a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 10px;
+  white-space: nowrap;
+}
+
+.legal-footer a:hover {
+  text-decoration: underline;
+}
+
+.legal-footer .footer-links {
+  margin-bottom: 10px;
+  line-height: 2;
+}
+
+.legal-footer .footer-copy {
+  color: #aaa;
+  font-size: 12px;
+}
     </style>
 </head>
 <body>
@@ -1511,6 +1540,17 @@ document.addEventListener("click", async (e) => {
 
 initWallet();
 </script>
-
+<footer class="legal-footer">
+  <div class="footer-links">
+    <a href="../portal/about.html">Novetについて</a>
+    <a href="../portal/token.html">NVTについて</a>
+    <a href="../portal/terms.html">利用規約</a>
+    <a href="../portal/privacy.html">プライバシーポリシー</a>
+    <a href="../portal/tokushoho.html">特定商取引法に基づく表記</a>
+  </div>
+  <div class="footer-copy">
+    © NovetCoin運営事務局
+  </div>
+</footer>
 </body>
 </html>
