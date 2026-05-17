@@ -39,6 +39,35 @@
     .right p { margin-bottom: 12px; font-size: 14px; }
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
+    .legal-footer {
+  margin-top: 60px;
+  padding: 24px 16px;
+  background: #2f2f2f;
+  color: #ddd;
+  text-align: center;
+  font-size: 13px;
+}
+
+.legal-footer a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 10px;
+  white-space: nowrap;
+}
+
+.legal-footer a:hover {
+  text-decoration: underline;
+}
+
+.legal-footer .footer-links {
+  margin-bottom: 10px;
+  line-height: 2;
+}
+
+.legal-footer .footer-copy {
+  color: #aaa;
+  font-size: 12px;
+}
   </style>
 <style>body { background: #fdeff2 !important; }</style></head>
 <body>
@@ -362,5 +391,17 @@ async function initPage() {
 // 実行
 window.addEventListener("load", initPage);
 </script>
+<footer class="legal-footer">
+  <div class="footer-links">
+    <a href="../portal/about.html">Novetについて</a>
+    <a href="../portal/token.html">NVTについて</a>
+    <a href="../portal/terms.html">利用規約</a>
+    <a href="../portal/privacy.html">プライバシーポリシー</a>
+    <a href="../portal/tokushoho.html">特定商取引法に基づく表記</a>
+  </div>
+  <div class="footer-copy">
+    © NovetCoin運営事務局
+  </div>
+</footer>
 </body>
 </html>
