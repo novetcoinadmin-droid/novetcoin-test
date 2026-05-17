@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>NVT公式トークン情報 | Novet</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      margin: 0;
+      line-height: 1.8;
+    }
+
+    .menu {
+      background: #333;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .menu a {
+      color: white;
+      margin-right: 20px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 32px auto;
+      background: white;
+      padding: 34px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 26px;
+      color: #6a0dad;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 12px;
+      margin-top: 0;
+    }
+
+    h2 {
+      font-size: 19px;
+      color: #4b0082;
+      margin-top: 34px;
+      border-left: 5px solid #6a0dad;
+      padding-left: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      color: #333;
+      margin-top: 22px;
+    }
+
+    p,
+    li {
+      font-size: 14px;
+      color: #555;
+    }
+
+    ul,
+    ol {
+      padding-left: 22px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #f8f5ff, #fff);
+      border: 1px solid #e1d4f2;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #6a0dad;
+      margin-bottom: 8px;
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      color: #555;
+    }
+
+    .token-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .token-card {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 16px;
+      background: #fafafa;
+    }
+
+    .token-label {
+      font-size: 12px;
+      color: #6a0dad;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .token-value {
+      font-size: 15px;
+      color: #333;
+      font-weight: bold;
+      word-break: break-all;
+    }
+
+    .copy-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      margin-top: 10px;
+    }
+
+    .copy-value {
+      flex: 1;
+      padding: 10px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      border: none;
+      background: #6a0dad;
+      color: white;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .warning {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff8e1;
+      border: 1px solid #ffe0a3;
+      border-radius: 10px;
+      color: #7a4b00;
+      font-size: 13px;
+    }
+
+    .danger {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff5f5;
+      border: 1px solid #f5c2c7;
+      border-radius: 10px;
+      color: #842029;
+      font-size: 13px;
+    }
+
+    .info-box {
+      margin-top: 18px;
+      padding: 16px;
+      background: #f8f5ff;
+      border: 1px solid #e1d4f2;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .link-box {
+      margin-top: 26px;
+      padding: 18px;
+      background: #f8f5ff;
+      border: 1px solid #e1d4f2;
+      border-radius: 12px;
+    }
+
+    .link-box a {
+      display: inline-block;
+      margin: 6px 10px 6px 0;
+      padding: 8px 12px;
+      background: #6a0dad;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .footer-note {
+      margin-top: 28px;
+      color: #777;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        margin: 16px;
+        padding: 20px;
+      }
+
+      .token-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .copy-row {
+        flex-direction: column;
+      }
+
+      .copy-btn {
+        padding: 10px 12px;
+      }
+
+      .menu {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+        .token-visual {
+      margin: 24px 0;
+      padding: 14px;
+      background: #050505;
+      border: 1px solid #222;
+      border-radius: 16px;
+      box-shadow: 0 8px 26px rgba(0,0,0,0.22);
+    }
+
+    .token-visual img {
+      width: 100%;
+      max-height: 420px;
+      object-fit: cover;
+      object-position: center center;
+      display: block;
+      border-radius: 12px;
+    }
+
+    .token-visual-caption {
+      margin-top: 10px;
+      color: #ccc;
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="menu">
+    <a href="../my-site/index.html">トップ</a>
+    <a href="../my-site/works.html">本棚</a>
+    <a href="about.html">Novetについて</a>
+    <a href="terms.html">利用規約</a>
+    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="tokushoho.html">特商法表記</a>
+  </div>
+
+  <div class="container">
+    <h1>NVT公式トークン情報</h1>
+
+    <div class="hero">
+      <div class="hero-title">NovetCoin / NVTについて</div>
+      <div class="hero-sub">
+        NVTは、創作投稿Webサービス「Novet」に関連して利用される独自トークンです。
+        投稿報酬、有料作品の購入、外部ウォレットとの連携など、創作活動を支援するための仕組みとして導入しています。
+      </div>
+    </div>
+
+    <div class="danger">
+      <strong>重要：</strong><br>
+      NVTは投資商品ではありません。価格上昇、利益、換金性、流動性、外部スワップ、買取、将来価値を保証するものではありません。
+      外部ウォレットやブロックチェーンを利用する場合は、利用者自身の判断と責任で管理してください。
+    </div>
+
+        <div class="token-visual">
+      <img src="token.image/NovetCoinimage.png" alt="NovetCoin / NVT 公式トークンイメージ">
+      <div class="token-visual-caption">
+        NovetCoin / NVT 公式トークンイメージ
+      </div>
+    </div>
+
+    <h2>1. 公式トークン情報</h2>
+
+    <div class="token-grid">
+      <div class="token-card">
+        <div class="token-label">サービス上の呼称</div>
+        <div class="token-value">NVT</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">トークン名</div>
+        <div class="token-value">NovetCoin</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">チェーン</div>
+        <div class="token-value">Polygon</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">Decimals</div>
+        <div class="token-value">18</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">ネットワーク名</div>
+        <div class="token-value">Polygon Mainnet</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">チェーンID</div>
+        <div class="token-value">137</div>
+      </div>
+    </div>
+
+    <h3>コントラクトアドレス</h3>
+
+    <div class="copy-row">
+      <div class="copy-value" id="contractAddress">0x2bCAbF131ab1D3620914f17b576BD3d6fA76812e</div>
+      <button class="copy-btn" onclick="copyText('contractAddress')">コピー</button>
+    </div>
+
+    <div class="warning">
+      MetaMaskや外部サイトでNVTを追加・確認する場合は、必ずこのページに記載されたコントラクトアドレスと一致しているか確認してください。
+      同じ名前や似た名前のトークンが存在する可能性があります。
+    </div>
+
+    <h2>2. NVTの目的</h2>
+
+    <p>
+      NVTは、Novet内で創作活動に対する価値体験を提供するために導入しています。
+      作品投稿、有料作品、報酬、外部ウォレット連携などを通じて、クリエイターの活動を支援することを目的としています。
+    </p>
+
+    <p>
+      Novetにおける価値の中心は、トークン価格ではなく、サービスの品質、投稿体験、読者とのつながり、
+      AIイラストや保管庫などの創作支援機能、そして作品そのものにあります。
+    </p>
+
+    <h2>3. NVTでできること</h2>
+
+    <ul>
+      <li>Novet内での投稿報酬として受け取る</li>
+      <li>有料作品の購入に利用する</li>
+      <li>ユーザーのDynamicウォレットで保有する</li>
+      <li>外部ウォレットへ出金する</li>
+      <li>Novet内でNPを買う機能に利用する</li>
+    </ul>
+
+    <p>
+      利用できる機能は、サービスの公開状況、メンテナンス、アカウント状態、ウォレット状態、ネットワーク状況により制限される場合があります。
+    </p>
+
+    <h2>4. MetaMaskへ手動追加する方法</h2>
+
+    <div class="info-box">
+      <strong>追加前の確認：</strong><br>
+      MetaMaskのネットワークが <strong>Polygon Mainnet</strong> になっていることを確認してください。
+    </div>
+
+    <ol>
+      <li>MetaMaskを開きます。</li>
+      <li>ネットワークを「Polygon Mainnet」に切り替えます。</li>
+      <li>「トークンをインポート」または「Import tokens」を選びます。</li>
+      <li>トークンコントラクトアドレスに、下記の公式アドレスを入力します。</li>
+      <li>トークン名、シンボル、Decimalsが自動入力または手動入力されることを確認します。</li>
+      <li>内容を確認して追加します。</li>
+    </ol>
+
+    <h3>MetaMask入力用情報</h3>
+
+    <div class="token-grid">
+      <div class="token-card">
+        <div class="token-label">トークンコントラクトアドレス</div>
+        <div class="copy-row">
+          <div class="copy-value" id="metamaskContract">0x2bCAbF131ab1D3620914f17b576BD3d6fA76812e</div>
+          <button class="copy-btn" onclick="copyText('metamaskContract')">コピー</button>
+        </div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">トークン名</div>
+        <div class="token-value">NovetCoin</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">シンボル</div>
+        <div class="token-value">NOVET</div>
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">Decimals</div>
+        <div class="token-value">18</div>
+      </div>
+    </div>
+
+    <div class="warning">
+      MetaMask上で「リスクのあるトークン」「未確認トークン」等の警告が表示される場合があります。
+      これは、外部ウォレットや外部サービス側の判定・表示であり、必ずしもNovet公式トークンでないことを意味するものではありません。
+      ただし、利用者は必ずコントラクトアドレスを確認し、自己責任で操作してください。
+    </div>
+
+    <h2>5. PolygonScanで確認する</h2>
+
+    <p>
+      NVTのコントラクトや送受信履歴は、PolygonScanで確認できます。
+      外部サービスで確認する場合も、必ず公式コントラクトアドレスと一致しているか確認してください。
+    </p>
+
+    <div class="link-box">
+      <a href="https://polygonscan.com/token/0x2bCAbF131ab1D3620914f17b576BD3d6fA76812e" target="_blank" rel="noopener noreferrer">
+        PolygonScanで確認する
+      </a>
+    </div>
+
+    <h2>6. 詐欺トークン・偽トークンに注意</h2>
+
+    <p>
+      ブロックチェーン上では、第三者が似た名前のトークンを作成できる場合があります。
+      「Novet」「NovetCoin」「NVT」などに似た名称であっても、公式コントラクトアドレスと一致しないものはNovet公式トークンではありません。
+    </p>
+
+    <ul>
+      <li>必ず公式ページのコントラクトアドレスを確認してください。</li>
+      <li>知らない相手から送られたトークンやリンクを安易に操作しないでください。</li>
+      <li>秘密鍵、シードフレーズ、リカバリーフレーズを誰にも教えないでください。</li>
+      <li>外部サイトでウォレット接続する場合は、URLと権限内容を確認してください。</li>
+      <li>価格や利益を保証する案内、購入を急がせる案内には注意してください。</li>
+    </ul>
+
+    <h2>7. 免責事項</h2>
+
+    <p>
+      NVTは法定通貨ではなく、価格、流動性、交換可能性、換金性、外部取引所等での取扱いを保証するものではありません。
+      外部ウォレット、ブロックチェーン、スワップ、送受信、ガス代、ネットワーク混雑、価格変動、誤送信、
+      第三者サービスの障害等により生じる不利益について、利用者は自己の判断と責任で利用するものとします。
+    </p>
+
+    <p>
+      当運営は、NVTの価格保証、買取保証、利益保証、投資助言、暗号資産交換業に該当する行為を行うものではありません。
+    </p>
+
+    <h2>8. 関連ページ</h2>
+
+    <div class="link-box">
+      <a href="about.html">Novetについて</a>
+      <a href="terms.html">利用規約</a>
+      <a href="privacy.html">プライバシーポリシー</a>
+      <a href="tokushoho.html">特定商取引法に基づく表記</a>
+      <a href="../my-site/index.html">トップへ戻る</a>
+    </div>
+
+    <div class="warning">
+      ※ 本ページは公開前の準備段階の内容です。正式公開前に、PolygonScan表示、MetaMask追加案内、外部掲載状況、サービス仕様に合わせて最終確認します。
+    </div>
+
+    <div class="footer-note">
+      制定日：2026年【月】【日】
+    </div>
+  </div>
+
+  <script>
+    async function copyText(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const text = el.innerText.trim();
+
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("コピーしました。");
+      } catch (err) {
+        console.error("コピー失敗:", err);
+        alert("コピーに失敗しました。手動で選択してコピーしてください。");
+      }
+    }
+  </script>
+</body>
+</html>

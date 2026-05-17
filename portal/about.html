@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Novetについて | Novet</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      margin: 0;
+      line-height: 1.8;
+    }
+
+    .menu {
+      background: #333;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .menu a {
+      color: white;
+      margin-right: 20px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 32px auto;
+      background: white;
+      padding: 34px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 26px;
+      color: #6a0dad;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 12px;
+      margin-top: 0;
+    }
+
+    h2 {
+      font-size: 19px;
+      color: #4b0082;
+      margin-top: 34px;
+      border-left: 5px solid #6a0dad;
+      padding-left: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      color: #333;
+      margin-top: 22px;
+    }
+
+    p,
+    li {
+      font-size: 14px;
+      color: #555;
+    }
+
+    ul {
+      padding-left: 22px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #f8f5ff, #fff);
+      border: 1px solid #e1d4f2;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #6a0dad;
+      margin-bottom: 8px;
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      color: #555;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .card {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 16px;
+      background: #fafafa;
+    }
+
+        .feature-section {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .feature-image-card {
+      display: grid;
+      grid-template-columns: 42% 1fr;
+      gap: 18px;
+      align-items: center;
+      border: 1px solid #eee;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fafafa;
+    }
+
+    .feature-image-card.reverse {
+      grid-template-columns: 1fr 42%;
+    }
+
+    .feature-image-card.reverse .feature-image-wrap {
+      order: 2;
+    }
+
+    .feature-image-wrap {
+      width: 100%;
+      height: 230px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      background: #f0f0f0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    }
+
+    .feature-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
+        .feature-image-wrap.contain img {
+      object-fit: contain;
+      object-position: center center;
+      background: #f5f5f5;
+    }
+
+    .feature-text h3 {
+      margin-top: 0;
+      color: #6a0dad;
+      font-size: 17px;
+    }
+
+    .feature-text p {
+      margin-bottom: 0;
+    }
+
+    .mini-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .mini-gallery-item {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      background: #fafafa;
+      padding: 10px;
+    }
+
+    .mini-gallery-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .mini-gallery-item strong {
+      display: block;
+      color: #6a0dad;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .mini-gallery-item span {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .card-title {
+      font-weight: bold;
+      color: #6a0dad;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .note {
+      margin-top: 24px;
+      padding: 14px;
+      background: #fff8e1;
+      border: 1px solid #ffe0a3;
+      border-radius: 10px;
+      color: #7a4b00;
+      font-size: 13px;
+    }
+
+    .link-box {
+      margin-top: 26px;
+      padding: 18px;
+      background: #f8f5ff;
+      border: 1px solid #e1d4f2;
+      border-radius: 12px;
+    }
+
+    .link-box a {
+      display: inline-block;
+      margin: 6px 10px 6px 0;
+      padding: 8px 12px;
+      background: #6a0dad;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .footer-note {
+      margin-top: 28px;
+      color: #777;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        margin: 16px;
+        padding: 20px;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .menu {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+            .feature-image-card,
+      .feature-image-card.reverse {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-image-card.reverse .feature-image-wrap {
+        order: 0;
+      }
+
+      .feature-image-wrap {
+        height: 190px;
+      }
+
+      .mini-gallery {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-gallery-item img {
+        height: 190px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="menu">
+    <a href="../my-site/index.html">トップ</a>
+    <a href="../my-site/works.html">本棚</a>
+    <a href="account.html">アカウント管理</a>
+    <a href="terms.html">利用規約</a>
+    <a href="privacy.html">プライバシーポリシー</a>
+    <a href="tokushoho.html">特商法表記</a>
+  </div>
+
+  <div class="container">
+    <h1>Novetについて</h1>
+
+    <div class="hero">
+      <div class="hero-title">想像力を価値に変え、クリエイターのための経済圏を目指す</div>
+      <div class="hero-sub">
+        Novetは、小説、イラスト、創作活動を投稿・閲覧・応援できる創作投稿Webサービスです。
+        作者が作品を公開し、読者が作品を見つけ、応援し、必要に応じて有料作品やサイト内サービスを利用できる場所を目指しています。
+      </div>
+    </div>
+
+    <h2>1. Novetが目指すもの</h2>
+    <p>
+      Novetは、創作活動そのものに価値を持たせることを目指すサービスです。
+      小説やイラストなどの作品を投稿し、読者の閲覧、応援、レビュー、有料コンテンツなどを通じて、
+      クリエイターが継続して活動しやすい環境を作ることを目的としています。
+    </p>
+    <p>
+      本サービスは、投機や価格上昇を目的としたものではありません。
+      独自トークンやポイントは、創作活動を支援し、作品と読者の関係をより分かりやすくするための仕組みとして導入しています。
+    </p>
+
+        <h2>2. 主な機能</h2>
+
+    <div class="feature-section">
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/全年齢向けトップ画面.png" alt="Novetトップ画面">
+        </div>
+        <div class="feature-text">
+          <h3>創作を始めるためのトップページ</h3>
+          <p>
+            Novetでは、一般向け作品、男性向け作品、女性向け作品、NNFTスタジオ、AIナビなど、
+            目的に合わせた入口を用意しています。ログイン後は、右側のステータス欄から残高、作品数、
+            作家管理、お財布画面へ移動できます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/一般本棚.png" alt="一般本棚">
+        </div>
+        <div class="feature-text">
+          <h3>一般本棚で作品を探す</h3>
+          <p>
+            一般本棚では、公開作品を一覧で確認できます。
+            閲覧数、いいね、レビュー数、投げ銭額などをもとに、作品の反応を見ながら読む作品を探せます。
+            新着順、閲覧ランキング、いいねランキング、投げ銭ランキングなどの並び替えにも対応しています。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/作品閲覧①.png" alt="作品閲覧画面">
+        </div>
+        <div class="feature-text">
+          <h3>作品を読みやすく表示</h3>
+          <p>
+            作品閲覧画面では、本文、目次、作者情報を表示します。
+            読者は作品を読みながら、いいね、お気に入り登録、通報、作者作品一覧への移動などを行えます。
+            一般小説では、作品を応援する投げ銭レビュー機能も利用できます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/作品閲覧②.png" alt="投げ銭レビュー">
+        </div>
+        <div class="feature-text">
+          <h3>投げ銭レビューで作品を応援</h3>
+          <p>
+            読者は有償NPを使って作品を応援し、1回だけレビューを投稿できます。
+            レビューにはハート、考える、ドン引きのスタンプ評価を付けられます。
+            無料配布NPは投げ銭には使えないため、応援機能としての価値を守る設計です。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/作家管理.png" alt="作家管理">
+        </div>
+        <div class="feature-text">
+          <h3>作家ごとに作品を管理</h3>
+          <p>
+            作家管理画面では、投稿済み作品の編集、投稿停止、レビュー確認を行えます。
+            一般向け、男性向け、女性向けなどの作家アカウントを分けて管理でき、
+            作品の公開状態や読者からの反応を確認できます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap contain">
+  <img src="about.image/小説設定.png" alt="小説設定">
+</div>
+        <div class="feature-text">
+          <h3>章・エピソード単位で作品を編集</h3>
+          <p>
+            作品設定画面では、作品タイトル、タグ、プロット、キャラクター設定、
+            二次創作チェック、章・エピソードの公開状態などを管理できます。
+            章単位、話単位で公開・非公開を切り替えられるため、連載作品にも対応しやすい構成です。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/閲覧画面①.png" alt="表紙つき作品閲覧">
+        </div>
+        <div class="feature-text">
+          <h3>表紙つきのリッチな閲覧画面</h3>
+          <p>
+            NNFT化した作品や表紙つき作品では、ページをめくるような閲覧体験を提供します。
+            表紙、本文、挿絵、目次、しおり、通報など、作品を読むためのUIを一体化しています。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/閲覧画面②.png" alt="挿絵つき作品閲覧">
+        </div>
+        <div class="feature-text">
+          <h3>挿絵つき作品にも対応</h3>
+          <p>
+            作品本文に挿絵を組み合わせることで、小説とイラストを一体化した表現ができます。
+            生成したイラストや保管庫の画像を活用し、作品世界を視覚的に伝えやすくします。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/有償作品マーケット.png" alt="有償作品マーケット">
+        </div>
+        <div class="feature-text">
+          <h3>有償作品マーケット</h3>
+          <p>
+            マーケットでは、出品された有償作品を探して購入できます。
+            人気順、新着順、カテゴリ別の表示により、読者が作品を見つけやすくします。
+            購入にはNVTを利用し、作者への創作価値還元につなげます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/保有作品一覧.png" alt="保有作品一覧">
+        </div>
+        <div class="feature-text">
+          <h3>購入済み・保有作品を管理</h3>
+          <p>
+            購入した作品や自分が保有している作品は、一覧から確認できます。
+            公開中、未出品、価格、閲覧導線などを整理し、ユーザーが自分の作品資産を管理しやすくします。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/作品有償化.png" alt="作品有償化">
+        </div>
+        <div class="feature-text">
+          <h3>作品の有償化・NNFT化</h3>
+          <p>
+            条件を満たした作品は、表紙や内容を確認したうえで有償化できます。
+            有償化にはNPを消費し、公開後は作品内容や表紙の編集が制限されるため、
+            読者と作者の双方にとって安定した販売状態を保ちます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/イラスト保管庫.png" alt="イラスト保管庫">
+        </div>
+        <div class="feature-text">
+          <h3>イラスト保管庫</h3>
+          <p>
+            生成したイラスト、アップロードした画像、風景、その他素材を保管できます。
+            無料枠に加えて、ライト保管庫、クリエイター保管庫の拡張プランを用意し、
+            作品制作に使う素材を整理しやすくします。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/NNFT編集イラスト操作.png" alt="NNFT編集イラスト操作">
+        </div>
+        <div class="feature-text">
+          <h3>挿絵・基準化・生成テンプレート</h3>
+          <p>
+            NNFT編集では、保管庫の画像を挿絵として選んだり、キャラクターや世界観の基準化に利用したりできます。
+            生成テンプレートを使うことで、作品に合ったイラスト制作を支援します。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/NNFT編集管理.png" alt="NNFT編集管理">
+        </div>
+        <div class="feature-text">
+          <h3>NNFT Studioで作品制作をまとめて管理</h3>
+          <p>
+            NNFT Studioでは、作品選択、表紙作成、挿絵管理、有償化、マーケット、ライブラリ、
+            購入済み一覧など、作品を有料コンテンツとして整えるための作業をまとめて扱えます。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card">
+        <div class="feature-image-wrap">
+          <img src="about.image/購入済み一覧.png" alt="購入済み一覧">
+        </div>
+        <div class="feature-text">
+          <h3>購入済み作品を確認</h3>
+          <p>
+            購入済み一覧では、購入したメインNFT、イラストNFT、サウンドNFTなどを確認できます。
+            今後、購入作品の閲覧、レビュー、管理導線を整理するためのページとして利用します。
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-image-card reverse">
+        <div class="feature-image-wrap">
+          <img src="about.image/アカウント管理①.png" alt="アカウント管理">
+        </div>
+        <div class="feature-text">
+          <h3>アカウント管理とウォレット導線</h3>
+          <p>
+            アカウント管理では、ユーザー名、運営からのメッセージ、投稿報酬、ウォレット、
+            所属作家一覧などを確認できます。NVT残高、NP残高、入出金、NVTでNPを買う機能は
+            ウォレット画面から管理できます。
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <h3>関連画面の一例</h3>
+
+    <div class="mini-gallery">
+      <div class="mini-gallery-item">
+        <img src="about.image/アカウント管理②.png" alt="所属作家一覧">
+        <strong>所属作家一覧</strong>
+        <span>一般向け、男性向け、女性向けなどの作家アカウントを管理できます。</span>
+      </div>
+
+      <div class="mini-gallery-item">
+        <img src="about.image/アカウント管理③.png" alt="作家新規作成">
+        <strong>作家アカウント作成</strong>
+        <span>活動ゾーンを選び、属性固定に同意したうえで作家を作成します。</span>
+      </div>
+
+      <div class="mini-gallery-item">
+        <img src="about.image/作品閲覧②.png" alt="挿絵つき閲覧">
+        <strong>挿絵つき閲覧</strong>
+        <span>本文と挿絵を組み合わせ、作品の雰囲気をより伝えやすくします。</span>
+      </div>
+    </div>
+
+    <h2>3. NPについて</h2>
+    <p>
+      NP（Novet Point）は、本サービス内で利用するサイト内ポイントです。
+      AI生成、保管庫拡張、出品手数料、投げ銭など、Novet内の有料サービスに利用します。
+    </p>
+    <p>
+      NPは法定通貨ではなく、原則として現金への払い戻しや外部への送金はできません。
+      サイト内サービスを分かりやすく利用するためのポイントとして扱います。
+    </p>
+
+    <h2>4. NVTについて</h2>
+    <p>
+      NVTは、本サービスに関連して利用される独自トークンです。
+      投稿報酬、有料作品の購入、外部ウォレットとの連携など、創作活動を支援するための仕組みとして導入しています。
+    </p>
+    <p>
+      NVTは法定通貨ではなく、価格、流動性、換金性、外部スワップ、将来の価値を保証するものではありません。
+      外部ウォレットやブロックチェーンを利用する場合、利用者自身の判断と責任で管理する必要があります。
+    </p>
+
+    <h2>5. 独自トークンを低コストで運用する理由</h2>
+    <p>
+      Novetでは、クリエイター支援の仕組みをできるだけ低コストで運用するために、外部決済だけに依存しない設計を取り入れています。
+      NVTを利用することで、作品投稿報酬、有料作品購入、外部ウォレット連携などを、創作サービス内の体験として一体的に扱うことを目指しています。
+    </p>
+    <p>
+      ただし、NVTは投資商品ではなく、価格上昇や利益を保証するものではありません。
+      Novetにおける価値の中心は、サービスの品質、作品投稿体験、読者とのつながり、クリエイター支援の継続性にあります。
+    </p>
+
+    <h2>6. 有料サービスと返金について</h2>
+    <p>
+      デジタルコンテンツおよびサイト内サービスの性質上、購入後、利用開始後、ポイント消費後、トークン送信後のキャンセルや返金は原則としてできません。
+    </p>
+    <p>
+      ただし、購入後に対象作品が規約違反等により閲覧不能となった場合、その他当運営が必要と判断した場合には、個別に対応を検討します。
+    </p>
+
+    <h2>7. 安全に利用するために</h2>
+    <ul>
+      <li>ログイン情報、ウォレット情報、秘密鍵、リカバリー情報は利用者自身で管理してください。</li>
+      <li>NVTや外部ウォレットの利用には、ネットワーク手数料や価格変動等のリスクがあります。</li>
+      <li>投稿作品は、権利侵害、無断転載、未成年を性的対象とする表現、非同意、暴力的または搾取的な表現を禁止します。</li>
+      <li>AI生成物を利用する場合も、公開前に利用者自身で内容と権利面を確認してください。</li>
+      <li>保管庫に保存した画像や作品データは、必ず利用者自身でもバックアップしてください。</li>
+    </ul>
+
+    <h2>8. 関連ページ</h2>
+    <div class="link-box">
+      <a href="terms.html">利用規約</a>
+      <a href="privacy.html">プライバシーポリシー</a>
+      <a href="tokushoho.html">特定商取引法に基づく表記</a>
+      <a href="../my-site/works.html">一般本棚を見る</a>
+      <a href="account.html">アカウント管理</a>
+    </div>
+
+    <div class="note">
+      ※ 本ページは公開前の準備段階の紹介ページです。正式公開前に、サービス仕様、決済方法、NVT説明ページ、問い合わせ導線等の確定情報に合わせて最終確認します。
+    </div>
+
+    <div class="footer-note">
+      制定日：2026年【月】【日】
+    </div>
+  </div>
+</body>
+</html>
