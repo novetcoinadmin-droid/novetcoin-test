@@ -89,6 +89,121 @@
   color: #aaa;
   font-size: 12px;
 }
+/* ===== スマホ表示：トップメニュー・カテゴリメニュー最適化 ===== */
+@media (max-width: 760px) {
+  body {
+    background: #f7f7f7;
+  }
+
+  /* 上部メニューを大きく・押しやすくする */
+  .menu {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 10px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu a {
+    margin-right: 0;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* 3カラムをスマホでは縦並びにする */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+    gap: 14px;
+  }
+
+  /* 左サイドバーを上部下段メニューにする */
+  .left {
+    width: 100%;
+    order: 0;
+  }
+
+  .side-box {
+    padding: 10px;
+    margin-bottom: 0;
+    border-radius: 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .side-box h3 {
+    display: none;
+  }
+
+  .side-box ul {
+    display: flex !important;
+    gap: 8px;
+    align-items: center;
+    list-style: none !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    padding: 0;
+    margin: 0;
+  }
+
+  .side-box li {
+    flex: 0 0 auto;
+  }
+
+  .side-box a {
+    display: inline-block;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: #f3e8ff;
+    color: #6a0dad !important;
+    font-weight: bold;
+    text-decoration: none !important;
+  }
+
+  .main {
+    width: 100%;
+    order: 1;
+  }
+
+  .hero {
+    padding: 28px 18px;
+    border-radius: 14px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+    line-height: 1.35;
+  }
+
+  .hero p {
+    font-size: 15px;
+  }
+
+  .hero-reg-btn {
+    width: 100%;
+    max-width: 320px;
+    font-size: 16px;
+    padding: 13px 18px;
+  }
+
+  .news-ticker {
+    height: auto;
+    max-height: 120px;
+  }
+
+  .dynamic-sections {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
   </style>
 </head>
 <body>
