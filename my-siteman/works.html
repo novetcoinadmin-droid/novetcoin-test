@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <title>作品一覧 - 本棚</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -68,6 +70,174 @@
   color: #aaa;
   font-size: 12px;
 }
+/* ===== スマホ表示：本棚ページ最適化 ===== */
+@media (max-width: 760px) {
+  body {
+    background: #f7f7f7;
+  }
+
+  /* 上部メニューを大きく・押しやすくする */
+  .menu {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 10px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu a {
+    margin-right: 0;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: bold;
+    line-height: 1.2;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* 3カラムをスマホでは縦並びにする */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+    gap: 14px;
+  }
+
+  /* 左サイドバーを上部下段メニュー化 */
+  .left {
+    width: 100%;
+    order: 0;
+  }
+
+  .side-box {
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+  }
+
+  .side-box h3 {
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+
+  .search-box {
+    height: 42px;
+    font-size: 16px;
+    border-radius: 10px;
+    margin-bottom: 0;
+  }
+
+  /* 並べ替えメニューを横スクロール化 */
+  .side-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+    font-size: 14px;
+  }
+
+  .side-list li {
+    flex: 0 0 auto;
+    padding: 10px 13px;
+    border-radius: 999px;
+    background: #f3e8ff;
+    color: #6a0dad;
+    font-weight: bold;
+  }
+
+  .side-list li.active {
+    background: #6a0dad;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .main {
+    width: 100%;
+    order: 1;
+    padding: 22px 18px;
+    min-height: auto;
+    border-radius: 12px;
+  }
+
+  .main h1 {
+    font-size: 20px;
+  }
+
+  .novel-list li {
+    padding: 18px 0;
+  }
+
+  .novel-list a {
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  .meta {
+    font-size: 13px;
+    line-height: 1.8;
+  }
+}
+/* ===== スマホ表示：本棚の右アカウントパネルをスライド表示 ===== */
+.mobile-account-toggle,
+.mobile-account-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-account-toggle {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px auto 0;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-account-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-account-overlay.is-open {
+    display: block;
+  }
+
+  .right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.25s ease;
+  }
+
+  .right.is-open {
+    transform: translateX(0);
+  }
+}
+
   </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -341,6 +511,49 @@ async function handleLogout() {
   await supabaseClient.auth.signOut();
   location.reload();
 }
+
+function setupMobileAccountPanel() {
+  const menu = document.querySelector(".menu");
+  const panel = document.getElementById("rightPanel");
+
+  if (!menu || !panel) return;
+  if (document.getElementById("mobileAccountToggle")) return;
+
+  const button = document.createElement("button");
+  button.id = "mobileAccountToggle";
+  button.className = "mobile-account-toggle";
+  button.type = "button";
+  button.textContent = "☰ アカウント";
+
+  const overlay = document.createElement("div");
+  overlay.id = "mobileAccountOverlay";
+  overlay.className = "mobile-account-overlay";
+
+  menu.insertAdjacentElement("afterend", button);
+  button.insertAdjacentElement("afterend", overlay);
+
+  function openPanel() {
+    panel.classList.add("is-open");
+    overlay.classList.add("is-open");
+  }
+
+  function closePanel() {
+    panel.classList.remove("is-open");
+    overlay.classList.remove("is-open");
+  }
+
+  button.addEventListener("click", () => {
+    if (panel.classList.contains("is-open")) {
+      closePanel();
+    } else {
+      openPanel();
+    }
+  });
+
+  overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileAccountPanel);
 
 // 初期実行
 fetchNovels();
