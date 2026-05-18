@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novet NFT Studio | Editor</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -290,6 +292,106 @@ body {
 /* スマホ風表示では行番号ガイドを非表示 */
 .page-spread.mobile-mode .line-guide-layer {
     display: none !important;
+}
+
+/* ===== スマホ表示：イラストノベル編集画面最適化 ===== */
+.mobile-control-toggle,
+.mobile-control-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        display: block !important;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #444;
+    }
+
+    .work-display-area {
+        width: 100%;
+        height: 100vh;
+        padding: 56px 12px 88px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        box-sizing: border-box;
+    }
+
+    .page-spread.mobile-mode {
+        width: min(88vw, 360px) !important;
+        height: min(70vh, 640px) !important;
+        margin: 0 auto !important;
+    }
+
+    .work-display-area > div:last-child {
+        margin-top: 18px !important;
+        gap: 24px !important;
+        justify-content: center !important;
+    }
+
+    .mobile-control-toggle {
+        display: block;
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 1002;
+        padding: 11px 15px;
+        border: none;
+        border-radius: 999px;
+        background: #6a0dad;
+        color: #fff;
+        font-size: 15px;
+        font-weight: bold;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        cursor: pointer;
+    }
+
+    .mobile-control-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 1000;
+    }
+
+    .mobile-control-overlay.is-open {
+        display: block;
+    }
+
+    .control-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(78vw, 310px) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 100vh !important;
+        padding: 18px 14px !important;
+        border-radius: 18px 0 0 18px !important;
+        border-left: none !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+    }
+
+    .control-panel.is-open {
+        transform: translateX(0);
+    }
+
+    .section-card {
+        padding: 10px !important;
+    }
+
+    .btn {
+        min-height: 42px;
+        font-size: 13px;
+    }
 }
     </style>
 </head>
@@ -2982,6 +3084,74 @@ window.addEventListener('beforeunload', function (e) {
         e.returnValue = ''; // これを入れるとブラウザ標準の「このサイトを離れますか？」が出ます
     }
 });
+
+function setupMobileNftPrepareUI() {
+    const panel = document.querySelector(".control-panel");
+    const spread = document.getElementById("mainSpread");
+
+    if (!panel || !spread) return;
+    if (document.getElementById("mobileControlToggle")) return;
+
+    const button = document.createElement("button");
+    button.id = "mobileControlToggle";
+    button.className = "mobile-control-toggle";
+    button.type = "button";
+    button.textContent = "☰ 操作";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileControlOverlay";
+    overlay.className = "mobile-control-overlay";
+
+    document.body.appendChild(button);
+    document.body.appendChild(overlay);
+
+    function isMobileWidth() {
+        return window.matchMedia("(max-width: 760px)").matches;
+    }
+
+    function openPanel() {
+        panel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        panel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    function applyMobileDefaultView() {
+        if (!isMobileWidth()) {
+            closePanel();
+            return;
+        }
+
+        if (!spread.classList.contains("mobile-mode")) {
+            spread.classList.add("mobile-mode");
+            isMobileView = true;
+
+            const viewToggleBtn = document.getElementById("viewToggleBtn");
+            if (viewToggleBtn) {
+                viewToggleBtn.innerText = "📖 PC見開き表示";
+            }
+        }
+    }
+
+    button.addEventListener("click", () => {
+        if (panel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+
+    window.addEventListener("resize", applyMobileDefaultView);
+
+    applyMobileDefaultView();
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileNftPrepareUI);
 
 init();
 
