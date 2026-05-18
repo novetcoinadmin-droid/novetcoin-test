@@ -592,6 +592,55 @@ async function autoLoginWomensAuthor() {
     location.href = "../portal/account.html";
   }
 }
+
+function openMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
+
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.add("is-open");
+  overlay.classList.add("is-open");
+  button.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
+
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.remove("is-open");
+  overlay.classList.remove("is-open");
+  button.setAttribute("aria-expanded", "false");
+}
+
+function toggleMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  if (!panel) return;
+
+  if (panel.classList.contains("is-open")) {
+    closeMobileAccountPanel();
+  } else {
+    openMobileAccountPanel();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const button = document.getElementById("mobileAccountToggle");
+  const overlay = document.getElementById("mobileAccountOverlay");
+
+  if (button) {
+    button.addEventListener("click", toggleMobileAccountPanel);
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", closeMobileAccountPanel);
+  }
+});
+
 // ページ読み込み完了時に全てをスタート
 window.addEventListener("load", initApp);
 </script>
