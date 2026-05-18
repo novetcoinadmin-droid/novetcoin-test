@@ -205,6 +205,62 @@
     gap: 14px;
   }
 }
+/* ===== スマホ表示：右アカウントパネルをスライド表示 ===== */
+.mobile-account-toggle,
+.mobile-account-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-account-toggle {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px auto 0;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-account-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-account-overlay.is-open {
+    display: block;
+  }
+
+  .right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.25s ease;
+  }
+
+  .right.is-open {
+    transform: translateX(0);
+  }
+}
+
   </style>
 </head>
 <body>
@@ -215,6 +271,11 @@
   <a href="nft_mint.html">NNFTへ</a>
 </div>
 
+<button id="mobileAccountToggle" class="mobile-account-toggle" type="button">
+  ☰ アカウント
+</button>
+
+<div id="mobileAccountOverlay" class="mobile-account-overlay"></div>
 <div class="layout">
   <div class="left">
     <div class="side-box">
@@ -439,6 +500,54 @@ async function renderNewArrivals() {
     list.innerHTML = `<li class="list-item" style="color:#999;">新着作品はありません。</li>`;
   }
 }
+
+function openMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
+
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.add("is-open");
+  overlay.classList.add("is-open");
+  button.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
+
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.remove("is-open");
+  overlay.classList.remove("is-open");
+  button.setAttribute("aria-expanded", "false");
+}
+
+function toggleMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  if (!panel) return;
+
+  if (panel.classList.contains("is-open")) {
+    closeMobileAccountPanel();
+  } else {
+    openMobileAccountPanel();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const button = document.getElementById("mobileAccountToggle");
+  const overlay = document.getElementById("mobileAccountOverlay");
+
+  if (button) {
+    button.addEventListener("click", toggleMobileAccountPanel);
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", closeMobileAccountPanel);
+  }
+});
 
 // ページ読み込み時にアプリを起動
 window.addEventListener("load", initApp);
