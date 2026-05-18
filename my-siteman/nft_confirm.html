@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NFT発行・表紙作成 | Novet NFT Studio</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -22,6 +23,89 @@
         .btn-mint:disabled { background: #ccc; cursor: not-allowed; }
         .loader { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 10; color: white; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* ===== スマホ表示：NFT発行・表紙確定画面最適化 ===== */
+@media (max-width: 760px) {
+    body {
+        padding: 10px;
+        background: var(--bg-gray);
+    }
+
+    .confirm-card {
+        max-width: none;
+        width: 100%;
+        margin: 10px auto;
+        padding: 18px;
+        display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+        border-radius: 14px;
+        box-sizing: border-box;
+    }
+
+    .confirm-card h1 {
+        order: 0;
+        font-size: 20px;
+        line-height: 1.4;
+    }
+
+    /* 作品情報 */
+    .confirm-card > .info-box {
+        order: 1;
+    }
+
+    /* イラスト保管庫から表紙を選ぶボタン */
+    .confirm-card > div:nth-of-type(2) {
+        order: 2;
+        margin: 0 !important;
+    }
+
+    /* 表紙プレビューを左ブロック下へ移動 */
+    .preview-side {
+        order: 3;
+        width: 100%;
+        min-height: 360px;
+        border-radius: 14px;
+    }
+
+    #coverPreview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* 注意文・NFT化ボタン */
+    .confirm-card > .gen-section {
+        order: 4;
+    }
+
+    .gen-section {
+        padding: 12px;
+    }
+
+    .btn-mint {
+        font-size: 16px;
+        padding: 15px;
+    }
+
+    .info-row {
+        gap: 12px;
+        line-height: 1.6;
+    }
+
+    .asset-modal-content {
+        width: 94%;
+        height: 82vh;
+    }
+
+    .modal-gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+    }
+
+    .modal-asset-img {
+        height: 110px;
+    }
+}
     </style>
 </head>
 <body>
