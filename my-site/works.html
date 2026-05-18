@@ -173,6 +173,63 @@
     line-height: 1.8;
   }
 }
+
+/* ===== スマホ表示：本棚の右アカウントパネルをスライド表示 ===== */
+.mobile-account-toggle,
+.mobile-account-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-account-toggle {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px auto 0;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-account-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-account-overlay.is-open {
+    display: block;
+  }
+
+  .right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.25s ease;
+  }
+
+  .right.is-open {
+    transform: translateX(0);
+  }
+}
+
 </style>
 </head>
 <body>
@@ -446,6 +503,49 @@ async function handleLogout() {
   await supabaseClient.auth.signOut();
   location.reload();
 }
+
+function setupMobileAccountPanel() {
+  const menu = document.querySelector(".menu");
+  const panel = document.getElementById("rightPanel");
+
+  if (!menu || !panel) return;
+  if (document.getElementById("mobileAccountToggle")) return;
+
+  const button = document.createElement("button");
+  button.id = "mobileAccountToggle";
+  button.className = "mobile-account-toggle";
+  button.type = "button";
+  button.textContent = "☰ アカウント";
+
+  const overlay = document.createElement("div");
+  overlay.id = "mobileAccountOverlay";
+  overlay.className = "mobile-account-overlay";
+
+  menu.insertAdjacentElement("afterend", button);
+  button.insertAdjacentElement("afterend", overlay);
+
+  function openPanel() {
+    panel.classList.add("is-open");
+    overlay.classList.add("is-open");
+  }
+
+  function closePanel() {
+    panel.classList.remove("is-open");
+    overlay.classList.remove("is-open");
+  }
+
+  button.addEventListener("click", () => {
+    if (panel.classList.contains("is-open")) {
+      closePanel();
+    } else {
+      openPanel();
+    }
+  });
+
+  overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileAccountPanel);
 
 // 初期実行
 fetchNovels();
