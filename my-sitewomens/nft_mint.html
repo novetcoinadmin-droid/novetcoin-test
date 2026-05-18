@@ -14,6 +14,141 @@
         .nav-link { text-decoration: none; color: #666; padding: 5px 0; transition: 0.2s; }
         .nav-link:hover { color: #6a0dad; }
         .nav-active { color: #6a0dad !important; font-weight: bold; border-bottom: 2px solid #6a0dad; }
+        /* ===== スマホ表示：NFT Studio 作成トップ最適化 ===== */
+.mobile-account-toggle,
+.mobile-account-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  /* 上部メニューを見やすく・押しやすくする */
+  body > nav {
+    padding: 10px 12px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  body > nav > div:first-child {
+    justify-content: center;
+    font-size: 20px !important;
+  }
+
+  body > nav > div:nth-child(2) {
+    display: flex !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+  }
+
+  body > nav > div:nth-child(3) {
+    text-align: center;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    padding: 10px 14px !important;
+    border-radius: 999px;
+    background: #f3e8ff;
+    color: #6a0dad !important;
+    font-size: 14px;
+    font-weight: bold;
+    border-bottom: none !important;
+  }
+
+  .nav-active {
+    background: #6a0dad;
+    color: #fff !important;
+  }
+
+  /* アカウントボタン */
+  .mobile-account-toggle {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px auto 0;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-account-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-account-overlay.is-open {
+    display: block;
+  }
+
+  /* 左メインをスマホでは全幅にする */
+  #mainStudioArea > div {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 12px !important;
+  }
+
+  #mainStudioArea > div > div:first-child {
+    width: 100% !important;
+  }
+
+  #mainStudioArea > div > div:first-child > div {
+    padding: 22px 18px !important;
+    border-radius: 14px !important;
+  }
+
+  .work-card {
+    padding: 16px !important;
+  }
+
+  .work-card > div:first-child {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px;
+  }
+
+  .work-card button {
+    width: 100%;
+    padding: 12px 14px !important;
+    font-size: 14px;
+  }
+
+  /* 右ステータスを右から出す */
+  .mobile-account-panel {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: min(72vw, 300px) !important;
+  height: 100vh !important;
+  padding: 22px 18px !important;
+  border-radius: 18px 0 0 18px !important;
+  background: #fff !important;
+  z-index: 1001 !important;
+  overflow-y: auto !important;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25) !important;
+  transform: translateX(110%);
+  transition: transform 0.25s ease;
+}
+
+  .mobile-account-panel.is-open {
+    transform: translateX(0);
+  }
+}
     </style>
 </head>
 <body>
@@ -258,6 +393,52 @@ function renderEpisodeTree(novelId, content) {
 function goToPayment(novelId) {
     window.location.href = `nft_confirm.html?novel_id=${novelId}&cIdx=0&eIdx=0&page=0`;
 }
+
+function setupMobileAccountPanel() {
+    const nav = document.querySelector("nav");
+    const rightPanel = document.getElementById("rightPanel");
+
+    if (!nav || !rightPanel || !rightPanel.parentElement) return;
+    if (document.getElementById("mobileAccountToggle")) return;
+
+    const accountPanel = rightPanel.parentElement;
+    accountPanel.classList.add("mobile-account-panel");
+
+    const button = document.createElement("button");
+    button.id = "mobileAccountToggle";
+    button.className = "mobile-account-toggle";
+    button.type = "button";
+    button.textContent = "☰ マイステータス";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileAccountOverlay";
+    overlay.className = "mobile-account-overlay";
+
+    nav.insertAdjacentElement("afterend", button);
+    button.insertAdjacentElement("afterend", overlay);
+
+    function openPanel() {
+        accountPanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        accountPanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    button.addEventListener("click", () => {
+        if (accountPanel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileAccountPanel);
 
 // 実行開始
 init();
