@@ -40,7 +40,28 @@
             </button>
         </div>
         <div class="gen-section">
-            <label style="font-size: 13px; font-weight: bold;">🎨 表紙AI生成（フルカラー）</label>
+            <div style="
+    padding:12px;
+    border:1px solid #d9534f;
+    background:#fff5f5;
+    border-radius:8px;
+    color:#333;
+    font-size:12px;
+    line-height:1.7;
+">
+    <div style="font-size:13px; font-weight:bold; color:#b00020; margin-bottom:6px;">
+        成人向け表紙・挿絵に関する注意
+    </div>
+
+    <div>
+        男性器、女性器、挿入部分などの露骨なシーンを<strong>【未加工】</strong>で投稿することは、
+        本サイト内での利用だけでなく、外部サイトでの転用を含め固く禁じられています。
+    </div>
+
+    <div style="margin-top:6px; color:#b00020; font-weight:bold;">
+        発見した場合は、アカウントの停止、削除の対象になります。
+    </div>
+</div>
 
         <div class="gen-section">
     <p style="font-size: 12px; color: #666; text-align: center; margin: 4px 0 10px 0;">
@@ -68,7 +89,7 @@
         </div>
         <img id="coverPreview" src="" style="display:none;">
         <div id="noImgMsg" class="no-img-msg">
-            <p style="font-size:13px;">まだ表紙がありません。<br>生成を開始してください。</p>
+            <p style="font-size:13px;">まだ表紙がありません。</p>
         </div>
     </div>
 </div>
@@ -211,6 +232,71 @@ async function uploadImageToStorage(base64Data, fileNamePrefix) {
         .getPublicUrl(filePath);
 
     return publicUrlData.publicUrl;
+}
+
+async function uploadNftAssetImageUrl(imageUrl, fileNamePrefix) {
+    if (!imageUrl || typeof imageUrl !== "string") {
+        return imageUrl || null;
+    }
+
+    const base64Webp = await convertToWebP(imageUrl);
+    return await uploadImageToStorage(base64Webp, fileNamePrefix);
+}
+
+async function uploadNftAssetSlot(slot, fileNamePrefix) {
+    if (!slot) return slot;
+
+    // 旧形式：URL文字列
+    if (typeof slot === "string") {
+        return await uploadNftAssetImageUrl(slot, fileNamePrefix);
+    }
+
+    if (typeof slot !== "object") {
+        return slot;
+    }
+
+    const imageUrl =
+        slot.image_url ||
+        slot.imageUrl ||
+        slot.file_url ||
+        slot.url ||
+        "";
+
+    if (!imageUrl) {
+        return slot;
+    }
+
+    const finalUrl = await uploadNftAssetImageUrl(imageUrl, fileNamePrefix);
+
+    return {
+        ...slot,
+        image_url: finalUrl
+    };
+}
+
+async function uploadNftPageAsset(rawAsset, fileNamePrefix) {
+    if (!rawAsset) return rawAsset;
+
+    // 旧形式：pageAssets[page] = "https://..."
+    if (typeof rawAsset === "string") {
+        return await uploadNftAssetImageUrl(rawAsset, fileNamePrefix);
+    }
+
+    if (typeof rawAsset !== "object") {
+        return rawAsset;
+    }
+
+    // 新形式：single / double
+    if (rawAsset.mode || rawAsset.left || rawAsset.right) {
+        return {
+            ...rawAsset,
+            left: await uploadNftAssetSlot(rawAsset.left, `${fileNamePrefix}_left`),
+            right: await uploadNftAssetSlot(rawAsset.right, `${fileNamePrefix}_right`)
+        };
+    }
+
+    // 念のため：image_urlだけ持つオブジェクト形式
+    return await uploadNftAssetSlot(rawAsset, fileNamePrefix);
 }
 
 async function recordNpUsageTransaction({
@@ -397,10 +483,17 @@ async function handleMint() {
                     
                     // 🌟 ここが挿絵を順番にバケットに保存する処理です
                     for (let pageNum in rawAssets) {
-                        btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
-                        let base64Webp = await convertToWebP(rawAssets[pageNum]);
-                        assets[pageNum] = await uploadImageToStorage(base64Webp, `ep${epCounter}_p${pageNum}`);
-                    }
+    btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
+
+    const uploadedAsset = await uploadNftPageAsset(
+        rawAssets[pageNum],
+        `ep${epCounter}_p${pageNum}`
+    );
+
+    if (uploadedAsset) {
+        assets[pageNum] = uploadedAsset;
+    }
+}
                 } else {
                     let text = ep.content || "";
                     for (let i = 0; i < text.length; i += 100) {
