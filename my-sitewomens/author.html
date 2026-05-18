@@ -211,6 +211,89 @@ h1 {
 .review-unread {
   border-left: 4px solid #00897b;
 }
+
+/* ===== 作家管理：作品一覧を2行表示にする ===== */
+#workList .work-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px;
+  padding: 16px 12px !important;
+}
+
+#workList .work-item > div:first-child {
+  width: 100%;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+#workList .work-item > div:first-child strong {
+  font-size: 16px;
+}
+
+#workList .actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#workList .actions button {
+  margin-right: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 13px;
+  min-height: 36px;
+}
+
+/* スマホではボタンをさらに押しやすくする */
+@media (max-width: 760px) {
+  .menu {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 10px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu a {
+    margin-right: 0;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .back-link,
+  .container {
+    width: calc(100% - 24px);
+  }
+
+  .container {
+    margin: 14px auto;
+    padding: 20px 14px;
+    border-radius: 12px;
+  }
+
+  .page-title {
+    margin-bottom: 24px;
+  }
+
+  .author-badge {
+    font-size: 22px;
+    padding: 6px 18px;
+  }
+
+  #workList .actions button {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  #workList .actions button[disabled] {
+    flex-basis: 100%;
+  }
+}
 </style>
 
 <style>body { background: #fdeff2 !important; }</style></head>
