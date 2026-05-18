@@ -138,14 +138,13 @@ body {
 /* --- 📱 スマホモード：レイアウト & スクロール完全修正版 --- */
 
 .page-spread.mobile-mode {
-    width: 360px !important;
-    height: 640px !important;
+    width: 330px !important;
+    height: 720px !important;
     border: 8px solid #333;
     border-radius: 40px;
     display: block !important; 
     position: relative;
     overflow: hidden;
-    /* PC版の flex レイアウトを完全に解除 */
     flex-direction: column !important;
 }
 
@@ -173,31 +172,29 @@ body {
 /* 🖋️ テキストエリア：下部中央にガラス質感で配置 */
 .page-spread.mobile-mode .text-half { 
     position: absolute !important; 
-    bottom: 25px !important; 
+    bottom: 22px !important; 
     left: 50% !important;
     transform: translateX(-50%) !important; 
     
-    /* 【重要】幅の設定を安定させる修正 */
-    width: 85% !important; 
-    min-width: 0 !important;  /* PC版の50%固定を解除 */
-    max-width: 85% !important; /* 幅が広がらないよう制限 */
-    height: 160px !important; 
+    width: 82% !important; 
+    min-width: 0 !important;
+    max-width: 82% !important;
+    height: 95px !important; 
     z-index: 5; 
     
-    background: rgba(0, 0, 0, 0.45) !important; 
-    backdrop-filter: blur(15px) saturate(150%) !important; 
+    background: rgba(0, 0, 0, 0.28) !important; 
+    backdrop-filter: blur(10px) saturate(130%) !important; 
     
     color: #fff; 
-    padding: 20px !important; /* PC版のパディングをリセット */
-    border-radius: 20px; 
-    writing-mode: horizontal-tb !important; /* 横書き */
+    padding: 14px 16px !important;
+    border-radius: 18px; 
+    writing-mode: horizontal-tb !important;
     font-size: 14px; 
-    line-height: 1.7;
-    border: 1px solid rgba(255, 255, 255, 0.2); 
+    line-height: 1.65;
+    border: 1px solid rgba(255, 255, 255, 0.16); 
     display: block !important;
     box-sizing: border-box !important;
 
-    /* スクロール機能 */
     overflow-y: auto !important; 
     overflow-x: hidden !important;
 }
