@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <title>作品閲覧 - ノベットコイン.com</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -172,6 +174,154 @@
   color: #6a0dad;
   font-weight: bold;
 }
+/* ===== スマホ表示：閲覧ページ最適化 ===== */
+.mobile-panel-buttons,
+.mobile-panel-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  body {
+    background: #f7f7f7;
+    overflow-x: hidden;
+  }
+
+  /* 上部メニューを大きく・押しやすくする */
+  .menu {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 10px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu a {
+    margin-right: 0;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* 目次・作品情報ボタン */
+  .mobile-panel-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px 0;
+  }
+
+  .mobile-panel-btn {
+    padding: 13px 12px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-panel-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-panel-overlay.is-open {
+    display: block;
+  }
+
+  .layout {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+  }
+
+  .main {
+    width: 100%;
+    padding: 28px 20px;
+    border-radius: 12px;
+    min-height: auto;
+  }
+
+  .epi-title {
+    font-size: 24px;
+    line-height: 1.5;
+  }
+
+  .body-text {
+    font-size: 17px;
+    line-height: 2.05;
+  }
+
+  .nav-btns {
+    gap: 10px;
+  }
+
+  .nav-btns button {
+    flex: 1;
+    padding: 12px 10px;
+    font-size: 14px;
+  }
+
+  /* 左：目次を左から出す */
+  .left {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 0 18px 18px 0;
+    border: none;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(-110%);
+    transition: transform 0.25s ease;
+  }
+
+  .left.is-open {
+    transform: translateX(0);
+  }
+
+  /* 右：作品情報を右から出す */
+  .right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.25s ease;
+  }
+
+  .right.is-open {
+    transform: translateX(0);
+  }
+
+  .tip-box textarea {
+    min-height: 90px;
+  }
+}
+
   </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -180,6 +330,18 @@
   <a href="index.html">トップ</a>
   <a href="works.html">本棚</a>
 </div>
+
+<div class="mobile-panel-buttons">
+  <button id="mobileTocToggle" class="mobile-panel-btn" type="button">
+    ☰ 目次
+  </button>
+
+  <button id="mobileInfoToggle" class="mobile-panel-btn" type="button">
+    作品情報
+  </button>
+</div>
+
+<div id="mobilePanelOverlay" class="mobile-panel-overlay"></div>
 
 <div class="layout">
   <div class="left">
@@ -884,6 +1046,64 @@ function checkLikeStatus() {
 }
 
 function moveEpisode(step) { renderEpisode(currentIndex + step); }
+
+function setupMobileDetailPanels() {
+  const tocButton = document.getElementById("mobileTocToggle");
+  const infoButton = document.getElementById("mobileInfoToggle");
+  const overlay = document.getElementById("mobilePanelOverlay");
+  const leftPanel = document.querySelector(".left");
+  const rightPanel = document.querySelector(".right");
+
+  if (!tocButton || !infoButton || !overlay || !leftPanel || !rightPanel) return;
+
+  function closePanels() {
+    leftPanel.classList.remove("is-open");
+    rightPanel.classList.remove("is-open");
+    overlay.classList.remove("is-open");
+  }
+
+  function openLeftPanel() {
+    rightPanel.classList.remove("is-open");
+    leftPanel.classList.add("is-open");
+    overlay.classList.add("is-open");
+  }
+
+  function openRightPanel() {
+    leftPanel.classList.remove("is-open");
+    rightPanel.classList.add("is-open");
+    overlay.classList.add("is-open");
+  }
+
+  tocButton.addEventListener("click", () => {
+    if (leftPanel.classList.contains("is-open")) {
+      closePanels();
+    } else {
+      openLeftPanel();
+    }
+  });
+
+  infoButton.addEventListener("click", () => {
+    if (rightPanel.classList.contains("is-open")) {
+      closePanels();
+    } else {
+      openRightPanel();
+    }
+  });
+
+  overlay.addEventListener("click", closePanels);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closePanels();
+    }
+  });
+
+  document.querySelectorAll(".toc-item").forEach(item => {
+    item.addEventListener("click", closePanels);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileDetailPanels);
 
 init();
 </script>
