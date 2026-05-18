@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novet NFT Studio | Editor</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -114,7 +116,6 @@ body {
     padding: 60px 50px; 
     writing-mode: vertical-rl; 
     text-orientation: mixed;
-    white-space: pre-wrap;
     font-size: 16px; /* 指定通りそのまま */
     line-height: 2.5; 
     letter-spacing: 0.05em; 
@@ -132,71 +133,18 @@ body {
     justify-content: center;
     z-index: 5;
 }
-.illust-half img { width: 100%; height: 100%; object-fit: contain; }
-
-/* --- 2枚絵モード表示用 --- */
-.illust-half.double-illust-mode {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    background: #ddd;
-}
-
-.illust-slot {
-    width: 100%;
-    height: 100%;
-    background: #eee;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: relative;
-}
-
-.illust-slot img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
-
-.illust-slot.empty {
-    color: #aaa;
-    font-size: 12px;
-    text-align: center;
-    line-height: 1.6;
-}
-
-.illust-slot-label {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    background: rgba(0,0,0,0.45);
-    color: #fff;
-    font-size: 10px;
-    padding: 3px 6px;
-    border-radius: 999px;
-    z-index: 2;
-}
-
-/* スマホ風表示でも2枚絵は左右分割で表示 */
-.page-spread.mobile-mode .illust-half.double-illust-mode {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-}
+.illust-half img { width: 100%; height: 100%; object-fit: cover; }
 
 /* --- 📱 スマホモード：レイアウト & スクロール完全修正版 --- */
 
 .page-spread.mobile-mode {
-    width: 360px !important;
-    height: 640px !important;
+    width: 330px !important;
+    height: 720px !important;
     border: 8px solid #333;
     border-radius: 40px;
     display: block !important; 
     position: relative;
     overflow: hidden;
-    /* PC版の flex レイアウトを完全に解除 */
     flex-direction: column !important;
 }
 
@@ -218,37 +166,35 @@ body {
 .page-spread.mobile-mode .illust-half img {
     width: 100% !important;
     height: 100% !important;
-    object-fit: contain;
+    object-fit: cover;
 }
 
 /* 🖋️ テキストエリア：下部中央にガラス質感で配置 */
 .page-spread.mobile-mode .text-half { 
     position: absolute !important; 
-    bottom: 25px !important; 
+    bottom: 22px !important; 
     left: 50% !important;
     transform: translateX(-50%) !important; 
     
-    /* 【重要】幅の設定を安定させる修正 */
-    width: 85% !important; 
-    min-width: 0 !important;  /* PC版の50%固定を解除 */
-    max-width: 85% !important; /* 幅が広がらないよう制限 */
-    height: 160px !important; 
+    width: 82% !important; 
+    min-width: 0 !important;
+    max-width: 82% !important;
+    height: 95px !important; 
     z-index: 5; 
     
-    background: rgba(0, 0, 0, 0.45) !important; 
-    backdrop-filter: blur(15px) saturate(150%) !important; 
+    background: rgba(0, 0, 0, 0.28) !important; 
+    backdrop-filter: blur(10px) saturate(130%) !important; 
     
     color: #fff; 
-    padding: 20px !important; /* PC版のパディングをリセット */
-    border-radius: 20px; 
-    writing-mode: horizontal-tb !important; /* 横書き */
+    padding: 14px 16px !important;
+    border-radius: 18px; 
+    writing-mode: horizontal-tb !important;
     font-size: 14px; 
-    line-height: 1.7;
-    border: 1px solid rgba(255, 255, 255, 0.2); 
+    line-height: 1.65;
+    border: 1px solid rgba(255, 255, 255, 0.16); 
     display: block !important;
     box-sizing: border-box !important;
 
-    /* スクロール機能 */
     overflow-y: auto !important; 
     overflow-x: hidden !important;
 }
@@ -300,6 +246,150 @@ body {
     .section-card { background: #fdfdfd; padding: 12px; border-radius: 8px; border: 1px solid #eee; font-size: 12px; }
     .btn { padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
     .btn-save { background: #2ecc71; color: white; padding: 15px; font-size: 16px; margin-top: auto; }
+    /* --- 編集用：縦書き行ガイド --- */
+.text-half {
+    white-space: pre-wrap;
+}
+
+.line-guide-layer {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 50%;
+    box-sizing: border-box;
+    padding: 0 50px;
+    pointer-events: none;
+    z-index: 12;
+    font-family: sans-serif;
+}
+
+.line-guide-note {
+    font-size: 10px;
+    color: rgba(106, 13, 173, 0.55);
+    text-align: center;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}
+
+.line-guide-numbers {
+    display: grid;
+    grid-template-columns: repeat(9, 40px);
+    justify-content: end;
+    gap: 0;
+    color: rgba(106, 13, 173, 0.45);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.line-guide-number {
+    text-align: center;
+    line-height: 1;
+}
+
+/* スマホ風表示では行番号ガイドを非表示 */
+.page-spread.mobile-mode .line-guide-layer {
+    display: none !important;
+}
+
+/* ===== スマホ表示：イラストノベル編集画面最適化 ===== */
+.mobile-control-toggle,
+.mobile-control-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        display: block !important;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #444;
+    }
+
+    .work-display-area {
+    width: 100%;
+    height: 100vh;
+    padding: 48px 12px 28px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    box-sizing: border-box;
+}
+
+    .page-spread.mobile-mode {
+    width: min(88vw, 360px) !important;
+    height: min(78vh, 740px) !important;
+    margin: 0 auto !important;
+}
+
+    .work-display-area > div:last-child {
+        margin-top: 18px !important;
+        gap: 24px !important;
+        justify-content: center !important;
+    }
+
+    .mobile-control-toggle {
+        display: block;
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 1002;
+        padding: 11px 15px;
+        border: none;
+        border-radius: 999px;
+        background: #6a0dad;
+        color: #fff;
+        font-size: 15px;
+        font-weight: bold;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        cursor: pointer;
+    }
+
+    .mobile-control-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 1000;
+    }
+
+    .mobile-control-overlay.is-open {
+        display: block;
+    }
+
+    .control-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(78vw, 310px) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 100vh !important;
+        padding: 18px 14px !important;
+        border-radius: 18px 0 0 18px !important;
+        border-left: none !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+    }
+
+    .control-panel.is-open {
+        transform: translateX(0);
+    }
+
+    .section-card {
+        padding: 10px !important;
+    }
+
+    .btn {
+        min-height: 42px;
+        font-size: 13px;
+    }
+}
     </style>
 </head>
 <body>
@@ -4518,6 +4608,74 @@ window.addEventListener('beforeunload', function (e) {
         e.returnValue = ''; // これを入れるとブラウザ標準の「このサイトを離れますか？」が出ます
     }
 });
+
+function setupMobileNftPrepareUI() {
+    const panel = document.querySelector(".control-panel");
+    const spread = document.getElementById("mainSpread");
+
+    if (!panel || !spread) return;
+    if (document.getElementById("mobileControlToggle")) return;
+
+    const button = document.createElement("button");
+    button.id = "mobileControlToggle";
+    button.className = "mobile-control-toggle";
+    button.type = "button";
+    button.textContent = "☰ 操作";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileControlOverlay";
+    overlay.className = "mobile-control-overlay";
+
+    document.body.appendChild(button);
+    document.body.appendChild(overlay);
+
+    function isMobileWidth() {
+        return window.matchMedia("(max-width: 760px)").matches;
+    }
+
+    function openPanel() {
+        panel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        panel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    function applyMobileDefaultView() {
+        if (!isMobileWidth()) {
+            closePanel();
+            return;
+        }
+
+        if (!spread.classList.contains("mobile-mode")) {
+            spread.classList.add("mobile-mode");
+            isMobileView = true;
+
+            const viewToggleBtn = document.getElementById("viewToggleBtn");
+            if (viewToggleBtn) {
+                viewToggleBtn.innerText = "📖 PC見開き表示";
+            }
+        }
+    }
+
+    button.addEventListener("click", () => {
+        if (panel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+
+    window.addEventListener("resize", applyMobileDefaultView);
+
+    applyMobileDefaultView();
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileNftPrepareUI);
 
 init();
 
