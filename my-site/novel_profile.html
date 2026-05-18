@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <script src="/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <title>作品管理パネル | Novet</title>
   <style>
@@ -33,7 +34,6 @@
     .btn-save { background: var(--main-purple); color: white; width: 100%; margin-top: 10px; }
     .btn-write { background: #28a745; color: white; font-size: 12px; }
     .btn-add { background: #f0f0f0; color: #333; font-size: 12px; margin-top: 5px; }
-
     /* ===== スマホ表示：作品詳細編集画面の上下分割 ===== */
 @media (max-width: 760px) {
   body {
@@ -134,9 +134,8 @@
     margin-top: 12px;
   }
 }
-
   </style>
-<style>body { background: #fdeff2 !important; }</style></head>
+</head>
 <body>
 
 <header>
