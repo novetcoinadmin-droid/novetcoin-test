@@ -251,11 +251,15 @@ if (window.renderNovetSharedRightPanel) {
 renderNewArrivals();
 renderRanking();
 
-  } catch (error) {
+    } catch (error) {
     console.error("初期化エラー:", error);
+
     if (window.renderNovetSharedRightPanel) {
-  await window.renderNovetSharedRightPanel();
-}
+      await window.renderNovetSharedRightPanel();
+    }
+  } finally {
+    renderNewArrivals();
+    renderRanking();
   }
 }
 
