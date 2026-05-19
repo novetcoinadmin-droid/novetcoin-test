@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>イラスト保管庫 | Novet NFT Studio</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -42,6 +43,225 @@
         .right-panel { width: 250px; }
         .side-box { background: white; padding: 20px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
         .side-box h3 { font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; color: #666; }
+        /* ===== スマホ表示：イラスト保管庫 最適化 ===== */
+@media (max-width: 760px) {
+    body {
+        overflow-x: hidden;
+        background: var(--bg-gray);
+    }
+
+    /* 上部メニューを見やすくする */
+    nav {
+        padding: 10px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    nav > div:first-child {
+        justify-content: center;
+        font-size: 20px !important;
+    }
+
+    nav > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+    }
+
+    nav > div:nth-child(3) {
+        text-align: center;
+    }
+
+    .nav-link {
+        flex: 0 0 auto;
+        padding: 10px 14px !important;
+        border-radius: 999px;
+        background: #f3e8ff;
+        color: var(--main-purple) !important;
+        font-size: 14px;
+        font-weight: bold;
+        border-bottom: none !important;
+    }
+
+    .nav-active {
+        background: var(--main-purple);
+        color: #fff !important;
+    }
+
+    /* メインをスマホでは1カラムにする */
+    .layout {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        box-sizing: border-box;
+    }
+
+    .main-content {
+        width: 100% !important;
+        padding: 18px 14px !important;
+        border-radius: 14px !important;
+        box-sizing: border-box;
+    }
+
+    .main-content h1 {
+        flex-direction: column;
+        align-items: flex-start !important;
+        font-size: 20px !important;
+        gap: 8px !important;
+    }
+
+    #assetStorageCount {
+        font-size: 12px !important;
+    }
+
+    #assetStoragePlanBox {
+        padding: 12px !important;
+    }
+
+    #assetStoragePlanBox > div[style*="display:flex"] {
+        flex-direction: column !important;
+    }
+
+    /* タブを横スクロールにする */
+    .main-content > div[style*="display:flex"][style*="margin-bottom:20px"] {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+    }
+
+    .main-content > div[style*="display:flex"][style*="margin-bottom:20px"] button {
+        flex: 0 0 auto !important;
+        min-width: 96px;
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+    }
+
+    .upload-area {
+        padding: 16px !important;
+        margin-bottom: 18px !important;
+    }
+
+    .upload-btn {
+        width: 100%;
+        padding: 12px !important;
+    }
+
+    /* 画像カードをスマホで3列表示 */
+    .gallery-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .asset-card {
+        border-radius: 10px !important;
+    }
+
+    .asset-img-wrapper {
+        height: 105px !important;
+    }
+
+    .asset-info {
+        padding: 7px !important;
+    }
+
+    .asset-info input {
+        font-size: 11px !important;
+        padding: 6px !important;
+    }
+
+    .asset-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .btn-save,
+    .btn-delete {
+        width: 100%;
+        font-size: 10px !important;
+        padding: 7px !important;
+    }
+
+    /* 風景・その他タブ内のカードも3列 */
+    #sceneImagePanel .gallery-grid,
+    #otherImagePanel .gallery-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    /* 風景設定も3列寄せ */
+    #scenePresetPanel > div {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    #scenePresetPanel input {
+        font-size: 11px !important;
+        padding: 6px !important;
+    }
+}
+/* ===== スマホ表示：イラスト保管庫 右パネルスライド表示 ===== */
+.mobile-assets-toggle,
+.mobile-assets-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .mobile-assets-toggle {
+        display: block;
+        width: calc(100% - 24px);
+        margin: 10px auto 0;
+        padding: 13px 16px;
+        border: none;
+        border-radius: 999px;
+        background: var(--main-purple);
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+        cursor: pointer;
+    }
+
+    .mobile-assets-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+    }
+
+    .mobile-assets-overlay.is-open {
+        display: block;
+    }
+
+    .assets-side-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(76vw, 300px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .assets-side-panel.is-open {
+        transform: translateX(0);
+    }
+}
+
     </style>
 </head>
 <body>
@@ -929,6 +1149,51 @@ await fetchAssetStorageCount();
         alert("削除に失敗しました");
     }
 }
+
+function setupMobileAssetsUI() {
+    const nav = document.querySelector("nav");
+    const sidePanel = document.querySelector(".right-panel");
+
+    if (!nav || !sidePanel) return;
+    if (document.getElementById("mobileAssetsToggle")) return;
+
+    sidePanel.classList.add("assets-side-panel");
+
+    const button = document.createElement("button");
+    button.id = "mobileAssetsToggle";
+    button.className = "mobile-assets-toggle";
+    button.type = "button";
+    button.textContent = "☰ マイ情報";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileAssetsOverlay";
+    overlay.className = "mobile-assets-overlay";
+
+    nav.insertAdjacentElement("afterend", button);
+    button.insertAdjacentElement("afterend", overlay);
+
+    function openPanel() {
+        sidePanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        sidePanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    button.addEventListener("click", () => {
+        if (sidePanel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileAssetsUI);
 
 init();
 </script>
