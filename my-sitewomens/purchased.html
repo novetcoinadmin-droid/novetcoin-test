@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>購入済み作品一覧 | Novet</title>
     <style>
@@ -33,6 +33,189 @@
         .nft-info { padding: 12px; }
         .nft-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333; }
         .nft-author { font-size: 11px; color: #999; }
+        /* ===== スマホ表示：購入済み一覧 最適化 ===== */
+.mobile-purchased-toggle,
+.mobile-purchased-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        overflow-x: hidden;
+        background: #f4f7f6;
+    }
+
+    /* 上部メニューを見やすくする */
+    body > nav {
+        padding: 10px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    body > nav > div:first-child {
+        justify-content: center;
+        font-size: 20px !important;
+    }
+
+    body > nav > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+    }
+
+    body > nav > div:nth-child(3) {
+        text-align: center;
+    }
+
+    .nav-link {
+        flex: 0 0 auto;
+        padding: 10px 14px !important;
+        border-radius: 999px;
+        background: #f3e8ff;
+        color: #6a0dad !important;
+        font-size: 14px;
+        font-weight: bold;
+        border-bottom: none !important;
+    }
+
+    .nav-active {
+        background: #6a0dad;
+        color: #fff !important;
+    }
+
+    /* サブメニュー */
+    .sub-menu {
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .tab {
+        flex: 0 0 auto;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid #eadcf7;
+        font-size: 14px;
+    }
+
+    .tab.active {
+        background: #6a0dad;
+        color: #fff;
+        border-bottom: 3px solid #6a0dad;
+    }
+
+    /* メインをスマホでは1カラムにする */
+    .main-layout {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        box-sizing: border-box;
+    }
+
+    .content-area {
+        width: 100% !important;
+        padding: 18px 14px !important;
+        border-radius: 14px !important;
+        box-sizing: border-box;
+    }
+
+    #viewTitle {
+        font-size: 18px !important;
+        line-height: 1.4;
+    }
+
+    /* 作品カードをスマホで3列表示 */
+    .nft-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        margin-top: 14px !important;
+    }
+
+    .nft-card {
+        border-radius: 10px !important;
+    }
+
+    .nft-img {
+        height: 120px !important;
+        object-fit: cover !important;
+    }
+
+    .nft-info {
+        padding: 8px !important;
+    }
+
+    .nft-title {
+        font-size: 11px !important;
+        line-height: 1.35;
+        height: 2.8em;
+        overflow: hidden;
+    }
+
+    .nft-author {
+        font-size: 10px !important;
+        line-height: 1.4;
+    }
+
+    /* 右パネル呼び出しボタン */
+    .mobile-purchased-toggle {
+        display: block;
+        width: calc(100% - 24px);
+        margin: 10px auto 0;
+        padding: 13px 16px;
+        border: none;
+        border-radius: 999px;
+        background: #6a0dad;
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+        cursor: pointer;
+    }
+
+    .mobile-purchased-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+    }
+
+    .mobile-purchased-overlay.is-open {
+        display: block;
+    }
+
+    /* 右側パネルを右から出す */
+    .purchased-side-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(76vw, 300px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .purchased-side-panel.is-open {
+        transform: translateX(0);
+    }
+}
+
     </style>
 </head>
 <body>
@@ -228,6 +411,51 @@ fetchPurchasedNFTs();
         document.getElementById("viewTitle").innerText = `購入済みの${type.toUpperCase()} NFT`;
         fetchPurchasedNFTs();
     }
+
+function setupMobilePurchasedUI() {
+    const nav = document.querySelector("nav");
+    const sidePanel = document.querySelector(".sidebar");
+
+    if (!nav || !sidePanel) return;
+    if (document.getElementById("mobilePurchasedToggle")) return;
+
+    sidePanel.classList.add("purchased-side-panel");
+
+    const button = document.createElement("button");
+    button.id = "mobilePurchasedToggle";
+    button.className = "mobile-purchased-toggle";
+    button.type = "button";
+    button.textContent = "☰ マイ情報";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobilePurchasedOverlay";
+    overlay.className = "mobile-purchased-overlay";
+
+    nav.insertAdjacentElement("afterend", button);
+    button.insertAdjacentElement("afterend", overlay);
+
+    function openPanel() {
+        sidePanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        sidePanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    button.addEventListener("click", () => {
+        if (sidePanel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobilePurchasedUI);
 
     init();
 </script>
