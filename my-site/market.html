@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>N-Marketplace | Novet</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -78,6 +78,205 @@
   color: #aaa;
   font-size: 12px;
 }
+
+/* ===== スマホ表示：マーケット最適化 ===== */
+.mobile-market-toggle,
+.mobile-market-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        overflow-x: hidden;
+        background: #f4f7f6;
+    }
+
+    /* 上部メニューを見やすくする */
+    body > nav {
+        padding: 10px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    body > nav > div:first-child {
+        justify-content: center;
+        font-size: 20px !important;
+    }
+
+    body > nav > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+    }
+
+    body > nav > div:nth-child(3) {
+        text-align: center;
+    }
+
+    .nav-link {
+        flex: 0 0 auto;
+        padding: 10px 14px !important;
+        border-radius: 999px;
+        background: #f3e8ff;
+        color: #6a0dad !important;
+        font-size: 14px;
+        font-weight: bold;
+        border-bottom: none !important;
+    }
+
+    .nav-active {
+        background: #6a0dad;
+        color: #fff !important;
+    }
+
+    /* Hot / 新着 / 人気 / サークルのメニュー */
+    .sub-nav {
+        padding: 10px 12px !important;
+        gap: 8px !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        align-items: center;
+    }
+
+    .sub-nav a {
+        flex: 0 0 auto;
+        padding: 9px 12px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid #eadcf7;
+        color: #6a0dad !important;
+    }
+
+    .sub-nav select {
+        flex: 0 0 auto;
+        height: 38px;
+        min-width: 130px;
+    }
+
+    /* メインをスマホでは1カラムにする */
+    .market-main-layout {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        box-sizing: border-box;
+    }
+
+    .market-main-layout > div:first-child {
+        width: 100% !important;
+    }
+
+    .shelf-container {
+        padding: 14px !important;
+        margin-bottom: 18px !important;
+        border-radius: 14px !important;
+    }
+
+    .shelf-header {
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .shelf-header h3 {
+        font-size: 16px;
+        line-height: 1.4;
+    }
+
+    /* 各棚を横スクロール棚にする */
+    .shelf-grid {
+        display: flex !important;
+        grid-template-columns: none !important;
+        gap: 12px !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 4px 2px 8px;
+        scroll-snap-type: x proximity;
+    }
+
+    .nft-card-sm {
+        flex: 0 0 135px;
+        min-width: 135px;
+        scroll-snap-align: start;
+    }
+
+    .nft-img-sm {
+        aspect-ratio: 3 / 4;
+    }
+
+    .nft-info-sm {
+        font-size: 11px;
+    }
+
+    /* 空棚のダミー枠 */
+    .shelf-grid > div:not(.nft-card-sm) {
+        flex: 0 0 135px;
+        min-width: 135px;
+        min-height: 190px;
+    }
+
+    /* サークル予定表示 */
+    #shelf-circle > div {
+        flex: 0 0 260px;
+        min-width: 260px;
+        padding: 24px 18px !important;
+        box-sizing: border-box;
+    }
+
+    /* 右パネル呼び出しボタン */
+    .mobile-market-toggle {
+        display: block;
+        width: calc(100% - 24px);
+        margin: 10px auto 0;
+        padding: 13px 16px;
+        border: none;
+        border-radius: 999px;
+        background: #6a0dad;
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+        cursor: pointer;
+    }
+
+    .mobile-market-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+    }
+
+    .mobile-market-overlay.is-open {
+        display: block;
+    }
+
+    /* 右側パネルを右から出す */
+    .market-side-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(76vw, 300px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .market-side-panel.is-open {
+        transform: translateX(0);
+    }
+}
+
 </style>
 </head>
 <body>
@@ -328,6 +527,56 @@ async function renderUserStatus(user) {
         </div>
     `;
 }
+
+function setupMobileMarketUI() {
+    const nav = document.querySelector("nav");
+    const mainLayout = document.querySelector('body > div[style*="max-width: 1400px"]');
+
+    if (!nav || !mainLayout) return;
+    if (document.getElementById("mobileMarketToggle")) return;
+
+    const sidePanel = mainLayout.children?.[1];
+
+    if (!sidePanel) return;
+
+    mainLayout.classList.add("market-main-layout");
+    sidePanel.classList.add("market-side-panel");
+
+    const button = document.createElement("button");
+    button.id = "mobileMarketToggle";
+    button.className = "mobile-market-toggle";
+    button.type = "button";
+    button.textContent = "☰ 検索・マイ情報";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileMarketOverlay";
+    overlay.className = "mobile-market-overlay";
+
+    nav.insertAdjacentElement("afterend", button);
+    button.insertAdjacentElement("afterend", overlay);
+
+    function openPanel() {
+        sidePanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        sidePanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    button.addEventListener("click", () => {
+        if (sidePanel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileMarketUI);
 
 init();
 </script>
