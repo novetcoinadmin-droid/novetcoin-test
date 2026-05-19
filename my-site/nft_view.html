@@ -462,6 +462,16 @@ body.panel-hidden .page-counter {
     }
 }
 
+#illustContent,
+#illustContent img,
+.viewer-illust-slot,
+.viewer-illust-slot img {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+}
+
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -1164,6 +1174,43 @@ function toggleIllustOnlyMode() {
         btn.innerText = enabled ? "本文" : "イラスト";
     }
 }
+
+function setupImageDownloadGuard() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return;
+
+    // 右クリック保存・長押しメニューを抑止
+    illustArea.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 画像ドラッグ保存を抑止
+    illustArea.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 表示される画像に draggable=false を付ける
+    const observer = new MutationObserver(() => {
+        illustArea.querySelectorAll("img").forEach(img => {
+            img.setAttribute("draggable", "false");
+            img.setAttribute("loading", "lazy");
+        });
+    });
+
+    observer.observe(illustArea, {
+        childList: true,
+        subtree: true
+    });
+
+    illustArea.querySelectorAll("img").forEach(img => {
+        img.setAttribute("draggable", "false");
+        img.setAttribute("loading", "lazy");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", setupImageDownloadGuard);
 
 initViewer();
 </script>
