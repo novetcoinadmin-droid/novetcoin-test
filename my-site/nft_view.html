@@ -219,15 +219,15 @@ body.panel-hidden .page-counter {
     }
 
     .work-display-area {
-        width: 100%;
-        height: 100vh;
-        padding: 56px 12px 72px !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        box-sizing: border-box;
-    }
+    width: 100%;
+    height: 100vh;
+    padding: 10px 12px 72px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    box-sizing: border-box;
+}
 
     /* スマホでは常にスマホ風表示 */
     .page-spread {
@@ -308,6 +308,31 @@ body.panel-hidden .page-counter {
     .text-half p {
         color: #fff !important;
     }
+    /* 表紙ページだけ、スマホのテキストエリア内で見切れないようにする */
+.viewer-cover-mobile {
+    height: 100% !important;
+    justify-content: center !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+}
+
+.viewer-cover-mobile h1 {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    margin: 0 0 6px 0 !important;
+    max-height: 2.7em;
+    overflow: hidden;
+}
+
+.viewer-cover-mobile p {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+}
+
+.viewer-cover-mobile .start-guide {
+    display: none !important;
+}
 
     .page-controls {
         position: fixed;
@@ -341,25 +366,32 @@ body.panel-hidden .page-counter {
     }
 
     .panel-toggle-btn {
-        top: 10px;
-        right: 12px;
-        z-index: 1002;
-        background: var(--main-purple);
-        color: #fff;
-        border: none;
-        padding: 11px 15px;
-        font-size: 14px;
-    }
+    top: 10px;
+    right: 12px;
+    z-index: 1002;
+    background: rgba(106, 13, 173, 0.38);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 11px 15px;
+    font-size: 14px;
+    backdrop-filter: blur(10px) saturate(130%);
+}
 
-    .bookmark-toggle-btn {
-        top: 58px;
-        right: 12px;
-    }
+.bookmark-toggle-btn {
+    top: 58px;
+    right: 12px;
+    background: rgba(255,255,255,0.32) !important;
+    border: 1px solid rgba(255,255,255,0.45) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
 
-    .report-adult-nft-image-btn {
-        top: 106px;
-        right: 12px;
-    }
+.report-adult-nft-image-btn {
+    top: 106px;
+    right: 12px;
+    background: rgba(255,255,255,0.28) !important;
+    border: 1px solid rgba(204,51,51,0.55) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
 
     .control-panel {
         position: fixed !important;
@@ -987,11 +1019,12 @@ function renderScreen() {
         textArea.style.writingMode = "horizontal-tb";
         textArea.style.padding = "0"; 
         textArea.innerHTML = `
-            <div style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
-                <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
-                <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
-                <p style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
-            </div>
+    <div class="viewer-cover-mobile" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
+        <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
+        <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
+        <p class="start-guide" style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
+    </div>
+`;
         `;
         const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
         illustArea.classList.remove("double-illust-mode");
