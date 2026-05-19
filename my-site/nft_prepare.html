@@ -1372,15 +1372,26 @@ async function saveStandardReference(asset) {
             return;
         }
 
-        // 画像本体を取得して、IndexedDBに current 1件だけ保存する
-        const blob = await fetchImageAsBlob(asset.file_url);
-        await saveStandardReferenceImageBlob(blob);
+        let blobCached = false;
+        let blobCacheError = "";
 
-        // 保存直後に読み戻して、抽出用Blobが本当に残っているか確認
-        const cachedBlob = await getStandardReferenceImageBlob();
+        // スマホSafari等では、画像fetchまたはIndexedDBのBlob保存に失敗することがある。
+        // ただし現在のLeonardo参照画像ルートでは image_url があれば進められるため、
+        // Blob保存は「成功したら使う」扱いにする。
+        try {
+            const blob = await fetchImageAsBlob(asset.file_url);
+            await saveStandardReferenceImageBlob(blob);
 
-        if (!cachedBlob || cachedBlob.size === 0) {
-            throw new Error("基準化画像Blobの保存確認に失敗しました。");
+            const cachedBlob = await getStandardReferenceImageBlob();
+
+            if (cachedBlob && cachedBlob.size > 0) {
+                blobCached = true;
+            } else {
+                blobCacheError = "Blob保存後の読み戻し確認に失敗しました。";
+            }
+        } catch (blobErr) {
+            console.warn("基準化画像Blobキャッシュはスキップします:", blobErr);
+            blobCacheError = blobErr?.message || String(blobErr);
         }
 
         const ref = {
@@ -1388,19 +1399,26 @@ async function saveStandardReference(asset) {
             asset_id: asset.id || null,
             title: asset.file_name || "無題",
             image_url: asset.file_url,
+            reference_image_url: asset.file_url,
             extracted: false,
             extracting: false,
-            blob_cached: true,
+            blob_cached: blobCached,
+            blob_cache_error: blobCacheError,
             saved_at: new Date().toISOString()
         };
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
 
-        alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、この画像を参照画像として確定します。");
+        if (blobCached) {
+            alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、この画像を参照画像として確定します。");
+        } else {
+            alert("基準化用のイラストを選択しました。\nスマホ環境のため一時保存形式をURL参照に切り替えました。\n続けて「基準化」ボタンを押してください。");
+        }
+
     } catch (err) {
         console.error("基準化画像の保存エラー:", err);
-        alert("基準化画像の保存に失敗しました。画像の取得または一時保存で問題が発生しています。");
+        alert("基準化画像の保存に失敗しました。画像URLの保存で問題が発生しています。");
     }
 }
 
