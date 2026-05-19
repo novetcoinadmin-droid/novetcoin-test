@@ -482,7 +482,7 @@ body.panel-hidden .page-counter {
 </button>
 
 <button id="illustOnlyBtn" class="illust-only-toggle-btn" onclick="toggleIllustOnlyMode()">
-    🖼️ イラストのみ
+    イラスト
 </button>
 
     <div class="work-display-area">
@@ -1161,7 +1161,7 @@ function toggleIllustOnlyMode() {
     const enabled = document.body.classList.toggle("illust-only-mode");
 
     if (btn) {
-        btn.innerText = enabled ? "📝 本文も表示" : "🖼️ イラストのみ";
+        btn.innerText = enabled ? "本文" : "イラスト";
     }
 }
 
