@@ -40,6 +40,174 @@
     box-shadow: 0 4px 12px rgba(106, 13, 173, 0.08); /* ほんのり紫の影 */
     font-size: 14px;
 }
+
+/* ===== スマホ表示：ライブラリ最適化 ===== */
+.mobile-library-toggle,
+.mobile-library-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        overflow-x: hidden;
+        background: var(--bg-gray);
+    }
+
+    /* 上部メニューを見やすくする */
+    nav {
+        padding: 10px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    nav > div:first-child {
+        justify-content: center;
+        font-size: 20px !important;
+    }
+
+    nav > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 4px;
+    }
+
+    nav > div:nth-child(3) {
+        text-align: center;
+    }
+
+    .nav-link {
+        flex: 0 0 auto;
+        padding: 10px 14px !important;
+        border-radius: 999px;
+        background: #f3e8ff;
+        color: var(--main-purple) !important;
+        font-size: 14px;
+        font-weight: bold;
+        border-bottom: none !important;
+    }
+
+    .nav-active {
+        background: var(--main-purple);
+        color: #fff !important;
+    }
+
+    /* メインをスマホでは1カラムにする */
+    .container {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        box-sizing: border-box;
+    }
+
+    .main-content {
+        width: 100% !important;
+    }
+
+    .main-content h2 {
+        font-size: 20px;
+        margin: 8px 0 12px;
+    }
+
+    /* NFTカードを最低3列で表示 */
+    .nft-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        margin-top: 12px !important;
+    }
+
+    .nft-card {
+        border-radius: 10px !important;
+    }
+
+    .nft-img-container {
+        height: 145px !important;
+    }
+
+    .nft-img {
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+
+    .nft-info {
+        padding: 9px !important;
+    }
+
+    .nft-info div {
+        font-size: 11px !important;
+    }
+
+    .nft-info button {
+        font-size: 11px !important;
+        padding: 8px 6px !important;
+    }
+
+    /* 出品設定フォームもスマホ幅に合わせる */
+    .listing-form {
+        padding: 16px !important;
+        border-radius: 14px !important;
+    }
+
+    .cover-preview-box {
+        height: 260px !important;
+    }
+
+    /* 右パネル呼び出しボタン */
+    .mobile-library-toggle {
+        display: block;
+        width: calc(100% - 24px);
+        margin: 10px auto 0;
+        padding: 13px 16px;
+        border: none;
+        border-radius: 999px;
+        background: var(--main-purple);
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+        cursor: pointer;
+    }
+
+    .mobile-library-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+    }
+
+    .mobile-library-overlay.is-open {
+        display: block;
+    }
+
+    /* 右側パネルを右から出す */
+    .library-side-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(76vw, 300px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .library-side-panel.is-open {
+        transform: translateX(0);
+    }
+}
+
     </style>
 </head>
 <body>
@@ -301,6 +469,51 @@ async function updateListingStatus() {
         init(); // 一覧を再読み込みして状態を反映
     }
 }
+
+function setupMobileLibraryUI() {
+    const nav = document.querySelector("nav");
+    const sidePanel = document.querySelector(".sidebar");
+
+    if (!nav || !sidePanel) return;
+    if (document.getElementById("mobileLibraryToggle")) return;
+
+    sidePanel.classList.add("library-side-panel");
+
+    const button = document.createElement("button");
+    button.id = "mobileLibraryToggle";
+    button.className = "mobile-library-toggle";
+    button.type = "button";
+    button.textContent = "☰ マイ情報";
+
+    const overlay = document.createElement("div");
+    overlay.id = "mobileLibraryOverlay";
+    overlay.className = "mobile-library-overlay";
+
+    nav.insertAdjacentElement("afterend", button);
+    button.insertAdjacentElement("afterend", overlay);
+
+    function openPanel() {
+        sidePanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function closePanel() {
+        sidePanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    button.addEventListener("click", () => {
+        if (sidePanel.classList.contains("is-open")) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanel);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileLibraryUI);
 
 // 実行
 init();
