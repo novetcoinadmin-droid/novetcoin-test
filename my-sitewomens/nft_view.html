@@ -204,6 +204,203 @@ body.panel-hidden .page-counter {
 #illustContent {
     overflow: hidden;
 }
+/* ===== スマホ表示：イラストノベル閲覧画面 最適化 ===== */
+.viewer-panel-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        display: block !important;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #444;
+    }
+
+    .work-display-area {
+        width: 100%;
+        height: 100vh;
+        padding: 56px 12px 72px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        box-sizing: border-box;
+    }
+
+    /* スマホでは常にスマホ風表示 */
+    .page-spread {
+        width: min(88vw, 360px) !important;
+        height: min(78vh, 740px) !important;
+        border: 8px solid #333;
+        border-radius: 40px !important;
+        display: block !important;
+        position: relative;
+        overflow: hidden !important;
+        background: #000;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+
+    .page-spread::after {
+        display: none !important;
+    }
+
+    .illust-half {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        z-index: 1;
+        display: flex !important;
+        background: #eee;
+    }
+
+    .illust-half img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+    }
+
+    .illust-half.double-illust-mode {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px;
+    }
+
+    .text-half {
+        position: absolute !important;
+        bottom: 22px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+
+        width: 82% !important;
+        min-width: 0 !important;
+        max-width: 82% !important;
+        height: 110px !important;
+
+        z-index: 5;
+        background: rgba(0, 0, 0, 0.28) !important;
+        backdrop-filter: blur(10px) saturate(130%) !important;
+
+        color: #fff !important;
+        padding: 14px 16px !important;
+        border-radius: 18px;
+        writing-mode: horizontal-tb !important;
+        font-size: 14px !important;
+        line-height: 1.65 !important;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+
+        display: block !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    .text-half > div {
+        background: transparent !important;
+        color: #fff !important;
+    }
+
+    .text-half h1,
+    .text-half p {
+        color: #fff !important;
+    }
+
+    .page-controls {
+        position: fixed;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        z-index: 90;
+
+        margin: 0 !important;
+        padding: 8px 12px !important;
+        border-radius: 999px;
+
+        background: rgba(0, 0, 0, 0.34);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+
+        gap: 16px !important;
+    }
+
+    .page-btn {
+        padding: 8px 14px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.75);
+        color: rgba(255,255,255,0.92);
+    }
+
+    .page-counter {
+        color: rgba(255,255,255,0.92);
+        min-width: 95px;
+        text-align: center;
+    }
+
+    .panel-toggle-btn {
+        top: 10px;
+        right: 12px;
+        z-index: 1002;
+        background: var(--main-purple);
+        color: #fff;
+        border: none;
+        padding: 11px 15px;
+        font-size: 14px;
+    }
+
+    .bookmark-toggle-btn {
+        top: 58px;
+        right: 12px;
+    }
+
+    .report-adult-nft-image-btn {
+        top: 106px;
+        right: 12px;
+    }
+
+    .control-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(78vw, 310px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        border-left: none !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+        display: flex !important;
+    }
+
+    .control-panel.is-open {
+        transform: translateX(0);
+    }
+
+    .viewer-panel-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 1000;
+    }
+
+    .viewer-panel-overlay.is-open {
+        display: block;
+    }
+
+    body.panel-hidden .control-panel {
+        display: flex !important;
+    }
+}
+
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -593,7 +790,52 @@ async function saveCurrentBookmark() {
     alert("しおりを保存しました。");
 }
 
+function isMobileViewerWidth() {
+    return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function openViewerControlPanel() {
+    const panel = document.querySelector(".control-panel");
+    const overlay = document.getElementById("viewerPanelOverlay");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !overlay) return;
+
+    panel.classList.add("is-open");
+    overlay.classList.add("is-open");
+
+    if (btn) {
+        btn.innerText = "目次を閉じる";
+    }
+}
+
+function closeViewerControlPanel() {
+    const panel = document.querySelector(".control-panel");
+    const overlay = document.getElementById("viewerPanelOverlay");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !overlay) return;
+
+    panel.classList.remove("is-open");
+    overlay.classList.remove("is-open");
+
+    if (btn) {
+        btn.innerText = "☰ 目次";
+    }
+}
+
 function toggleControlPanel() {
+    const panel = document.querySelector(".control-panel");
+
+    if (isMobileViewerWidth()) {
+        if (panel && panel.classList.contains("is-open")) {
+            closeViewerControlPanel();
+        } else {
+            openViewerControlPanel();
+        }
+        return;
+    }
+
     const isHidden = document.body.classList.toggle("panel-hidden");
     const btn = document.getElementById("panelToggleBtn");
 
@@ -807,6 +1049,46 @@ function jumpTo(epIdx, pIdx) {
     currentPageIdx = pIdx;
     renderScreen();
 }
+function setupMobileNftViewerUI() {
+    const panel = document.querySelector(".control-panel");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !btn) return;
+    if (document.getElementById("viewerPanelOverlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "viewerPanelOverlay";
+    overlay.className = "viewer-panel-overlay";
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", closeViewerControlPanel);
+
+    panel.addEventListener("click", (event) => {
+        if (event.target && event.target.classList.contains("toc-item")) {
+            closeViewerControlPanel();
+        }
+    });
+
+    function applyViewerMode() {
+        if (isMobileViewerWidth()) {
+            document.body.classList.remove("panel-hidden");
+            panel.classList.remove("is-open");
+            overlay.classList.remove("is-open");
+            btn.innerText = "☰ 目次";
+        } else {
+            panel.classList.remove("is-open");
+            overlay.classList.remove("is-open");
+            btn.innerText = document.body.classList.contains("panel-hidden")
+                ? "目次を表示"
+                : "目次を隠す";
+        }
+    }
+
+    window.addEventListener("resize", applyViewerMode);
+    applyViewerMode();
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileNftViewerUI);
 
 initViewer();
 </script>
