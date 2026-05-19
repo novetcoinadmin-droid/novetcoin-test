@@ -395,6 +395,33 @@ body.panel-hidden .page-counter {
     backdrop-filter: blur(10px) saturate(130%);
 }
 
+.illust-only-toggle-btn {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .illust-only-toggle-btn {
+        display: block;
+        position: fixed;
+        top: 154px;
+        right: 12px;
+        z-index: 120;
+        background: rgba(255,255,255,0.30);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.45);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+        backdrop-filter: blur(10px) saturate(130%);
+    }
+
+    body.illust-only-mode .text-half {
+        display: none !important;
+    }
+}
     .control-panel {
         position: fixed !important;
         top: 0 !important;
@@ -452,6 +479,10 @@ body.panel-hidden .page-counter {
 </button>
 <button id="reportAdultNftImageBtn" class="report-adult-nft-image-btn" onclick="reportCurrentAdultNftImage()">
     🚩 通報
+</button>
+
+<button id="illustOnlyBtn" class="illust-only-toggle-btn" onclick="toggleIllustOnlyMode()">
+    🖼️ イラストのみ
 </button>
 
     <div class="work-display-area">
@@ -1124,6 +1155,15 @@ function setupMobileNftViewerUI() {
 }
 
 document.addEventListener("DOMContentLoaded", setupMobileNftViewerUI);
+
+function toggleIllustOnlyMode() {
+    const btn = document.getElementById("illustOnlyBtn");
+    const enabled = document.body.classList.toggle("illust-only-mode");
+
+    if (btn) {
+        btn.innerText = enabled ? "📝 本文も表示" : "🖼️ イラストのみ";
+    }
+}
 
 initViewer();
 </script>
