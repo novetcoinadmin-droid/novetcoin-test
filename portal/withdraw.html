@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>出金申請 | ノベットコイン.com</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="../config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../my-site/auth-check.js"></script>
@@ -367,6 +367,15 @@ import {
   isEvmWalletAccount,
 } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
+import {
+  createPublicClient,
+  erc20Abi,
+  formatUnits,
+  http,
+} from "https://esm.sh/viem";
+
+import { polygon } from "https://esm.sh/viem/chains";
+
 let currentUser = null;
 let currentProfile = null;
 let settingsRow = null;
@@ -423,7 +432,14 @@ function renderWithdrawPenaltyBlocked() {
 }
 
 const DYNAMIC_ENVIRONMENT_ID = "29eddb8f-3de5-4dd0-be48-ec5a7d811a92";
+const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
 const POLYGON_RPC_URL = "https://polygon.publicnode.com";
+
+const publicClient = createPublicClient({
+  chain: polygon,
+  transport: http(POLYGON_RPC_URL),
+});
+
 
 createDynamicClient({
   environmentId: DYNAMIC_ENVIRONMENT_ID,
@@ -614,6 +630,19 @@ async function initPage() {
   bindEvents();
 }
 
+async function fetchOnchainNvtBalance(walletAddress) {
+  if (!walletAddress) return 0;
+
+  const balanceRaw = await publicClient.readContract({
+    address: NVT_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [walletAddress],
+  });
+
+  return Number(formatUnits(balanceRaw, 18));
+}
+
 async function loadProfile() {
   const { data, error } = await window.supabaseClient
     .from("profiles")
@@ -627,7 +656,26 @@ async function loadProfile() {
   }
 
   currentProfile = data;
-  nvtBalanceText.textContent = formatNum(data.nvt_balance || 0, 6);
+
+  const walletAddress =
+    data.dynamic_wallet_address || data.wallet_address || "";
+
+  try {
+    const onchainNvtBalance = await fetchOnchainNvtBalance(walletAddress);
+
+    currentProfile.nvt_balance = onchainNvtBalance;
+    nvtBalanceText.textContent = formatNum(onchainNvtBalance, 6);
+  } catch (err) {
+    console.error("NVTオンチェーン残高取得エラー:", err);
+
+    currentProfile.nvt_balance = Number(data.nvt_balance || 0);
+    nvtBalanceText.textContent = formatNum(data.nvt_balance || 0, 6);
+
+    setMessage(
+      "オンチェーン残高の取得に失敗したため、DB残高を一時表示しています。時間をおいて再読み込みしてください。",
+      "error"
+    );
+  }
 }
 
 async function loadSettings() {
