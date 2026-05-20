@@ -555,10 +555,8 @@ function setupMobileAccountPanel() {
 document.addEventListener("DOMContentLoaded", setupMobileAccountPanel);
 
 // 初期実行
-fetchNovels();
+// 作品一覧は initPage() 内で取得するため、ここでは二重取得しない。
 renderRightPanel();
-
-// アカウント状態（凍結）をチェックする共通関数
 // アカウント状態（凍結）をチェックする共通関数
 async function checkAccountStatus() {
   const { data: { user } } = await supabaseClient.auth.getUser();
