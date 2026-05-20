@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <script src="//config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@9.4.0/dist/modal.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/ethereum-provider@9.4.0/dist/ethereumProvider.umd.min.js"></script>
 
-    <title>トークン報酬型小説プラットフォーム</title>
+  <title>トークン報酬型小説プラットフォーム</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: sans-serif; background: #f5f5f5; color: #333; }
@@ -59,143 +61,395 @@
     .right-btn { display: block; width: 100%; padding: 10px; background: #6a0dad; color: white; text-align: center; text-decoration: none; border-radius: 5px; margin-top: 10px; font-size: 14px; }
     .logout-btn { display: block; width: 100%; padding: 8px; background: #fff; color: #888; text-align: center; text-decoration: none; border: 1px solid #ddd; border-radius: 5px; margin-top: 10px; font-size: 12px; cursor: pointer; }
     .logout-btn:hover { background: #f9f9f9; color: #ff4d4d; border-color: #ff4d4d; }
-    
-    .reg-guide-box { background: #fffde7; padding: 15px; border-radius: 5px; border: 1px solid #ffe082; text-align: center; }
+    .legal-footer {
+  margin-top: 60px;
+  padding: 24px 16px;
+  background: #2f2f2f;
+  color: #ddd;
+  text-align: center;
+  font-size: 13px;
+}
+
+.legal-footer a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 10px;
+  white-space: nowrap;
+}
+
+.legal-footer a:hover {
+  text-decoration: underline;
+}
+
+.legal-footer .footer-links {
+  margin-bottom: 10px;
+  line-height: 2;
+}
+
+.legal-footer .footer-copy {
+  color: #aaa;
+  font-size: 12px;
+}
+/* ===== スマホ表示：トップメニュー・カテゴリメニュー最適化 ===== */
+@media (max-width: 760px) {
+  body {
+    background: #f7f7f7;
+  }
+
+  /* 上部メニューを大きく・押しやすくする */
+  .menu {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 10px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .menu a {
+    margin-right: 0;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  /* 3カラムをスマホでは縦並びにする */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 12px;
+    gap: 14px;
+  }
+
+  /* 左サイドバーを上部下段メニューにする */
+  .left {
+    width: 100%;
+    order: 0;
+  }
+
+  .side-box {
+    padding: 10px;
+    margin-bottom: 0;
+    border-radius: 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .side-box h3 {
+    display: none;
+  }
+
+  .side-box ul {
+    display: flex !important;
+    gap: 8px;
+    align-items: center;
+    list-style: none !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    padding: 0;
+    margin: 0;
+  }
+
+  .side-box li {
+    flex: 0 0 auto;
+  }
+
+  .side-box a {
+    display: inline-block;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: #f3e8ff;
+    color: #6a0dad !important;
+    font-weight: bold;
+    text-decoration: none !important;
+  }
+
+  .main {
+    width: 100%;
+    order: 1;
+  }
+
+  .hero {
+    padding: 28px 18px;
+    border-radius: 14px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+    line-height: 1.35;
+  }
+
+  .hero p {
+    font-size: 15px;
+  }
+
+  .hero-reg-btn {
+    width: 100%;
+    max-width: 320px;
+    font-size: 16px;
+    padding: 13px 18px;
+  }
+
+  .news-ticker {
+    height: auto;
+    max-height: 120px;
+  }
+
+  .dynamic-sections {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+/* ===== スマホ表示：右アカウントパネルをスライド表示 ===== */
+.mobile-account-toggle,
+.mobile-account-overlay {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-account-toggle {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 10px auto 0;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 999px;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.22);
+    cursor: pointer;
+  }
+
+  .mobile-account-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-account-overlay.is-open {
+    display: block;
+  }
+
+  .right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(84vw, 330px);
+    height: 100vh;
+    padding: 22px 18px;
+    border-radius: 18px 0 0 18px;
+    border: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+    background: #fff;
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.25s ease;
+  }
+
+  .right.is-open {
+    transform: translateX(0);
+  }
+}
+
   </style>
 </head>
 <body>
 
-  <div class="menu">
-    <a href="index.html">トップ</a>
-    <a href="works.html">本棚</a>
-    <a href="nft_mint.html">NNFTへ</a>
+<div class="menu">
+  <a href="index.html">トップ</a>
+  <a href="works.html">本棚</a>
+  <a href="nft_mint.html">NNFTへ</a>
+</div>
+
+<button id="mobileAccountToggle" class="mobile-account-toggle" type="button">
+  ☰ アカウント
+</button>
+
+<div id="mobileAccountOverlay" class="mobile-account-overlay"></div>
+<div class="layout">
+  <div class="left">
+    <div class="side-box">
+      <h3>カテゴリー</h3>
+      <ul style="list-style:none; font-size:14px; line-height: 2.2;">
+        <li><a href="works.html" style="color:#6a0dad; text-decoration:none;">🔍 全年齢作品から探す</a></li>
+        <li>📖 <a href="../my-siteman/index.html" style="color:#6a0dad; text-decoration:none;">🔍 男性向けへ</a></li>
+        <li>📖 <a href="../my-sitewomens/index.html" style="color:#6a0dad; text-decoration:none;">🔍 女性向けへ</a></li>
+        <li>📖 <a href="nft_mint.html">NNFTスタジオ</a></li>
+        <li>🔰 <a href="../portal/about.html">サイト紹介</a></li>
+      </ul>
+    </div>
   </div>
 
-  <div class="layout">
-    <div class="left">
-      <div class="side-box">
-        <h3>カテゴリー</h3>
-        <ul style="list-style:none; font-size:14px; line-height: 2.2;">
-          <li><a href="works.html" style="color:#6a0dad; text-decoration:none;">🔍 全作品から探す</a></li>
-          <li>📖 男性向け小説</li>
-          <li>📖 女性向け小説</li>
+  <div class="main">
+    <div class="hero">
+      <h1>書くことが、価値になる。</h1>
+      <p>
+        当サイトは、クリエイターの情熱を直接応援する<span class="highlight">仮想通貨報酬型</span>の小説投稿プラットフォームです。<br>
+        累計<span class="highlight">4,000文字</span>の投稿ごとに、独自のトークンを付与。
+      </p>
+      <a href="../portal/login.html" class="hero-reg-btn">今すぐログインして執筆を始める</a>
+    </div>
+
+    <p style="margin-top: 18px; font-size: 0.95rem; color: #040008; line-height: 1.8;">
+  ※ 投稿報酬は即時付与ではなく、反映までに一定の待機時間が発生します。<br>
+  ※ NVTの投稿報酬には1日あたりの上限があります。現在の上限は最大3NVTです。
+</p>
+
+    <div class="news-ticker">
+      <div class="news-item"><span class="news-date">2026.03.27</span> しおり機能（自動保存）を実装しました！</div>
+      <div class="news-item"><span class="news-date">2026.03.20</span> タグ検索機能をリリース。</div>
+      <div class="news-item"><span class="news-date">2026.03.15</span> 独自トークン「Novetcoin」の検証完了。</div>
+    </div>
+
+    <div class="dynamic-sections">
+      <div class="section-card">
+        <h3>閲覧ランキング</h3>
+        <ul id="viewRanking">
+          <li class="list-item" style="color:#999;">集計中...</li>
+        </ul>
+      </div>
+      <div class="section-card">
+        <h3>最新の投稿</h3>
+        <ul id="newArrivals">
+          <li class="list-item" style="color:#999;">読み込み中...</li>
         </ul>
       </div>
     </div>
-
-    <div class="main">
-      <div class="hero">
-        <h1>書くことが、価値になる。</h1>
-        <p>
-          当サイトは、クリエイターの情熱を直接応援する<span class="highlight">仮想通貨報酬型</span>の小説投稿プラットフォームです。<br>
-          累計<span class="highlight">4,000文字</span>の投稿ごとに、独自のトークンを付与。
-        </p>
-        <a href="register.html" class="hero-reg-btn" id="heroRegBtn">今すぐ作家登録して執筆を始める</a>
-      </div>
-
-      <div class="news-ticker">
-        <div class="news-item"><span class="news-date">2026.03.27</span> しおり機能（自動保存）を実装しました！</div>
-        <div class="news-item"><span class="news-date">2026.03.20</span> タグ検索機能をリリース。</div>
-        <div class="news-item"><span class="news-date">2026.03.15</span> 独自トークン「Novetcoin」の検証完了。</div>
-      </div>
-
-      <div class="dynamic-sections">
-  <div class="section-card">
-    <h3>閲覧ランキング</h3>
-    <ul id="viewRanking">
-      <li class="list-item" style="color:#999;">集計中...</li>
-    </ul>
   </div>
-  
-  <div class="section-card">
-    <h3>最新の投稿</h3>
-    <ul id="newArrivals">
-      <li class="list-item" style="color:#999;">読み込み中...</li>
-    </ul>
-  </div>
-</div>
+
+  <div class="right" id="rightPanel">
     </div>
+</div>
 
-    <div class="right" id="rightPanel">
-      </div>
-  </div>
-
+<script src="../portal/auth-check.js"></script>
 <script>
-// --- 1. Supabaseの初期設定 ---
-const SUPABASE_URL = "https://brgaykxyfgylzyujrjbp.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyZ2F5a3h5Zmd5bHp5dWpyamJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjQxNDUsImV4cCI6MjA5MDIwMDE0NX0.HRN3DDpjFKeiyfhdhvcHOHg0lvnSvozJwBFsL0E12e0";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ★ Web3Authとユーザー情報用の変数 (window にアタッチして auth-check.js からも触れるようにします)
+window.web3auth = null;
+let currentProfile = null; 
 
-let currentUser = null;
+// --- アプリの初期化とログイン状態の確認 ---
+async function initApp() {
+  try {
+    const clientId = "BKrGedHzJhGM4Bkk7uI8KoENQQhZnj1cUa6y7aORSSjrF5Wn44j-JOkZwveNuvFRMoJlT6l7Pp1-_AW7iUeRfmE"; 
+    const chainConfig = {
+      chainNamespace: "eip155",
+      chainId: "0x89", 
+      rpcTarget: "https://polygon.drpc.org", 
+      displayName: "Polygon Mainnet",
+      blockExplorerUrl: "https://polygonscan.com/",
+      ticker: "MATIC",
+      tickerName: "Matic",
+    };
 
-async function checkUser() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  currentUser = user;
-  
-  // 右パネルと最新投稿の描画を実行
-  renderRightPanel();
-  renderNewArrivals();
+    const privateKeyProvider = new window.EthereumProvider.EthereumPrivateKeyProvider({
+      config: { chainConfig: chainConfig }
+    });
+
+    window.web3auth = new window.Modal.Web3Auth({
+      clientId: clientId,
+      web3AuthNetwork: "sapphire_devnet", 
+      privateKeyProvider: privateKeyProvider,
+      uiConfig: { uxMode: "redirect", appName: "Novetcoin", theme: "light" }
+    });
+
+    await window.web3auth.initModal();
+
+    // ★ ログイン判定を Supabase (auth-check.jsと同じ基準) に合わせる
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        currentProfile = profile;
+        
+        // アカウント凍結チェック
+        if (currentProfile.is_frozen) {
+          window.location.replace('../portal/../portal/penalty.html');
+          return;
+        }
+      }
+    }
+
+    // 画面の描画を実行
+if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
+renderNewArrivals();
+renderRanking();
+
+  } catch (error) {
+    console.error("初期化エラー:", error);
+    if (window.renderNovetSharedRightPanel) {
+  await window.renderNovetSharedRightPanel();
+}
+  }
 }
 
-// --- 3. 右パネル（ログイン状態の反映） ---
+// --- 右パネルの描画 ---
 async function renderRightPanel() {
   const panel = document.getElementById("rightPanel");
-  
-  // 1. 現在のログインユーザーを取得
-  const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
 
-  // ログインしていない、またはエラーの場合（ゲスト表示）
-  if (authError || !user) {
+  // ログインしていない場合（ゲスト）
+  if (!currentProfile) {
     panel.innerHTML = `
       <h3>ゲストさん</h3>
-      <p style="font-size:12px; color:#666; margin-bottom:15px;">ログインすると執筆や報酬の受け取りが可能です。</p>
-      <a href="register.html" class="right-btn">新規登録</a>
-      <a href="login.html" class="right-btn" style="background:#555; margin-top:10px;">ログイン</a>
+      <p style="font-size:12px; color:#666; margin-bottom:15px;">Googleアカウントでログインすると執筆や報酬の受け取りが可能です。</p>
+      <a href="../portal/login.html" class="right-btn" style="background:#4285F4; margin-top:10px;">Googleでログイン</a>
     `;
     return;
   }
 
-  // 2. ログインしている場合
+  // ログインしている場合（ユーザー情報表示）
   try {
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    const { data: myNovels } = await supabaseClient
+    const { data: myNovels } = await window.supabaseClient
       .from('novels')
       .select('char_count')
-      .eq('user_id', user.id)
+      .eq('user_id', currentProfile.id)
       .eq('published', true);
 
     const wCount = myNovels ? myNovels.length : 0;
     const tChars = myNovels ? myNovels.reduce((sum, n) => sum + (n.char_count || 0), 0) : 0;
 
-    // --- ここから表示内容の変更 ---
     panel.innerHTML = `
-      <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
+       <h3 style="border-bottom: 2px solid #6a0dad; padding-bottom: 5px; margin-bottom: 15px;">マイステータス</h3>
       
-      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${profile?.username || "名無し"}</p>
+      <p style="font-size:13px; margin-bottom:10px;"><b>👤 アカウント：</b><br>${currentProfile.username || "名称未設定"}</p>
       
-      <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
-        <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産</p>
-        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-          <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
-          <span style="font-size:13px; font-weight:bold;">${(profile?.nvt_balance || 0).toLocaleString()}</span>
+      <a href="../portal/wallet.html" style="text-decoration: none; color: inherit; display: block;">
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='#f9f9f9'">
+          <p style="font-size:11px; color:#666; margin-bottom:5px;">保有資産 <span style="color:#6a0dad; font-weight:bold;">(クリックでウォレットへ)</span></p>
+          <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="font-size:13px; font-weight:bold; color:#6a0dad;">💎 NVT (報酬)</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.nvt_balance || 0).toLocaleString()}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
+            <span style="font-size:13px; font-weight:bold;">${(currentProfile.np_balance || 0).toLocaleString()}</span>
+          </div>
         </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span style="font-size:13px; font-weight:bold; color:#ff8c00;">💰 NP (ポイント)</span>
-          <span style="font-size:13px; font-weight:bold;">${(profile?.np_balance || 0).toLocaleString()}</span>
-        </div>
-      </div>
+      </a>
 
-      <div style="font-size:12px; color:#444; border-top:1px solid #eee; pt:10px;">
+      <div style="font-size:12px; color:#444; border-top:1px solid #eee; padding-top:10px;">
         <p><b>作品数：</b>${wCount} 作品</p>
         <p><b>累計文字数：</b>${tChars.toLocaleString()} 字</p>
       </div>
 
-      <a href="/portal/account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
+      <a href="../portal/account.html" class="right-btn" style="margin-top:15px;">マイページ / お財布</a>
       <a href="author.html" class="right-btn" style="margin-top:10px; background:#ff9800; color:white;">🖋️ 作家管理へ</a>
       <button class="logout-btn" onclick="handleLogout()" style="background:none; border:none; color:#999; text-decoration:underline; font-size:11px; cursor:pointer; width:100%; margin-top:10px;">ログアウト</button>
     `;
@@ -204,74 +458,46 @@ async function renderRightPanel() {
   }
 }
 
-// index.html の script 内に追加
-async function handleLogout() {
-  const { error } = await supabaseClient.auth.signOut();
-  if (error) {
-    alert("ログアウトに失敗しました: " + error.message);
-  } else {
-    // ログアウト成功後、トップページをリロードして表示を更新
-    location.reload();
-  }
-}
-
-// アカウント状態（凍結）をチェックする共通関数
-async function checkAccountStatus() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  
-  if (user) {
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('is_frozen')
-      .eq('id', user.id)
-      .single();
-
-    if (profile && profile.is_frozen) {
-      // ★ location.href ではなく replace を使うのがコツです
-      window.location.replace('penalty.html');
-      return true;
-    }
-  }
-  return false;
-}
-// ページ読み込み時の実行処理
-async function initPage() {
-  const isFrozen = await checkAccountStatus();
-  if (isFrozen) return; // 凍結中なら以下の処理はやめる
-
-  // ここに各ページ元々の読み込み処理（fetchNovelsなど）があれば書く
-  if (typeof fetchNovels === 'function') fetchNovels();
-  if (typeof renderRightPanel === 'function') renderRightPanel();
-}
-
-// 実行
-initPage();
-
-// 最新の投稿の修正
-async function renderNewArrivals() {
-  const list = document.getElementById("newArrivals");
-  
-  // 最新の投稿（renderNewArrivalsの中）
-  const { data: novels, error } = await supabaseClient
+// --- ランキング表示 ---
+async function renderRanking() {
+  const list = document.getElementById("viewRanking");
+  const { data: novels, error } = await window.supabaseClient
     .from('novels')
-    .select('id, title, author_id, review_status, authors!inner(zone)') // ★変更
+    .select('id, title, author_id, views, review_status, authors!inner(zone)')
     .eq('published', true)
     .neq('review_status', 'suspended')
-    .eq('authors.zone', 'main') // ★追加：全年齢ゾーンのみ！
-    .order('id', { ascending: false })
+    .eq('authors.zone', 'main')
+    .order('views', { ascending: false })
     .limit(3);
 
-  if (error) {
-    console.error("最新投稿の取得エラー:", error);
-    return;
+  if (novels && novels.length > 0) {
+    list.innerHTML = "";
+    novels.forEach((n, index) => {
+      const li = document.createElement("li");
+      li.className = "list-item";
+      li.innerHTML = `<a href="detail.html?authorId=${n.author_id}&id=${n.id}"><span style="color:#6a0dad; font-weight:bold; display:inline;">第${index+1}位</span> ${n.title}</a><span>👁 ${n.views || 0} views</span>`;
+      list.appendChild(li);
+    });
   }
+}
+
+// --- 最新の投稿表示 ---
+async function renderNewArrivals() {
+  const list = document.getElementById("newArrivals");
+  const { data: novels, error } = await window.supabaseClient
+    .from('novels')
+    .select('id, title, author_id, review_status, authors!inner(zone)')
+    .eq('published', true)
+    .neq('review_status', 'suspended')
+    .eq('authors.zone', 'main')
+    .order('id', { ascending: false })
+    .limit(3);
 
   if (novels && novels.length > 0) {
     list.innerHTML = "";
     novels.forEach(n => {
       const li = document.createElement("li");
       li.className = "list-item";
-      // 精査中などのバッジを表示したい場合はここで getStatusBadge(n.review_status) を呼ぶ
       li.innerHTML = `<a href="detail.html?authorId=${n.author_id}&id=${n.id}">${n.title}</a>`;
       list.appendChild(li);
     });
@@ -279,44 +505,71 @@ async function renderNewArrivals() {
     list.innerHTML = `<li class="list-item" style="color:#999;">新着作品はありません。</li>`;
   }
 }
-async function renderRanking() {
-  const list = document.getElementById("viewRanking");
-  const { data: novels, error } = await supabaseClient
-    .from('novels')
-    .select('id, title, author_id, views, review_status, authors!inner(zone)') // ★変更
-    .eq('published', true)
-    .neq('review_status', 'suspended')
-    .eq('authors.zone', 'main') // ★追加：全年齢ゾーンのみ！
-    .order('views', { ascending: false })
-    .limit(3);
 
-  if (error) {
-    console.error("ランキング取得エラー:", error);
-    return;
-  }
+function openMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
 
-  if (novels && novels.length > 0) {
-    list.innerHTML = "";
-    novels.forEach((n, index) => {
-      const li = document.createElement("li");
-      li.className = "list-item";
-      li.innerHTML = `
-        <a href="detail.html?authorId=${n.author_id}&id=${n.id}">
-          <span style="color:#6a0dad; font-weight:bold; display:inline;">第${index+1}位</span> ${n.title}
-        </a>
-        <span>👁 ${n.views || 0} views</span>
-      `;
-      list.appendChild(li);
-    });
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.add("is-open");
+  overlay.classList.add("is-open");
+  button.setAttribute("aria-expanded", "true");
+}
+
+function closeMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  const overlay = document.getElementById("mobileAccountOverlay");
+  const button = document.getElementById("mobileAccountToggle");
+
+  if (!panel || !overlay || !button) return;
+
+  panel.classList.remove("is-open");
+  overlay.classList.remove("is-open");
+  button.setAttribute("aria-expanded", "false");
+}
+
+function toggleMobileAccountPanel() {
+  const panel = document.getElementById("rightPanel");
+  if (!panel) return;
+
+  if (panel.classList.contains("is-open")) {
+    closeMobileAccountPanel();
+  } else {
+    openMobileAccountPanel();
   }
 }
 
-// 最後に、checkUser()の中でこれらを呼び出すようにしてください
-// checkUser() { ... renderRanking(); renderNewArrivals(); ... }
+document.addEventListener("DOMContentLoaded", () => {
+  const button = document.getElementById("mobileAccountToggle");
+  const overlay = document.getElementById("mobileAccountOverlay");
 
-// 起動
-checkUser();
+  if (button) {
+    button.addEventListener("click", toggleMobileAccountPanel);
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", closeMobileAccountPanel);
+  }
+});
+
+// ページ読み込み時にアプリを起動
+window.addEventListener("load", initApp);
 </script>
+<footer class="legal-footer">
+  <div class="footer-links">
+    <a href="../portal/about.html">Novetについて</a>
+    <a href="../portal/token.html">NVTについて</a>
+    <a href="../portal/contact.html">お問い合わせ</a>
+    <a href="../portal/terms.html">利用規約</a>
+    <a href="../portal/privacy.html">プライバシーポリシー</a>
+    <a href="../portal/tokushoho.html">特定商取引法に基づく表記</a>
+  </div>
+  <div class="footer-copy">
+    © NovetCoin運営事務局
+  </div>
+</footer>
 
 </body>
 </html>
