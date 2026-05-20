@@ -231,6 +231,90 @@
         grid-template-columns: 1fr;
       }
     }
+    /* ===== 出金進行モーダル ===== */
+.withdraw-process-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+.withdraw-process-modal.is-open {
+  display: flex;
+}
+
+.withdraw-process-box {
+  width: min(520px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+
+.withdraw-process-box h2 {
+  margin: 0 0 14px;
+  color: var(--main-purple);
+  font-size: 20px;
+}
+
+.withdraw-step-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.withdraw-step {
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8f8f8;
+  border: 1px solid #eee;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.withdraw-step.active {
+  background: #faf5ff;
+  border-color: #d8b4fe;
+  color: var(--main-purple);
+  font-weight: bold;
+}
+
+.withdraw-step.done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: var(--ok);
+  font-weight: bold;
+}
+
+.withdraw-step.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.withdraw-process-message {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.withdraw-process-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.withdraw-process-actions button {
+  flex: 1;
+}
+
   </style>
 </head>
 <body>
@@ -345,7 +429,30 @@
       </div>
     </div>
 
-    <div class="msg" id="message"></div>
+        <div class="msg" id="message"></div>
+  </div>
+
+  <div id="withdrawProcessModal" class="withdraw-process-modal">
+    <div class="withdraw-process-box">
+      <h2>出金処理中</h2>
+
+      <div class="withdraw-step-list">
+        <div id="withdrawStepCreate" class="withdraw-step">1. 出金申請を作成</div>
+        <div id="withdrawStepOperation" class="withdraw-step">2. 運営ウォレットからNVT/POLを準備</div>
+        <div id="withdrawStepUserTransfer" class="withdraw-step">3. 外部ウォレットへ最終出金</div>
+        <div id="withdrawStepComplete" class="withdraw-step">4. 出金完了</div>
+      </div>
+
+      <div id="withdrawProcessMessage" class="withdraw-process-message">
+        処理を開始しています。画面を閉じずにお待ちください。
+      </div>
+
+      <div class="withdraw-process-actions">
+        <button id="withdrawProcessCloseBtn" type="button" class="btn-secondary" style="display:none;">
+          閉じる
+        </button>
+      </div>
+    </div>
   </div>
 
 <script type="module">
@@ -368,10 +475,16 @@ import {
 } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
 import {
+  createWalletClientForWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
+
+import {
   createPublicClient,
+  encodeFunctionData,
   erc20Abi,
   formatUnits,
   http,
+  parseUnits,
 } from "https://esm.sh/viem";
 
 import { polygon } from "https://esm.sh/viem/chains";
@@ -736,6 +849,82 @@ async function prepareDynamicWalletAccount() {
   return dynamicWalletAccount;
 }
 
+async function sendNvtFromDynamicWallet({
+  toAddress,
+  amountNvt
+}) {
+  if (!dynamicWalletAccount) {
+    await prepareDynamicWalletAccount();
+  }
+
+  if (!isEvmWalletAccount(dynamicWalletAccount)) {
+    throw new Error("DynamicウォレットがEVMウォレットではありません。");
+  }
+
+  const walletClient = await createWalletClientForWalletAccount({
+    walletAccount: dynamicWalletAccount,
+  });
+
+  const amountRaw = parseUnits(String(amountNvt), 18);
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [toAddress, amountRaw],
+  });
+
+  const txHash = await walletClient.sendTransaction({
+    to: NVT_CONTRACT_ADDRESS,
+    data,
+    value: 0n,
+    chain: polygon,
+  });
+
+  return txHash;
+}
+
+function openWithdrawProcessModal() {
+  const modal = document.getElementById("withdrawProcessModal");
+  const closeBtn = document.getElementById("withdrawProcessCloseBtn");
+
+  if (modal) {
+    modal.classList.add("is-open");
+  }
+
+  if (closeBtn) {
+    closeBtn.style.display = "none";
+    closeBtn.onclick = null;
+  }
+}
+
+function setWithdrawProcessMessage(text) {
+  const el = document.getElementById("withdrawProcessMessage");
+  if (el) el.textContent = text;
+}
+
+function setWithdrawStep(stepId, state) {
+  const el = document.getElementById(stepId);
+  if (!el) return;
+
+  el.classList.remove("active", "done", "error");
+
+  if (state) {
+    el.classList.add(state);
+  }
+}
+
+function showWithdrawProcessCloseButton(text = "ウォレットへ戻る") {
+  const closeBtn = document.getElementById("withdrawProcessCloseBtn");
+
+  if (!closeBtn) return;
+
+  closeBtn.style.display = "block";
+  closeBtn.textContent = text;
+  closeBtn.onclick = () => {
+    location.href = "wallet.html";
+  };
+}
+
 function calculateEstimate() {
   setMessage("");
   warningArea.innerHTML = "";
@@ -847,6 +1036,11 @@ async function createWithdrawRequest() {
 
   setMessage("");
 
+  if (!estimateResult) {
+    setMessage("先に手数料計算を行ってください。", "error");
+    return;
+  }
+
   if (estimateResult.fee_block_reason) {
     setMessage("現在の条件では出金申請できません。", "error");
     return;
@@ -859,98 +1053,165 @@ async function createWithdrawRequest() {
 
   submitBtn.disabled = true;
 
-const hasActive = await checkActiveWithdrawRequest();
-if (hasActive) {
-  return;
-}
-
-const payload = {
-    user_id: currentUser.id,
-    profile_id: currentUser.id,
-    source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
-    destination_wallet_address: estimateResult.destination_wallet_address,
-    token_symbol: estimateResult.token_symbol,
-    request_amount: estimateResult.request_amount,
-    fee_rate: estimateResult.fee_rate,
-    fee_amount: estimateResult.fee_amount,
-    net_amount: estimateResult.net_amount,
-    estimated_pol: estimateResult.estimated_pol,
-    status: "requested",
-    note: estimateResult.note,
-    nvt_usd_rate_snapshot: estimateResult.nvt_usd_rate_snapshot,
-    pol_usd_rate_snapshot: estimateResult.pol_usd_rate_snapshot,
-    fee_min_pol_snapshot: estimateResult.fee_min_pol_snapshot,
-    fee_nvt_final: estimateResult.fee_nvt_final,
-    fee_block_reason: estimateResult.fee_block_reason,
-    user_approved_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  const { data: insertedRows, error: insertError } = await window.supabaseClient
-    .from("withdraw_requests")
-    .insert([payload])
-    .select("id")
-    .single();
-
-  if (insertError) {
-    submitBtn.disabled = false;
-    setMessage("出金申請の作成に失敗しました: " + insertError.message, "error");
+  const hasActive = await checkActiveWithdrawRequest();
+  if (hasActive) {
     return;
   }
 
-  setMessage(
-  "出金申請を作成しました。運営側の自動処理を開始します。\n" +
-  "申請ID: " + insertedRows.id,
-  "ok"
-);
+  openWithdrawProcessModal();
 
-setMessage(
-  "出金申請を作成しました。運営側の自動処理中です。\n" +
-  "NVT/POL送付が完了するまで、画面を閉じずにお待ちください。\n" +
-  "申請ID: " + insertedRows.id,
-  "ok"
-);
+  setWithdrawStep("withdrawStepCreate", "active");
+  setWithdrawStep("withdrawStepOperation", "");
+  setWithdrawStep("withdrawStepUserTransfer", "");
+  setWithdrawStep("withdrawStepComplete", "");
 
-const { data: autoProcessResult, error: autoProcessError } =
-  await window.supabaseClient.functions.invoke("auto-process-withdraw-request", {
-    body: {
-      withdraw_request_id: insertedRows.id,
-      confirm: "PROCESS_WITHDRAW_REQUEST_ONCE"
+  setWithdrawProcessMessage(
+    "出金申請を作成しています。\n画面を閉じずにお待ちください。"
+  );
+
+  setProcessingState(true, "出金申請を作成しています...");
+
+  try {
+    const payload = {
+      user_id: currentUser.id,
+      profile_id: currentUser.id,
+      source_wallet_address: currentProfile.dynamic_wallet_address || currentProfile.wallet_address || null,
+      destination_wallet_address: estimateResult.destination_wallet_address,
+      token_symbol: estimateResult.token_symbol,
+      request_amount: estimateResult.request_amount,
+      fee_rate: estimateResult.fee_rate,
+      fee_amount: estimateResult.fee_amount,
+      net_amount: estimateResult.net_amount,
+      estimated_pol: estimateResult.estimated_pol,
+      status: "requested",
+      note: estimateResult.note,
+      nvt_usd_rate_snapshot: estimateResult.nvt_usd_rate_snapshot,
+      pol_usd_rate_snapshot: estimateResult.pol_usd_rate_snapshot,
+      fee_min_pol_snapshot: estimateResult.fee_min_pol_snapshot,
+      fee_nvt_final: estimateResult.fee_nvt_final,
+      fee_block_reason: estimateResult.fee_block_reason,
+      user_approved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: insertedRows, error: insertError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .insert([payload])
+      .select("id")
+      .single();
+
+    if (insertError) {
+      throw new Error("出金申請の作成に失敗しました: " + insertError.message);
     }
-  });
 
-if (autoProcessError) {
-  console.error(autoProcessError);
-  setMessage(
-    "出金申請は作成されましたが、運営側の自動処理に失敗しました。\n" +
-    "申請ID: " + insertedRows.id + "\n" +
-    "error: " + autoProcessError.message,
-    "error"
-  );
-  setProcessingState(false);
-  return;
-}
+    const withdrawRequestId = insertedRows.id;
 
-if (!autoProcessResult?.success) {
-  console.error(autoProcessResult);
-  setMessage(
-    "出金申請は作成されましたが、運営側の自動処理に失敗しました。\n" +
-    "申請ID: " + insertedRows.id + "\n" +
-    "error: " + (autoProcessResult?.error || "unknown error"),
-    "error"
-  );
-  return;
-}
+    setWithdrawStep("withdrawStepCreate", "done");
+    setWithdrawStep("withdrawStepOperation", "active");
 
-setMessage(
-  "出金申請と運営側の自動処理が完了しました。ウォレット画面へ戻ります。\n" +
-  "申請ID: " + insertedRows.id,
-  "ok"
-);
+    setWithdrawProcessMessage(
+      "出金申請を作成しました。\n" +
+      "運営ウォレットからNVT/POLを準備しています。\n" +
+      "申請ID: " + withdrawRequestId
+    );
 
-setTimeout(() => {
-  location.href = "wallet.html";
-}, 1200);
+    const { data: autoProcessResult, error: autoProcessError } =
+      await window.supabaseClient.functions.invoke("auto-process-withdraw-request", {
+        body: {
+          withdraw_request_id: withdrawRequestId,
+          confirm: "PROCESS_WITHDRAW_REQUEST_ONCE"
+        }
+      });
+
+    if (autoProcessError) {
+      throw new Error(
+        "運営側の自動処理に失敗しました: " + autoProcessError.message
+      );
+    }
+
+    if (!autoProcessResult?.success) {
+      throw new Error(
+        "運営側の自動処理に失敗しました: " +
+        (autoProcessResult?.error || "unknown error")
+      );
+    }
+
+    setWithdrawStep("withdrawStepOperation", "done");
+    setWithdrawStep("withdrawStepUserTransfer", "active");
+
+    setWithdrawProcessMessage(
+      "NVT/POLの準備が完了しました。\n" +
+      "外部ウォレットへ最終出金しています。\n" +
+      "この処理ではDynamicウォレットから送金トランザクションを実行します。"
+    );
+
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: estimateResult.destination_wallet_address,
+      amountNvt: estimateResult.net_amount
+    });
+
+    const { error: updateError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .update({
+        status: "completed",
+        user_transfer_tx_hash: txHash,
+        user_transfer_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", withdrawRequestId)
+      .eq("user_id", currentUser.id)
+      .eq("status", "pol_sent")
+      .is("user_transfer_tx_hash", null);
+
+    if (updateError) {
+      throw new Error(
+        "送金は完了しましたが、DB更新に失敗しました。\n" +
+        "tx_hash: " + txHash + "\n" +
+        "error: " + updateError.message
+      );
+    }
+
+    setWithdrawStep("withdrawStepUserTransfer", "done");
+    setWithdrawStep("withdrawStepComplete", "done");
+
+    setWithdrawProcessMessage(
+      "出金が完了しました。\n" +
+      "tx_hash:\n" + txHash
+    );
+
+    setMessage(
+      "出金が完了しました。\n" +
+      "tx_hash: " + txHash,
+      "ok"
+    );
+
+    showWithdrawProcessCloseButton("ウォレットへ戻る");
+
+  } catch (err) {
+    console.error("withdraw process error:", err);
+
+    const message = err?.message || String(err);
+
+    if (document.getElementById("withdrawStepUserTransfer")?.classList.contains("active")) {
+      setWithdrawStep("withdrawStepUserTransfer", "error");
+    } else if (document.getElementById("withdrawStepOperation")?.classList.contains("active")) {
+      setWithdrawStep("withdrawStepOperation", "error");
+    } else {
+      setWithdrawStep("withdrawStepCreate", "error");
+    }
+
+    setWithdrawProcessMessage(
+      "出金処理中にエラーが発生しました。\n\n" +
+      message +
+      "\n\n申請が作成済みの場合は、ウォレット画面または運営確認画面で状態を確認してください。"
+    );
+
+    setMessage("出金処理に失敗しました: " + message, "error");
+    showWithdrawProcessCloseButton("ウォレットへ戻る");
+
+  } finally {
+    setProcessingState(false);
+  }
 }
 
 function setProcessingState(isProcessing, text = "") {
