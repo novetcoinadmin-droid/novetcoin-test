@@ -1150,6 +1150,22 @@ async function createWithdrawRequest() {
       amountNvt: estimateResult.net_amount
     });
 
+    setWithdrawProcessMessage(
+  "外部ウォレットへの送金トランザクションを送信しました。\n" +
+  "オンチェーン反映を確認しています。\n" +
+  "画面を閉じずにお待ちください。"
+);
+
+const receipt = await publicClient.waitForTransactionReceipt({
+  hash: txHash
+});
+
+if (!receipt || receipt.status !== "success") {
+  throw new Error(
+    "外部ウォレットへの送金トランザクション確認に失敗しました。"
+  );
+}
+
     const { error: updateError } = await window.supabaseClient
       .from("withdraw_requests")
       .update({
@@ -1170,6 +1186,13 @@ async function createWithdrawRequest() {
         "error: " + updateError.message
       );
     }
+
+    await loadProfile();
+
+requestAmountEl.value = "";
+noteInputEl.value = "";
+agreeCheck.checked = false;
+clearEstimateView();
 
     setWithdrawStep("withdrawStepUserTransfer", "done");
     setWithdrawStep("withdrawStepComplete", "done");
