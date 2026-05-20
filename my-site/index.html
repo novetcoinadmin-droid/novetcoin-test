@@ -37,22 +37,186 @@
 
     .main { flex: 1; }
     
-    .hero { 
-      background: linear-gradient(135deg, #6a0dad 0%, #4b0082 100%); 
-      color: white; padding: 40px; border-radius: 12px; margin-bottom: 20px;
-      box-shadow: 0 4px 15px rgba(106, 13, 173, 0.2);
-      text-align: center;
-    }
-    .hero h1 { font-size: 32px; margin-bottom: 15px; }
-    .hero p { line-height: 1.6; font-size: 16px; opacity: 0.9; margin-bottom: 25px; }
-    .hero .highlight { color: #ffd700; font-weight: bold; }
-    
-    .hero-reg-btn {
-      display: inline-block; background: #ffd700; color: #333; padding: 12px 30px; 
-      border-radius: 30px; text-decoration: none; font-weight: bold; font-size: 18px;
-      transition: transform 0.2s;
-    }
-    .hero-reg-btn:hover { transform: scale(1.05); background: #ffea00; }
+    .hero-carousel {
+  position: relative;
+  min-height: 330px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6a0dad 0%, #4b0082 100%);
+  box-shadow: 0 4px 15px rgba(106, 13, 173, 0.2);
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  padding: 40px;
+  color: white;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: heroSlideShow 24s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-slide:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.hero-slide:nth-child(2) {
+  animation-delay: 8s;
+}
+
+.hero-slide:nth-child(3) {
+  animation-delay: 16s;
+}
+
+.hero-content {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.hero-slide h1 {
+  font-size: 32px;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.hero-slide p {
+  line-height: 1.8;
+  font-size: 16px;
+  opacity: 0.95;
+  margin-bottom: 22px;
+}
+
+.hero-slide .highlight {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.hero-note {
+  margin-top: 16px;
+  font-size: 0.9rem;
+  color: #f5eaff;
+  line-height: 1.8;
+}
+
+.hero-reg-btn {
+  display: inline-block;
+  background: #ffd700;
+  color: #333;
+  padding: 12px 30px;
+  border-radius: 30px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 18px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.hero-reg-btn:hover {
+  transform: scale(1.05);
+  background: #ffea00;
+}
+
+.hero-visual-layout {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 24px;
+  align-items: center;
+  width: 100%;
+}
+
+.hero-image-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-image-stack img {
+  width: 100%;
+  height: 125px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.hero-visual-text {
+  text-align: left;
+}
+
+.hero-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.hero-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  animation: heroDotShow 24s infinite;
+}
+
+.hero-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.hero-dots span:nth-child(2) {
+  animation-delay: 8s;
+}
+
+.hero-dots span:nth-child(3) {
+  animation-delay: 16s;
+}
+
+@keyframes heroSlideShow {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+  }
+  6% {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  28% {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  34% {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+}
+
+@keyframes heroDotShow {
+  0%, 34%, 100% {
+    background: rgba(255, 255, 255, 0.45);
+    transform: scale(1);
+  }
+  6%, 28% {
+    background: #ffd700;
+    transform: scale(1.35);
+  }
+}
 
     .news-ticker {
       background: #fff; border: 1px solid #ddd; padding: 10px 15px; border-radius: 8px;
@@ -305,19 +469,59 @@
   </div>
 
   <div class="main">
-    <div class="hero">
+    <div class="hero-carousel" aria-label="Novet紹介スライダー">
+  <section class="hero-slide">
+    <div class="hero-content">
       <h1>書くことが、価値になる。</h1>
       <p>
         当サイトは、クリエイターの情熱を直接応援する<span class="highlight">仮想通貨報酬型</span>の小説投稿プラットフォームです。<br>
         累計<span class="highlight">4,000文字</span>の投稿ごとに、独自のトークンを付与。
       </p>
       <a href="../portal/login.html" class="hero-reg-btn">今すぐログインして執筆を始める</a>
-    </div>
 
-    <p style="margin-top: 18px; font-size: 0.95rem; color: #040008; line-height: 1.8;">
-  ※ 投稿報酬は即時付与ではなく、反映までに一定の待機時間が発生します。<br>
-  ※ NVTの投稿報酬には1日あたりの上限があります。現在の上限は最大3NVTです。
-</p>
+      <p class="hero-note">
+        ※ 投稿報酬は即時付与ではなく、反映までに一定の待機時間が発生します。<br>
+        ※ NVTの投稿報酬には1日あたりの上限があります。現在の上限は最大3NVTです。
+      </p>
+    </div>
+  </section>
+
+  <section class="hero-slide">
+    <div class="hero-content">
+      <h1>初期公開期間のお知らせ</h1>
+      <p>
+        現在、Novetは初期公開期間として<br>
+        新規登録を<span class="highlight">先着500名</span>までに制限しています。<br>
+        上限に達した場合、新規登録を一時停止することがあります。
+      </p>
+      <a href="../portal/login.html" class="hero-reg-btn">今すぐログインして執筆を始める</a>
+    </div>
+  </section>
+
+  <section class="hero-slide">
+    <div class="hero-visual-layout">
+      <div class="hero-image-stack">
+        <img src="../portal/hero-illustration-novel-1.png" alt="Novetのイラストノベルサンプル1">
+        <img src="../portal/hero-illustration-novel-2.png" alt="Novetのイラストノベルサンプル2">
+      </div>
+
+      <div class="hero-visual-text">
+        <h1>イラストと小説を、ひとつの作品へ。</h1>
+        <p>
+          自由に編集できるイラストと小説の統合、そしてキャラクターや表現を整える<span class="highlight">基準化</span>という設計を盛り込みました。<br>
+          高次元なAIイラストで、新しい作品を創造してみませんか？
+        </p>
+        <a href="../portal/login.html" class="hero-reg-btn">今すぐログインして執筆を始める</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="hero-dots" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
 
     <div class="news-ticker">
       <div class="news-item"><span class="news-date">2026.03.27</span> しおり機能（自動保存）を実装しました！</div>
