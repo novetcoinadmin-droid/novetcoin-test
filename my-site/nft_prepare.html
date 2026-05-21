@@ -2427,15 +2427,16 @@ function buildLeonardoReferenceDetailSettings(templatePayload = {}) {
 
     // 現在はキャラテンプレート用を優先して作る
     const detailSettingsJa = {
-        view: getFieldValue("tpl_character_view"),
-        age: getFieldValue("tpl_character_age"),
-        expression: getFieldValue("tpl_character_expression"),
-        pose: getFieldValue("tpl_character_pose"),
-        outfit: getFieldValue("tpl_character_outfit"),
-        parts: getFieldValue("tpl_character_parts"),
-        background: getFieldValue("tpl_character_background"),
-        lighting_mood: getFieldValue("tpl_character_lighting")
-    };
+    free_text: getFieldValue("tpl_character_free_text"),
+    view: getFieldValue("tpl_character_view"),
+    age: getFieldValue("tpl_character_age"),
+    expression: getFieldValue("tpl_character_expression"),
+    pose: getFieldValue("tpl_character_pose"),
+    outfit: getFieldValue("tpl_character_outfit"),
+    parts: getFieldValue("tpl_character_parts"),
+    background: getFieldValue("tpl_character_background"),
+    lighting_mood: getFieldValue("tpl_character_lighting")
+};
 
     // 日本語表示値をLeonardo向け英語値へ変換
     return convertDetailSettingsToEnglish(detailSettingsJa);
