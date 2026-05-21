@@ -1815,6 +1815,27 @@ function updateTemplateDisplay() {
                 一人キャラクター用テンプレートです。顔や輪郭などの基準化特徴に、見え方・表情・衣装・背景などを組み合わせます。
             </div>
 
+            <div style="margin-bottom:14px; padding:10px; border:1px solid #e5d7f5; border-radius:8px; background:#fbf8ff;">
+    <label style="font-size:11px; color:#6a0dad; font-weight:bold;">
+        自由入力・情景指定
+    </label>
+
+    <p style="font-size:10px; color:#777; line-height:1.6; margin:6px 0 8px;">
+        テンプレートだけでは伝えにくい情景、雰囲気、小物、視線、関係性、本文から拾いたい描写などを自由に入力してください。
+    </p>
+
+    <textarea
+        id="tpl_character_free_text"
+        class="template-field"
+        data-template-mode="custom"
+        placeholder="例：
+夕暮れの図書館で、少し寂しそうな少女が本を抱えて立っている。
+窓から柔らかい光が差し込み、静かな空気が漂っている。
+手元には古びた本、背景には高い本棚が並んでいる。"
+        style="width:100%; min-height:130px; margin-top:6px; padding:10px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; resize:vertical; box-sizing:border-box;"
+    ></textarea>
+</div>
+
             ${buildTemplateSelect("キャラの見え方", "tpl_character_view", [
                 "顔アップ", "バストアップ", "上半身", "膝上", "全身", "少し離れた全身", "遠景の人物"
             ])}
@@ -1945,11 +1966,24 @@ function collectTemplatePayload() {
     const templateType = document.getElementById("templateType")?.value || "character";
     const fields = {};
 
-    document.querySelectorAll("#templateDisplay .template-field").forEach(select => {
-        const key = select.id;
-        let value = select.value;
+    document.querySelectorAll("#templateDisplay .template-field").forEach(fieldEl => {
+        const key = fieldEl.id;
+        if (!key) return;
 
+        const value = String(fieldEl.value || "").trim();
         if (!value) return;
+
+        const isDirectCustomField =
+            fieldEl.dataset.templateMode === "custom" ||
+            fieldEl.tagName.toLowerCase() === "textarea";
+
+        if (isDirectCustomField) {
+            fields[key] = {
+                mode: "custom",
+                value
+            };
+            return;
+        }
 
         if (value === "__custom__") {
             const customEl = document.getElementById(key + "_custom");
