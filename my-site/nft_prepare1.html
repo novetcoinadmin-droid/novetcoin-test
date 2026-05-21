@@ -1348,7 +1348,7 @@ async function runStandardizeExtraction() {
             extracted: false,
             extracting: true,
             standard_ready: false,
-            standard_method: "face_feature_extraction",
+            standard_method: "allages_feature_extraction",
             standardized_at: null
         };
 
@@ -1356,7 +1356,7 @@ async function runStandardizeExtraction() {
         renderStandardReferenceCard();
 
         // IndexedDBにBlobがない場合は、画像URLから再取得して保存する。
-        // これにより、PCではBlobキャッシュ、スマホではURLフォールバック後でも特徴抽出へ進める。
+        // これにより、PCでもスマホでも「画像URLはあるがBlobがない」状態から復旧できる。
         let cachedBlob = null;
 
         try {
@@ -1382,34 +1382,37 @@ async function runStandardizeExtraction() {
             extracted: true,
             extracting: false,
             standard_ready: true,
-            standard_method: "face_feature_extraction",
+            standard_method: "allages_feature_extraction",
             standardized_at: new Date().toISOString()
         };
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(completedRef));
         renderStandardReferenceCard();
 
-        alert("顔特徴の抽出が完了しました。\n生成時は参照画像ではなく、抽出した顔特徴とテンプレート設定を使います。");
+        alert("全年齢用の顔特徴抽出が完了しました。\n次の生成では、この抽出結果を使える状態になりました。");
 
     } catch (err) {
-        console.error("基準化エラー:", err);
+        console.error("全年齢用基準化エラー:", err);
 
         try {
             const raw = localStorage.getItem(STANDARD_REF_KEY);
+
             if (raw) {
                 const ref = JSON.parse(raw);
+
                 localStorage.setItem(STANDARD_REF_KEY, JSON.stringify({
                     ...ref,
                     extracting: false,
                     standard_ready: false,
-                    standard_method: "face_feature_extraction",
+                    standard_method: "allages_feature_extraction",
                     standard_error: err?.message || String(err)
                 }));
+
                 renderStandardReferenceCard();
             }
         } catch (_) {}
 
-        alert("基準化に失敗しました: " + (err?.message || String(err)));
+        alert("全年齢用の基準化に失敗しました: " + (err?.message || String(err)));
     }
 }
 
