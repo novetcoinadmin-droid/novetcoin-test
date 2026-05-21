@@ -1294,7 +1294,7 @@ async function extractStandardReferenceFeatures() {
     const imageMimeType = blob.type || "image/webp";
 
     const { data, error } = await supabaseClient.functions.invoke(
-        "extract-standard-reference-features",
+    "extract-standard-reference-features-allages",
         {
             body: {
                 image_base64: imageBase64,
@@ -1343,23 +1343,73 @@ async function runStandardizeExtraction() {
             return;
         }
 
-        const updatedRef = {
+        const preparingRef = {
             ...ref,
+            extracted: false,
+            extracting: true,
+            standard_ready: false,
+            standard_method: "face_feature_extraction",
+            standardized_at: null
+        };
+
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(preparingRef));
+        renderStandardReferenceCard();
+
+        // IndexedDBにBlobがない場合は、画像URLから再取得して保存する。
+        // これにより、PCではBlobキャッシュ、スマホではURLフォールバック後でも特徴抽出へ進める。
+        let cachedBlob = null;
+
+        try {
+            cachedBlob = await getStandardReferenceImageBlob();
+        } catch (blobReadErr) {
+            console.warn("基準化画像Blobの読み込みに失敗しました。URLから再取得します:", blobReadErr);
+        }
+
+        if (!cachedBlob || cachedBlob.size === 0) {
+            const fetchedBlob = await fetchImageAsBlob(ref.image_url);
+            await saveStandardReferenceImageBlob(fetchedBlob);
+            cachedBlob = await getStandardReferenceImageBlob();
+        }
+
+        if (!cachedBlob || cachedBlob.size === 0) {
+            throw new Error("基準化画像Blobを準備できませんでした。");
+        }
+
+        const extractedRef = await extractStandardReferenceFeatures();
+
+        const completedRef = {
+            ...extractedRef,
             extracted: true,
             extracting: false,
             standard_ready: true,
-            standard_method: "leonardo_reference_image",
+            standard_method: "face_feature_extraction",
             standardized_at: new Date().toISOString()
         };
 
-        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(updatedRef));
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(completedRef));
         renderStandardReferenceCard();
 
-        alert("基準化が完了しました。\nこの画像を参照画像として使用します。");
+        alert("顔特徴の抽出が完了しました。\n生成時は参照画像ではなく、抽出した顔特徴とテンプレート設定を使います。");
 
     } catch (err) {
         console.error("基準化エラー:", err);
-        alert("基準化に失敗しました。参照画像の設定を確認してください。");
+
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            if (raw) {
+                const ref = JSON.parse(raw);
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify({
+                    ...ref,
+                    extracting: false,
+                    standard_ready: false,
+                    standard_method: "face_feature_extraction",
+                    standard_error: err?.message || String(err)
+                }));
+                renderStandardReferenceCard();
+            }
+        } catch (_) {}
+
+        alert("基準化に失敗しました: " + (err?.message || String(err)));
     }
 }
 
@@ -2903,7 +2953,7 @@ if (templatePayload.template_type !== "character") {
     return;
 }
 
-        let standardRef = null;
+                let standardRef = null;
 
         try {
             const raw = localStorage.getItem(STANDARD_REF_KEY);
@@ -2917,21 +2967,22 @@ if (templatePayload.template_type !== "character") {
             return;
         }
 
-        if (standardRef.standard_ready !== true) {
-            alert("基準化用の画像は選択済みです。\n続けて「基準化」ボタンを押してから生成してください。");
+        if (standardRef.standard_ready !== true || !standardRef.features) {
+            alert("基準化用の画像は選択済みです。\n続けて「基準化」ボタンを押し、顔特徴の抽出を完了してから生成してください。");
             return;
         }
 
-        const detailSettings = buildLeonardoReferenceDetailSettings(templatePayload);
-
-        const hasAnyDetail = Object.values(detailSettings).some(value => String(value || "").trim() !== "");
+        const hasAnyDetail = Object.values(templatePayload.template_fields || {}).some(field => {
+            const value = field && typeof field === "object" ? field.value : "";
+            return String(value || "").trim() !== "";
+        });
 
         if (!hasAnyDetail) {
-            alert("キャラテンプレートの細部設定を1つ以上選択してください。");
+            alert("キャラテンプレートの細部設定を1つ以上入力または選択してください。");
             return;
         }
 
-        if (!confirm("スタンダード生成を実行しますか？\n費用: 10 NP")) {
+        if (!confirm("スタンダード生成を実行しますか？\n顔特徴抽出 + テンプレート設定で生成します。\n費用: 10 NP")) {
             return;
         }
 
@@ -2940,32 +2991,39 @@ if (templatePayload.template_type !== "character") {
         }
 
         const requestPayload = {
-            reference_image_url: standardRef.image_url,
-            detail_settings: detailSettings,
+            template_type: "character",
+            template_fields: templatePayload.template_fields || {},
+            reference_features: standardRef.features,
+            fixed_style: {
+                hand_drawn: true,
+                novet_illustration: true
+            },
             debug_prompt_only: false
         };
 
-        console.log("🎨 Leonardo参照画像Functionへ送るpayload:", {
-            has_reference_image_url: !!requestPayload.reference_image_url,
-            detail_settings: requestPayload.detail_settings,
+        console.log("🎨 顔特徴抽出型Functionへ送るpayload:", {
+            template_type: requestPayload.template_type,
+            template_field_keys: Object.keys(requestPayload.template_fields || {}),
+            has_reference_features: !!requestPayload.reference_features,
+            face_feature_keys: Object.keys(requestPayload.reference_features?.features || {}),
             debug_prompt_only: requestPayload.debug_prompt_only
         });
 
         const { data, error } = await supabaseClient.functions.invoke(
-            "generate-nft-image-leonardo-reference",
+            "generate-nft-image-safe",
             {
                 body: requestPayload
             }
         );
 
         if (error) {
-            console.error("Leonardo参照画像Function Error:", error);
-            throw new Error(error.message || "Leonardo参照画像Functionの呼び出しに失敗しました。");
+            console.error("顔特徴抽出型Function Error:", error);
+            throw new Error(error.message || "顔特徴抽出型Functionの呼び出しに失敗しました。");
         }
 
-        console.log("🎨 Leonardo参照画像Function 結果:", data);
+        console.log("🎨 顔特徴抽出型Function 結果:", data);
 
-        if (!data || data.ok !== true) {
+        if (!data || data.error) {
             throw new Error(data?.error || "画像URLの取得に失敗しました。");
         }
 
@@ -2993,25 +3051,25 @@ if (templatePayload.template_type !== "character") {
             .eq("id", user.id);
 
         if (updateError) {
-    console.error("NP更新エラー:", updateError);
-    alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
-} else {
-    await recordNpUsageTransaction({
-        userId: user.id,
-        type: "ai_illustration_generation",
-        productName: "AIイラスト生成（キャラ）",
-        amountNp: 10,
-        balanceBeforeNp: currentNp,
-        balanceAfterNp: newNp,
-        relatedTable: "novels",
-        relatedId: novelData?.id || null
-    });
+            console.error("NP更新エラー:", updateError);
+            alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+        } else {
+            await recordNpUsageTransaction({
+                userId: user.id,
+                type: "ai_illustration_generation",
+                productName: "AIイラスト生成（キャラ）",
+                amountNp: 10,
+                balanceBeforeNp: currentNp,
+                balanceAfterNp: newNp,
+                relatedTable: "novels",
+                relatedId: novelData?.id || null
+            });
 
-    const myNpEl = document.getElementById("myNp");
-    if (myNpEl) {
-        myNpEl.innerText = newNp;
-    }
-}
+            const myNpEl = document.getElementById("myNp");
+            if (myNpEl) {
+                myNpEl.innerText = newNp;
+            }
+        }
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "none";
