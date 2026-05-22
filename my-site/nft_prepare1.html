@@ -2956,7 +2956,7 @@ if (templatePayload.template_type !== "character") {
     return;
 }
 
-                let standardRef = null;
+            let standardRef = null;
 
         try {
             const raw = localStorage.getItem(STANDARD_REF_KEY);
@@ -2985,7 +2985,7 @@ if (templatePayload.template_type !== "character") {
             return;
         }
 
-        if (!confirm("スタンダード生成を実行しますか？\n顔特徴抽出 + テンプレート設定で生成します。\n費用: 10 NP")) {
+        if (!confirm("スタンダード生成を実行しますか？\nGeminiで抽出した基準化情報 + テンプレート設定で生成します。\n費用: 10 NP")) {
             return;
         }
 
@@ -3004,11 +3004,23 @@ if (templatePayload.template_type !== "character") {
             debug_prompt_only: false
         };
 
-        console.log("🎨 顔特徴抽出型Functionへ送るpayload:", {
+        console.log("🎨 抽出特徴ベース生成Functionへ送るpayload:", {
             template_type: requestPayload.template_type,
             template_field_keys: Object.keys(requestPayload.template_fields || {}),
             has_reference_features: !!requestPayload.reference_features,
-            face_feature_keys: Object.keys(requestPayload.reference_features?.features || {}),
+            has_face_features: !!requestPayload.reference_features?.features,
+            face_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.face_prompt_fragments)
+                ? requestPayload.reference_features.face_prompt_fragments.length
+                : 0,
+            emotion_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.emotion_prompt_fragments)
+                ? requestPayload.reference_features.emotion_prompt_fragments.length
+                : 0,
+            scene_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.scene_prompt_fragments)
+                ? requestPayload.reference_features.scene_prompt_fragments.length
+                : 0,
+            object_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.object_prompt_fragments)
+                ? requestPayload.reference_features.object_prompt_fragments.length
+                : 0,
             debug_prompt_only: requestPayload.debug_prompt_only
         });
 
@@ -3020,11 +3032,11 @@ if (templatePayload.template_type !== "character") {
         );
 
         if (error) {
-            console.error("顔特徴抽出型Function Error:", error);
-            throw new Error(error.message || "顔特徴抽出型Functionの呼び出しに失敗しました。");
+            console.error("抽出特徴ベース生成Function Error:", error);
+            throw new Error(error.message || "抽出特徴ベース生成Functionの呼び出しに失敗しました。");
         }
 
-        console.log("🎨 顔特徴抽出型Function 結果:", data);
+        console.log("🎨 抽出特徴ベース生成Function 結果:", data);
 
         if (!data || data.error) {
             throw new Error(data?.error || "画像URLの取得に失敗しました。");
