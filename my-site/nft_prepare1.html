@@ -1488,6 +1488,38 @@ async function clearStandardReference() {
     }
 }
 
+function escapeStandardHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function saveStandardEditableField(key, value) {
+    try {
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+        if (!raw) return;
+
+        const ref = JSON.parse(raw);
+
+        if (!ref.features) {
+            ref.features = {};
+        }
+
+        if (!ref.features.editable_fields_japanese) {
+            ref.features.editable_fields_japanese = {};
+        }
+
+        ref.features.editable_fields_japanese[key] = value;
+
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+    } catch (err) {
+        console.error("基準化編集項目の保存エラー:", err);
+    }
+}
+
 function renderStandardReferenceCard() {
     const box = document.getElementById("standardStatus");
     if (!box) return;
@@ -1518,6 +1550,69 @@ function renderStandardReferenceCard() {
         ref.type === "other" ? "その他" :
         "キャラ";
 
+    const editableFields = ref.features?.editable_fields_japanese || null;
+
+    const fieldOrder = [
+        "画風",
+        "質感",
+        "色調",
+        "線の強さ",
+        "塗り",
+        "年齢感",
+        "性別印象",
+        "全体印象",
+        "表情",
+        "感情",
+        "髪色",
+        "髪色構造",
+        "髪型",
+        "髪の長さ",
+        "前髪",
+        "顔の輪郭",
+        "眉毛",
+        "瞳の形",
+        "瞳の色",
+        "瞳孔の印象",
+        "鼻の形",
+        "唇の色",
+        "唇の形",
+        "注意点"
+    ];
+
+    const editableFieldsHtml = editableFields
+        ? `
+            <div style="margin-top:10px; padding:8px; border:1px solid #eadcf7; border-radius:8px; background:#fbf8ff;">
+                <div style="font-size:11px; font-weight:bold; color:#6a0dad; margin-bottom:6px;">
+                    基準化された調整項目
+                </div>
+
+                <div style="font-size:10px; color:#777; line-height:1.5; margin-bottom:8px;">
+                    生成前に必要に応じて修正できます。ここで修正した内容は、このブラウザ内の基準化データに保存されます。
+                </div>
+
+                ${fieldOrder.map((key) => {
+                    if (!(key in editableFields)) return "";
+
+                    const value = editableFields[key] || "";
+
+                    return `
+                        <div style="margin-bottom:7px;">
+                            <label style="display:block; font-size:10px; color:#666; font-weight:bold; margin-bottom:3px;">
+                                ${escapeStandardHtml(key)}
+                            </label>
+                            <input
+                                type="text"
+                                value="${escapeStandardHtml(value)}"
+                                oninput="saveStandardEditableField('${escapeStandardHtml(key)}', this.value)"
+                                style="width:100%; box-sizing:border-box; padding:6px; border:1px solid #ddd; border-radius:5px; font-size:11px;"
+                            >
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        `
+        : "";
+
     box.innerHTML = `
         <div style="margin-top:10px; border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff;">
             <img src="${ref.image_url}" style="width:100%; height:120px; object-fit:cover; display:block;">
@@ -1526,7 +1621,7 @@ function renderStandardReferenceCard() {
                 <div style="font-size:11px; color:#666;">現在の参照画像</div>
 
                 <div style="font-size:12px; font-weight:bold; margin-top:3px;">
-                    ${ref.title || "無題"}
+                    ${escapeStandardHtml(ref.title || "無題")}
                 </div>
 
                 <div style="font-size:11px; color:#6a0dad; margin-top:4px;">
@@ -1534,8 +1629,11 @@ function renderStandardReferenceCard() {
                 </div>
 
                 <div style="font-size:10px; color:#2ecc71; margin-top:6px; line-height:1.5;">
-                    参照画像：設定済み
+                    参照画像：設定済み<br>
+                    基準化：${ref.standard_ready ? "完了" : ref.extracting ? "抽出中" : "未完了"}
                 </div>
+
+                ${editableFieldsHtml}
 
                 <div style="display:flex; gap:6px; margin-top:8px;">
                     <button
