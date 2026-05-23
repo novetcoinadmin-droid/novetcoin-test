@@ -2041,6 +2041,36 @@ function updateTemplateDisplay() {
                 "幼少期", "少年・少女", "10代前半", "10代後半", "20代前半", "20代後半", "30代", "40代", "50代以上", "年齢不詳"
             ])}
 
+                        <div style="margin-bottom:10px; padding:10px; border:1px solid #e5d7f5; border-radius:8px; background:#fbf8ff;">
+                <label style="font-size:11px; color:#6a0dad; font-weight:bold;">
+                    喜怒哀楽プリセット
+                </label>
+
+                <p style="font-size:10px; color:#777; line-height:1.6; margin:6px 0 8px;">
+                    同一人物感を残したまま、表情だけを大きめに変化させます。
+                    細かい基準化項目を直接編集しなくても、眉・目・口・感情をまとめて調整できます。
+                </p>
+
+                <select
+                    id="tpl_character_emotion_preset"
+                    onchange="applyCharacterEmotionPreset(this.value)"
+                    style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px;"
+                >
+                    <option value="">指定なし</option>
+                    <option value="joy">歓喜の表情</option>
+                    <option value="anger">怒りの表情</option>
+                    <option value="despair">絶望の表情</option>
+                    <option value="laugh">大笑いの表情</option>
+                </select>
+
+                <div
+                    id="characterEmotionPresetStatus"
+                    style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;"
+                >
+                    表情プリセットは未選択です。
+                </div>
+            </div>
+
             ${buildTemplateSelect("表情", "tpl_character_expression", [
                 "無表情", "微笑み", "喜び", "悲しげ", "真面目", "怒り", "疲れ", "照れ", "緊張", "決意"
             ])}
@@ -2473,6 +2503,111 @@ function setTemplateFieldValue(fieldId, value) {
     const customEl = document.getElementById(fieldId + "_custom");
     if (customEl) {
         customEl.value = normalizedValue;
+    }
+}
+
+function getCharacterEmotionPresetSettings(presetKey) {
+    const presets = {
+        joy: {
+            label: "歓喜の表情",
+            expressionText: "歓喜の表情。目を大きく開き、眉を高く上げ、頬を明るくし、口角を大きく上げた強い笑顔。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
+            fields: {
+                "表情": "歓喜の表情、大きく目を開いた強い笑顔",
+                "感情": "強い喜び、高揚感、明るい幸福感",
+                "眉毛": "高く上がった眉、柔らかく開いた眉",
+                "瞳の形": "大きく開いた明るい目、輝きのある視線",
+                "唇の形": "口角が大きく上がった笑顔",
+                "全体印象": "同じ人物のまま、明るく歓喜している"
+            }
+        },
+
+        anger: {
+            label: "怒りの表情",
+            expressionText: "怒りの表情。眉を強く寄せ、目つきを鋭くし、口元を強く引き締めた激しい怒り。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
+            fields: {
+                "表情": "怒りの表情、鋭い目つき、強く引き締めた口元",
+                "感情": "激しい怒り、緊張感、強い敵意",
+                "眉毛": "深く寄せた眉、鋭く吊り上がった眉",
+                "瞳の形": "細く鋭い目、強い睨み",
+                "唇の形": "強く閉じた口、引き締まった唇",
+                "全体印象": "同じ人物のまま、怒りで緊張している"
+            }
+        },
+
+        despair: {
+            label: "絶望の表情",
+            expressionText: "絶望の表情。目から涙がこぼれ、眉は下がり、口元は小さく震える。深い悲しみと喪失感を大きく表現する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
+            fields: {
+                "表情": "絶望の表情、涙を浮かべた悲痛な顔",
+                "感情": "深い絶望、喪失感、悲しみ",
+                "眉毛": "下がった眉、苦しそうに寄った眉",
+                "瞳の形": "涙で潤んだ目、力の抜けた視線",
+                "唇の形": "小さく震える口元、弱く開いた唇",
+                "全体印象": "同じ人物のまま、深く絶望している"
+            }
+        },
+
+        laugh: {
+            label: "大笑いの表情",
+            expressionText: "大笑いの表情。目を細め、口を大きく開け、歯が見えるほど楽しそうに笑う。顔全体を大きく崩して自然に笑わせる。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
+            fields: {
+                "表情": "大笑いの表情、口を大きく開けた自然な笑顔",
+                "感情": "楽しい、愉快、開放的な喜び",
+                "眉毛": "笑いで柔らかく上がった眉",
+                "瞳の形": "笑って細くなった目、楽しそうな目元",
+                "唇の形": "大きく開いた笑い口、歯が見える笑顔",
+                "全体印象": "同じ人物のまま、自然に大笑いしている"
+            }
+        }
+    };
+
+    return presets[presetKey] || null;
+}
+
+function applyCharacterEmotionPreset(presetKey) {
+    const preset = getCharacterEmotionPresetSettings(presetKey);
+    const statusEl = document.getElementById("characterEmotionPresetStatus");
+
+    if (!preset) {
+        if (statusEl) {
+            statusEl.innerText = "表情プリセットは未選択です。";
+        }
+        return;
+    }
+
+    // 既存の「表情」欄にも反映する。
+    // 選択肢にない長文なので、自動で自由入力扱いになる。
+    setTemplateFieldValue("tpl_character_expression", preset.expressionText);
+
+    try {
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+
+        if (raw) {
+            const ref = JSON.parse(raw);
+
+            if (!ref.features) {
+                ref.features = {};
+            }
+
+            if (!ref.features.editable_fields_japanese) {
+                ref.features.editable_fields_japanese = {};
+            }
+
+            Object.assign(ref.features.editable_fields_japanese, preset.fields);
+
+            ref.standard_edit_modified = true;
+            ref.character_emotion_preset = preset.label;
+            ref.character_emotion_preset_updated_at = new Date().toISOString();
+
+            localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+            renderStandardReferenceCard();
+        }
+    } catch (err) {
+        console.error("表情プリセット反映エラー:", err);
+    }
+
+    if (statusEl) {
+        statusEl.innerText = `${preset.label}を反映しました。同一性は維持しつつ、表情だけ大きめに変化させます。`;
     }
 }
 
