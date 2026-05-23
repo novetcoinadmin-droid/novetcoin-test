@@ -87,9 +87,6 @@
   </div>
 </div>
 
-<div class="footer">
-  <div class="copy">ODAcorp</div>
-</div>
 
 <script type="module">
   import {
@@ -99,14 +96,14 @@
     completeSocialAuthentication,
     isSignedIn,
     waitForClientInitialized,
-  } from "https://esm.sh/@dynamic-labs-sdk/client";
+  } from "https://esm.sh/@dynamic-labs-sdk/client?bundle";
 
   import {
     createWaasWalletAccounts,
     getChainsMissingWaasWalletAccounts,
-  } from "https://esm.sh/@dynamic-labs-sdk/client/waas";
+  } from "https://esm.sh/@dynamic-labs-sdk/client/waas?bundle";
 
-  import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm";
+  import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm?bundle";
 
   if (!window.supabaseClient) {
   throw new Error("Supabase接続が初期化されていません。auth-check.js を確認してください。");
