@@ -1497,6 +1497,28 @@ function escapeStandardHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function isStandardEditableFieldsOpen() {
+    return localStorage.getItem("novet_standard_reference_fields_open") === "true";
+}
+
+function toggleStandardEditableFields() {
+    const current = isStandardEditableFieldsOpen();
+    localStorage.setItem("novet_standard_reference_fields_open", current ? "false" : "true");
+    renderStandardReferenceCard();
+}
+
+function hasStandardReferenceEditableChanges() {
+    try {
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
+        if (!raw) return false;
+
+        const ref = JSON.parse(raw);
+        return ref.standard_edit_modified === true;
+    } catch {
+        return false;
+    }
+}
+
 function saveStandardEditableField(key, value) {
     try {
         const raw = localStorage.getItem(STANDARD_REF_KEY);
@@ -1513,6 +1535,8 @@ function saveStandardEditableField(key, value) {
         }
 
         ref.features.editable_fields_japanese[key] = value;
+
+        ref.standard_edit_modified = true;
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
     } catch (err) {
@@ -1579,36 +1603,58 @@ function renderStandardReferenceCard() {
         "注意点"
     ];
 
+        const fieldsOpen = isStandardEditableFieldsOpen();
+
     const editableFieldsHtml = editableFields
         ? `
             <div style="margin-top:10px; padding:8px; border:1px solid #eadcf7; border-radius:8px; background:#fbf8ff;">
-                <div style="font-size:11px; font-weight:bold; color:#6a0dad; margin-bottom:6px;">
-                    基準化された調整項目
+                <button
+                    type="button"
+                    onclick="toggleStandardEditableFields()"
+                    style="
+                        width:100%;
+                        padding:8px;
+                        border:1px solid #6a0dad;
+                        background:#fff;
+                        color:#6a0dad;
+                        border-radius:6px;
+                        font-size:11px;
+                        font-weight:bold;
+                        cursor:pointer;
+                        text-align:left;
+                    "
+                >
+                    ${fieldsOpen ? "▼" : "▶"} 基準化された調整項目
+                    <span style="float:right; color:#999; font-weight:normal;">
+                        ${fieldsOpen ? "閉じる" : "開く"}
+                    </span>
+                </button>
+
+                <div style="font-size:10px; color:#777; line-height:1.5; margin-top:8px;">
+                    生成前に必要に応じて修正できます。未修正のまま生成する場合は、生成前に確認します。
                 </div>
 
-                <div style="font-size:10px; color:#777; line-height:1.5; margin-bottom:8px;">
-                    生成前に必要に応じて修正できます。ここで修正した内容は、このブラウザ内の基準化データに保存されます。
+                <div style="display:${fieldsOpen ? "block" : "none"}; margin-top:8px;">
+                    ${fieldOrder.map((key) => {
+                        if (!(key in editableFields)) return "";
+
+                        const value = editableFields[key] || "";
+
+                        return `
+                            <div style="margin-bottom:7px;">
+                                <label style="display:block; font-size:10px; color:#666; font-weight:bold; margin-bottom:3px;">
+                                    ${escapeStandardHtml(key)}
+                                </label>
+                                <input
+                                    type="text"
+                                    value="${escapeStandardHtml(value)}"
+                                    oninput="saveStandardEditableField('${escapeStandardHtml(key)}', this.value)"
+                                    style="width:100%; box-sizing:border-box; padding:6px; border:1px solid #ddd; border-radius:5px; font-size:11px;"
+                                >
+                            </div>
+                        `;
+                    }).join("")}
                 </div>
-
-                ${fieldOrder.map((key) => {
-                    if (!(key in editableFields)) return "";
-
-                    const value = editableFields[key] || "";
-
-                    return `
-                        <div style="margin-bottom:7px;">
-                            <label style="display:block; font-size:10px; color:#666; font-weight:bold; margin-bottom:3px;">
-                                ${escapeStandardHtml(key)}
-                            </label>
-                            <input
-                                type="text"
-                                value="${escapeStandardHtml(value)}"
-                                oninput="saveStandardEditableField('${escapeStandardHtml(key)}', this.value)"
-                                style="width:100%; box-sizing:border-box; padding:6px; border:1px solid #ddd; border-radius:5px; font-size:11px;"
-                            >
-                        </div>
-                    `;
-                }).join("")}
             </div>
         `
         : "";
@@ -2828,6 +2874,30 @@ async function generateImage(type) {
         }
 
         const templatePayload = collectTemplatePayload();
+
+                if (templatePayload.template_type === "character") {
+            let standardRefForConfirm = null;
+
+            try {
+                const rawRef = localStorage.getItem(STANDARD_REF_KEY);
+                standardRefForConfirm = rawRef ? JSON.parse(rawRef) : null;
+            } catch {
+                standardRefForConfirm = null;
+            }
+
+            const hasReadyCharacterReference =
+                standardRefForConfirm &&
+                standardRefForConfirm.standard_ready === true &&
+                (standardRefForConfirm.type === "character" || standardRefForConfirm.type === "illustration");
+
+            if (hasReadyCharacterReference && !hasStandardReferenceEditableChanges()) {
+                const ok = confirm("基準化項目変更なしで生成しますか？\n\nキャンセル｜生成する");
+
+                if (!ok) {
+                    return;
+                }
+            }
+        }
 
         // --- 風景テンプレートの場合 ---
 if (templatePayload.template_type === "scenery") {
