@@ -96,14 +96,14 @@
     completeSocialAuthentication,
     isSignedIn,
     waitForClientInitialized,
-  } from "https://esm.sh/@dynamic-labs-sdk/client?bundle";
+  } from "https://esm.sh/@dynamic-labs-sdk/client";
 
   import {
     createWaasWalletAccounts,
     getChainsMissingWaasWalletAccounts,
-  } from "https://esm.sh/@dynamic-labs-sdk/client/waas?bundle";
+  } from "https://esm.sh/@dynamic-labs-sdk/client/waas";
 
-  import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm?bundle";
+  import { addEvmExtension } from "https://esm.sh/@dynamic-labs-sdk/evm";
 
   if (!window.supabaseClient) {
   throw new Error("Supabase接続が初期化されていません。auth-check.js を確認してください。");
