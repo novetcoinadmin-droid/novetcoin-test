@@ -1,0 +1,24 @@
+{
+  "name": "nobetserver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "esbuild": "0.25.4"
+  },
+  "overrides": {
+    "@dynamic-labs/logger": "4.81.0",
+    "@dynamic-labs/types": "4.81.0"
+  },
+  "dependencies": {
+    "@dynamic-labs-sdk/client": "1.2.1",
+    "@dynamic-labs-sdk/evm": "1.2.1"
+  }
+}
