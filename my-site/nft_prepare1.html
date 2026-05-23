@@ -3189,61 +3189,14 @@ if (templatePayload.template_type !== "character") {
     return;
 }
 
-            let standardRef = null;
+                    const geminiPayload = await buildGeminiAllagesCharacterPayload(templatePayload);
 
-        try {
-            const raw = localStorage.getItem(STANDARD_REF_KEY);
-            standardRef = raw ? JSON.parse(raw) : null;
-        } catch {
-            standardRef = null;
-        }
-
-        if (!standardRef || !standardRef.image_url) {
-            alert("先にイラスト保管庫から基準化用の画像を選択してください。");
-            return;
-        }
-
-        if (standardRef.standard_ready !== true || !standardRef.features) {
-            alert("基準化用の画像は選択済みです。\n続けて「基準化」ボタンを押し、顔特徴の抽出を完了してから生成してください。");
-            return;
-        }
-
-        const hasAnyDetail = Object.values(templatePayload.template_fields || {}).some(field => {
-            const value = field && typeof field === "object" ? field.value : "";
-            return String(value || "").trim() !== "";
-        });
-
-        if (!hasAnyDetail) {
-            alert("キャラテンプレートの細部設定を1つ以上入力または選択してください。");
-            return;
-        }
-
-        if (!confirm("スタンダード生成を実行しますか？\nGeminiで抽出した基準化情報 + テンプレート設定で生成します。\n費用: 10 NP")) {
+        if (!confirm("Gemini image-to-imageでキャラ生成を実行しますか？\n費用: 10 NP")) {
             return;
         }
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "flex";
-        }
-
-        const requestPayload = {
-            template_type: "character",
-            template_fields: templatePayload.template_fields || {},
-            reference_features: standardRef.features,
-            fixed_style: {
-                hand_drawn: true,
-                novet_illustration: true
-            },
-            debug_prompt_only: false
-        };
-
-                const geminiPayload = await buildGeminiAllagesCharacterPayload(templatePayload);
-
-        if (!confirm("Gemini image-to-imageでキャラ生成を実行しますか？\n費用: 10 NP")) {
-            if (loadingOverlay) {
-                loadingOverlay.style.display = "none";
-            }
-            return;
         }
 
         console.log("🎨 Gemini全年齢キャラ生成Functionへ送るpayload:", {
@@ -3286,7 +3239,7 @@ if (templatePayload.template_type !== "character") {
         if (!imageUrl) {
             throw new Error("Gemini生成画像が返ってきませんでした。");
         }
-        
+
         pageAssets[currentPage] = imageUrl;
         isEdited = true;
         renderPage();
