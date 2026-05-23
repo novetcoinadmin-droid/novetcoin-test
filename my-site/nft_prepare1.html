@@ -2207,6 +2207,71 @@ function collectTemplatePayload() {
     };
 }
 
+async function buildGeminiAllagesCharacterPayload(templatePayload) {
+    const rawRef = localStorage.getItem(STANDARD_REF_KEY);
+
+    if (!rawRef) {
+        throw new Error("キャラ生成には、先に基準化画像を選択してください。");
+    }
+
+    const standardRef = JSON.parse(rawRef);
+
+    if (!standardRef.standard_ready || !standardRef.features?.editable_fields_japanese) {
+        throw new Error("キャラ生成には、先に基準化を完了してください。");
+    }
+
+    const refType = String(standardRef.type || standardRef.asset_type || "").toLowerCase();
+
+    if (!(refType === "character" || refType === "illustration" || refType === "")) {
+        throw new Error("キャラ生成には、キャラ用の基準化画像を選択してください。");
+    }
+
+    let referenceBlob = await getStandardReferenceImageBlob();
+
+    if (!referenceBlob || referenceBlob.size === 0) {
+        if (!standardRef.image_url) {
+            throw new Error("基準化画像が見つかりません。");
+        }
+
+        referenceBlob = await fetchImageAsBlob(standardRef.image_url);
+        await saveStandardReferenceImageBlob(referenceBlob);
+    }
+
+    if (!referenceBlob || referenceBlob.size === 0) {
+        throw new Error("基準化画像Blobを準備できませんでした。");
+    }
+
+    const referenceImageBase64 = await blobToBase64(referenceBlob);
+    const referenceImageMimeType = referenceBlob.type || "image/png";
+
+    const fields = templatePayload.template_fields || {};
+
+    function fieldValue(key) {
+        return String(fields[key]?.value || "").trim();
+    }
+
+    return {
+        template_type: "character",
+
+        reference_image_base64: referenceImageBase64,
+        reference_image_mime_type: referenceImageMimeType,
+
+        editable_fields_japanese: standardRef.features.editable_fields_japanese,
+        reference_features: standardRef.features,
+
+        tpl_character_free_text: fieldValue("tpl_character_free_text"),
+        tpl_character_expression: fieldValue("tpl_character_expression"),
+        tpl_character_view: fieldValue("tpl_character_view"),
+        tpl_character_age: fieldValue("tpl_character_age"),
+        tpl_character_pose: fieldValue("tpl_character_pose"),
+        tpl_character_outfit: fieldValue("tpl_character_outfit"),
+        tpl_character_background: fieldValue("tpl_character_background"),
+        tpl_character_lighting: fieldValue("tpl_character_lighting"),
+
+        standard_edit_modified: standardRef.standard_edit_modified === true
+    };
+}
+
 // =====================================================
 // 風景設定プリセット保存
 // =====================================================
@@ -3172,42 +3237,41 @@ if (templatePayload.template_type !== "character") {
             debug_prompt_only: false
         };
 
-        console.log("🎨 抽出特徴ベース生成Functionへ送るpayload:", {
-            template_type: requestPayload.template_type,
-            template_field_keys: Object.keys(requestPayload.template_fields || {}),
-            has_reference_features: !!requestPayload.reference_features,
-            has_face_features: !!requestPayload.reference_features?.features,
-            face_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.face_prompt_fragments)
-                ? requestPayload.reference_features.face_prompt_fragments.length
-                : 0,
-            emotion_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.emotion_prompt_fragments)
-                ? requestPayload.reference_features.emotion_prompt_fragments.length
-                : 0,
-            scene_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.scene_prompt_fragments)
-                ? requestPayload.reference_features.scene_prompt_fragments.length
-                : 0,
-            object_prompt_fragments_count: Array.isArray(requestPayload.reference_features?.object_prompt_fragments)
-                ? requestPayload.reference_features.object_prompt_fragments.length
-                : 0,
-            debug_prompt_only: requestPayload.debug_prompt_only
+                const geminiPayload = await buildGeminiAllagesCharacterPayload(templatePayload);
+
+        if (!confirm("Gemini image-to-imageでキャラ生成を実行しますか？\n費用: 10 NP")) {
+            if (loadingOverlay) {
+                loadingOverlay.style.display = "none";
+            }
+            return;
+        }
+
+        console.log("🎨 Gemini全年齢キャラ生成Functionへ送るpayload:", {
+            template_type: geminiPayload.template_type,
+            has_reference_image_base64: !!geminiPayload.reference_image_base64,
+            reference_image_mime_type: geminiPayload.reference_image_mime_type,
+            editable_fields_count: Object.keys(geminiPayload.editable_fields_japanese || {}).length,
+            has_free_text: !!geminiPayload.tpl_character_free_text,
+            expression: geminiPayload.tpl_character_expression || "",
+            standard_edit_modified: geminiPayload.standard_edit_modified
         });
 
         const { data, error } = await supabaseClient.functions.invoke(
-            "generate-nft-image-safe",
+            "generate-nft-image-gemini-allages",
             {
-                body: requestPayload
+                body: geminiPayload
             }
         );
 
         if (error) {
-            console.error("抽出特徴ベース生成Function Error:", error);
-            throw new Error(error.message || "抽出特徴ベース生成Functionの呼び出しに失敗しました。");
+            console.error("Gemini全年齢キャラ生成Function Error:", error);
+            throw new Error(error.message || "Gemini全年齢キャラ生成Functionの呼び出しに失敗しました。");
         }
 
-        console.log("🎨 抽出特徴ベース生成Function 結果:", data);
+        console.log("🎨 Gemini全年齢キャラ生成Function 結果:", data);
 
         if (!data || data.error) {
-            throw new Error(data?.error || "画像URLの取得に失敗しました。");
+            throw new Error(data?.error || "Gemini画像生成に失敗しました。");
         }
 
         const imageUrl =
@@ -3216,12 +3280,13 @@ if (templatePayload.template_type !== "character") {
             data.generatedImageUrl ||
             data.generated_image_url ||
             data.url ||
+            data.dataUrl ||
             "";
 
         if (!imageUrl) {
-            throw new Error("画像URLが返ってきませんでした。");
+            throw new Error("Gemini生成画像が返ってきませんでした。");
         }
-
+        
         pageAssets[currentPage] = imageUrl;
         isEdited = true;
         renderPage();
