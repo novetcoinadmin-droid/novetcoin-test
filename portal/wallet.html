@@ -1046,7 +1046,6 @@ async function fetchPendingWithdrawRequests() {
       `)
       .eq("user_id", currentUser.id)
       .eq("status", "pol_sent")
-      .eq("nvt_sent", true)
       .eq("pol_sent", true)
       .is("user_transfer_tx_hash", null)
       .order("created_at", { ascending: false });
