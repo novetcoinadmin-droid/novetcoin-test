@@ -514,11 +514,46 @@ async function handleMint() {
         const currentAuthorId = novelData.author_id || localStorage.getItem("authorId");
         if (!currentAuthorId) throw new Error("作家データが読み込めませんでした。一度前の画面に戻り直してください。");
 
+                // 🌟 4-0. 元の一般小説は残し、NNFT用のnovelsコピーを作成する
+        const { data: copiedNovel, error: copyNovelError } = await supabaseClient
+            .from('novels')
+            .insert({
+                author_id: currentAuthorId,
+                title: finalTitle,
+                content: novelData.content || [],
+                char_count: novelData.char_count || 0,
+                status_old: novelData.status_old || 'draft',
+                tag: novelData.tag || null,
+                plot: novelData.plot || null,
+                characters: novelData.characters || [],
+                is_char_public: novelData.is_char_public || false,
+                user_id: user.id,
+                published: false,
+                views: 0,
+                likes: 0,
+                author_name: novelData.author_name || null,
+                paid_tokens: 0,
+                is_derivative: !!novelData.is_derivative,
+                review_status: 'normal',
+                char_setting: novelData.char_setting || null,
+                is_char_visible: novelData.is_char_visible || false,
+                is_nft: true,
+                updated_at: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+
+        if (copyNovelError) {
+            throw copyNovelError;
+        }
+
+        const nftNovelId = copiedNovel.id;
+
         // 🌟 4. 先にデータベース登録（エラー時にNPが減らないように保護）
         const { data: insertedNft, error: metaError } = await supabaseClient
     .from('nft_metadata')
     .insert({
-        novel_id: novelId,
+        novel_id: nftNovelId,
         title_at_mint: finalTitle,
         cover_image_url: finalCoverUrl,
         nft_content: finalNftContent,
@@ -556,7 +591,7 @@ await recordNpUsageTransaction({
     relatedId: insertedNft?.id || null
 });
 
-await supabaseClient.from('novels').update({ is_nft: true }).eq('id', novelId);
+
 
         alert(`NFT化成功！「${finalTitle}」としてライブラリに追加されました。`);
         location.href = "library.html";
