@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>NFT発行・表紙作成 | Novet NFT Studio</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -106,6 +107,7 @@
         height: 110px;
     }
 }
+
     </style>
 </head>
 <body>
@@ -124,28 +126,7 @@
             </button>
         </div>
         <div class="gen-section">
-            <div style="
-    padding:12px;
-    border:1px solid #d9534f;
-    background:#fff5f5;
-    border-radius:8px;
-    color:#333;
-    font-size:12px;
-    line-height:1.7;
-">
-    <div style="font-size:13px; font-weight:bold; color:#b00020; margin-bottom:6px;">
-        成人向け表紙・挿絵に関する注意
-    </div>
-
-    <div>
-        男性器、女性器、挿入部分などの露骨なシーンを<strong>【未加工】</strong>で投稿することは、
-        本サイト内での利用だけでなく、外部サイトでの転用を含め固く禁じられています。
-    </div>
-
-    <div style="margin-top:6px; color:#b00020; font-weight:bold;">
-        発見した場合は、アカウントの停止、削除の対象になります。
-    </div>
-</div>
+            <label style="font-size: 13px; font-weight: bold;">🎨 表紙AI生成（フルカラー）</label>
 
         <div class="gen-section">
     <p style="font-size: 12px; color: #666; text-align: center; margin: 4px 0 10px 0;">
@@ -173,7 +154,7 @@
         </div>
         <img id="coverPreview" src="" style="display:none;">
         <div id="noImgMsg" class="no-img-msg">
-            <p style="font-size:13px;">まだ表紙がありません。</p>
+            <p style="font-size:13px;">まだ表紙がありません。<br>生成を開始してください。</p>
         </div>
     </div>
 </div>
@@ -316,71 +297,6 @@ async function uploadImageToStorage(base64Data, fileNamePrefix) {
         .getPublicUrl(filePath);
 
     return publicUrlData.publicUrl;
-}
-
-async function uploadNftAssetImageUrl(imageUrl, fileNamePrefix) {
-    if (!imageUrl || typeof imageUrl !== "string") {
-        return imageUrl || null;
-    }
-
-    const base64Webp = await convertToWebP(imageUrl);
-    return await uploadImageToStorage(base64Webp, fileNamePrefix);
-}
-
-async function uploadNftAssetSlot(slot, fileNamePrefix) {
-    if (!slot) return slot;
-
-    // 旧形式：URL文字列
-    if (typeof slot === "string") {
-        return await uploadNftAssetImageUrl(slot, fileNamePrefix);
-    }
-
-    if (typeof slot !== "object") {
-        return slot;
-    }
-
-    const imageUrl =
-        slot.image_url ||
-        slot.imageUrl ||
-        slot.file_url ||
-        slot.url ||
-        "";
-
-    if (!imageUrl) {
-        return slot;
-    }
-
-    const finalUrl = await uploadNftAssetImageUrl(imageUrl, fileNamePrefix);
-
-    return {
-        ...slot,
-        image_url: finalUrl
-    };
-}
-
-async function uploadNftPageAsset(rawAsset, fileNamePrefix) {
-    if (!rawAsset) return rawAsset;
-
-    // 旧形式：pageAssets[page] = "https://..."
-    if (typeof rawAsset === "string") {
-        return await uploadNftAssetImageUrl(rawAsset, fileNamePrefix);
-    }
-
-    if (typeof rawAsset !== "object") {
-        return rawAsset;
-    }
-
-    // 新形式：single / double
-    if (rawAsset.mode || rawAsset.left || rawAsset.right) {
-        return {
-            ...rawAsset,
-            left: await uploadNftAssetSlot(rawAsset.left, `${fileNamePrefix}_left`),
-            right: await uploadNftAssetSlot(rawAsset.right, `${fileNamePrefix}_right`)
-        };
-    }
-
-    // 念のため：image_urlだけ持つオブジェクト形式
-    return await uploadNftAssetSlot(rawAsset, fileNamePrefix);
 }
 
 async function recordNpUsageTransaction({
@@ -567,17 +483,10 @@ async function handleMint() {
                     
                     // 🌟 ここが挿絵を順番にバケットに保存する処理です
                     for (let pageNum in rawAssets) {
-    btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
-
-    const uploadedAsset = await uploadNftPageAsset(
-        rawAssets[pageNum],
-        `ep${epCounter}_p${pageNum}`
-    );
-
-    if (uploadedAsset) {
-        assets[pageNum] = uploadedAsset;
-    }
-}
+                        btn.innerText = `NFT作成中...（第${epCounter}話の画像をクラウドに保存中）`;
+                        let base64Webp = await convertToWebP(rawAssets[pageNum]);
+                        assets[pageNum] = await uploadImageToStorage(base64Webp, `ep${epCounter}_p${pageNum}`);
+                    }
                 } else {
                     let text = ep.content || "";
                     for (let i = 0; i < text.length; i += 100) {
@@ -605,11 +514,46 @@ async function handleMint() {
         const currentAuthorId = novelData.author_id || localStorage.getItem("authorId");
         if (!currentAuthorId) throw new Error("作家データが読み込めませんでした。一度前の画面に戻り直してください。");
 
+                // 🌟 4-0. 元の一般小説は残し、NNFT用のnovelsコピーを作成する
+        const { data: copiedNovel, error: copyNovelError } = await supabaseClient
+            .from('novels')
+            .insert({
+                author_id: currentAuthorId,
+                title: finalTitle,
+                content: novelData.content || [],
+                char_count: novelData.char_count || 0,
+                status_old: novelData.status_old || 'draft',
+                tag: novelData.tag || null,
+                plot: novelData.plot || null,
+                characters: novelData.characters || [],
+                is_char_public: novelData.is_char_public || false,
+                user_id: user.id,
+                published: false,
+                views: 0,
+                likes: 0,
+                author_name: novelData.author_name || null,
+                paid_tokens: 0,
+                is_derivative: !!novelData.is_derivative,
+                review_status: 'normal',
+                char_setting: novelData.char_setting || null,
+                is_char_visible: novelData.is_char_visible || false,
+                is_nft: true,
+                updated_at: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+
+        if (copyNovelError) {
+            throw copyNovelError;
+        }
+
+        const nftNovelId = copiedNovel.id;
+
         // 🌟 4. 先にデータベース登録（エラー時にNPが減らないように保護）
         const { data: insertedNft, error: metaError } = await supabaseClient
     .from('nft_metadata')
     .insert({
-        novel_id: novelId,
+        novel_id: nftNovelId,
         title_at_mint: finalTitle,
         cover_image_url: finalCoverUrl,
         nft_content: finalNftContent,
@@ -647,7 +591,7 @@ await recordNpUsageTransaction({
     relatedId: insertedNft?.id || null
 });
 
-await supabaseClient.from('novels').update({ is_nft: true }).eq('id', novelId);
+
 
         alert(`NFT化成功！「${finalTitle}」としてライブラリに追加されました。`);
         location.href = "library.html";

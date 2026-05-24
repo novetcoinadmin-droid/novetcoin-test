@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <title>購入済み作品一覧 | Novet</title>
     <style>
@@ -215,6 +215,7 @@
         transform: translateX(0);
     }
 }
+
     </style>
 </head>
 <body>
@@ -336,71 +337,80 @@ fetchPurchasedNFTs();
     }
 
     async function fetchPurchasedNFTs() {
-        const grid = document.getElementById("nftGrid");
-        grid.innerHTML = "<p style='font-size:12px; color:#888;'>読み込み中...</p>";
+    const grid = document.getElementById("nftGrid");
+    grid.innerHTML = "<p style='font-size:12px; color:#888;'>読み込み中...</p>";
 
-        if (currentFilter === 'sound') {
-            grid.innerHTML = "<p style='font-size:12px; color:#888;'>サウンドNFT機能は現在準備中です。</p>";
-            return; 
-        }
-
-        try {
-            // 🌟 1. sales_logs テーブルから、自分が買った「チケット」をすべて探す
-            const { data: logs, error: logError } = await window.supabaseClient
-                .from('sales_logs')
-                .select('nft_id')
-                .eq('buyer_id', currentUser.id);
-
-            if (logError) throw logError;
-
-            // チケットが1枚もなかった場合
-            if (!logs || logs.length === 0) {
-                grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません。</p>";
-                return;
-            }
-
-            // 🌟 2. チケットに書かれている「作品ID」だけを取り出してリストにする
-            const nftIds = logs.map(log => log.nft_id);
-
-            // 🌟 3. nft_metadata テーブルから、リストにあるIDの作品を一気に持ってくる
-            let query = window.supabaseClient
-                .from('nft_metadata')
-                .select('*')
-                .in('id', nftIds); // in() を使うと、リストにあるIDを全部探してくれます
-
-            // --- フィルター機能（メイン/イラストの切り替え） ---
-            // ※もしここが原因で何も表示されなくなる場合は、一旦このif文を消してください
-            if (currentFilter === 'main') {
-                query = query.not('novel_id', 'is', null);
-            } else if (currentFilter === 'illust') {
-                query = query.is('novel_id', null);
-            }
-            // ---------------------------------------------------
-
-            const { data: nfts, error: nftError } = await query;
-            if (nftError) throw nftError;
-
-            if (!nfts || nfts.length === 0) {
-                grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません（またはカテゴリが違います）。</p>";
-                return;
-            }
-
-            // 🌟 4. 画面にカードとして表示する
-            grid.innerHTML = nfts.map(nft => `
-                <div class="nft-card" onclick="window.location.href='nft_view.html?id=${nft.id}'">
-                    <img src="${nft.cover_image_url || 'placeholder.webp'}" class="nft-img">
-                    <div class="nft-info">
-                        <div class="nft-title">${nft.title_at_mint}</div>
-                        <div class="nft-author">作者: ${nft.illustrator_name || '不明'}</div>
-                    </div>
-                </div>
-                `).join("");
-
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            grid.innerHTML = "<p style='font-size:12px; color:red;'>データの取得に失敗しました。</p>";
-        }
+    if (currentFilter === 'sound') {
+        grid.innerHTML = "<p style='font-size:12px; color:#888;'>サウンドNFT機能は現在準備中です。</p>";
+        return;
     }
+
+    try {
+        // 新しい購入フロー：nnft_access_rights から閲覧権を取得
+        const { data: accessRows, error: accessError } = await window.supabaseClient
+            .from('nnft_access_rights')
+            .select('nft_metadata_id')
+            .eq('user_id', currentUser.id);
+
+        if (accessError) throw accessError;
+
+        // 旧フロー互換：sales_logs が残っている場合も拾う
+        const { data: salesRows, error: salesError } = await window.supabaseClient
+            .from('sales_logs')
+            .select('nft_id')
+            .eq('buyer_id', currentUser.id);
+
+        if (salesError) {
+            console.warn("sales_logs 読み込みエラー:", salesError);
+        }
+
+        const nftIds = [
+            ...(accessRows || []).map(row => row.nft_metadata_id).filter(Boolean),
+            ...(salesRows || []).map(row => row.nft_id).filter(Boolean)
+        ];
+
+        const uniqueNftIds = [...new Set(nftIds)];
+
+        if (uniqueNftIds.length === 0) {
+            grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません。</p>";
+            return;
+        }
+
+        let query = window.supabaseClient
+            .from('nft_metadata')
+            .select('*')
+            .in('id', uniqueNftIds);
+
+        if (currentFilter === 'main') {
+            query = query.not('novel_id', 'is', null);
+        } else if (currentFilter === 'illust') {
+            query = query.is('novel_id', null);
+        }
+
+        const { data: nfts, error: nftError } = await query;
+
+        if (nftError) throw nftError;
+
+        if (!nfts || nfts.length === 0) {
+            grid.innerHTML = "<p style='font-size:12px; color:#888;'>該当する購入済み作品はありません（またはカテゴリが違います）。</p>";
+            return;
+        }
+
+        grid.innerHTML = nfts.map(nft => `
+            <div class="nft-card" onclick="window.location.href='nft_view.html?id=${nft.id}'">
+                <img src="${nft.cover_image_url || 'placeholder.webp'}" class="nft-img">
+                <div class="nft-info">
+                    <div class="nft-title">${nft.title_at_mint}</div>
+                    <div class="nft-author">作者: ${nft.illustrator_name || '不明'}</div>
+                </div>
+            </div>
+        `).join("");
+
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        grid.innerHTML = "<p style='font-size:12px; color:red;'>データの取得に失敗しました。</p>";
+    }
+}
 
     function filterType(type) {
         currentFilter = type;
