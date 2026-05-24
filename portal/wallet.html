@@ -1140,6 +1140,24 @@ async function executePendingWithdrawal(requestId) {
       amountNvt: req.net_amount
     });
 
+    listEl.innerHTML = `
+  <div style="font-size:13px; color:#666; line-height:1.7;">
+    外部ウォレットへの送金トランザクションを送信しました。<br>
+    オンチェーン反映を確認しています。<br>
+    画面を閉じずにお待ちください。
+  </div>
+`;
+
+const receipt = await publicClient.waitForTransactionReceipt({
+  hash: txHash,
+});
+
+if (!receipt || receipt.status !== "success") {
+  throw new Error(
+    "外部ウォレットへの送金トランザクション確認に失敗しました。"
+  );
+}
+
     const { error: updateError } = await window.supabaseClient
       .from("withdraw_requests")
       .update({
