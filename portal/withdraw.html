@@ -1210,7 +1210,7 @@ clearEstimateView();
 
     showWithdrawProcessCloseButton("ウォレットへ戻る");
 
-  } catch (err) {
+    } catch (err) {
     console.error("withdraw process error:", err);
 
     const message = err?.message || String(err);
@@ -1223,13 +1223,35 @@ clearEstimateView();
       setWithdrawStep("withdrawStepCreate", "error");
     }
 
-    setWithdrawProcessMessage(
-      "出金処理中にエラーが発生しました。\n\n" +
-      message +
-      "\n\n申請が作成済みの場合は、ウォレット画面または運営確認画面で状態を確認してください。"
-    );
+    const mayHaveUserTransferTx =
+      message.includes("tx_hash:") ||
+      message.includes("user_transfer_tx_hash") ||
+      message.includes("送金は完了しましたが");
 
-    setMessage("出金処理に失敗しました: " + message, "error");
+    if (mayHaveUserTransferTx) {
+      setWithdrawProcessMessage(
+        "外部ウォレットへの送金が完了している可能性があります。\n" +
+        "画面を再操作せず、1～2時間ほどおいてウォレット残高と出金履歴を確認してください。\n\n" +
+        "同じ出金をもう一度実行すると、二重送金になる可能性があります。"
+      );
+
+      setMessage(
+        "外部ウォレットへの送金が完了している可能性があります。再操作せず、時間をおいて確認してください。",
+        "error"
+      );
+    } else {
+      setWithdrawProcessMessage(
+        "トランザクションに問題が発生しました。\n" +
+        "1～2時間ほどおいてやり直してください。\n" +
+        "この要求は一定時間後にキャンセルされます。"
+      );
+
+      setMessage(
+        "トランザクションに問題が発生しました。1～2時間ほどおいてやり直してください。",
+        "error"
+      );
+    }
+
     showWithdrawProcessCloseButton("ウォレットへ戻る");
 
   } finally {
