@@ -219,28 +219,30 @@ body.panel-hidden .page-counter {
     }
 
     .work-display-area {
-        width: 100%;
-        height: 100vh;
-        padding: 56px 12px 72px !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        box-sizing: border-box;
-    }
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    padding: 10px 12px 10px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    box-sizing: border-box;
+}
 
-    /* スマホでは常にスマホ風表示 */
-    .page-spread {
-        width: min(88vw, 360px) !important;
-        height: min(78vh, 740px) !important;
-        border: 8px solid #333;
-        border-radius: 40px !important;
-        display: block !important;
-        position: relative;
-        overflow: hidden !important;
-        background: #000;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.45);
-    }
+/* スマホでは常にスマホ風表示 */
+.page-spread {
+    width: min(88vw, 360px) !important;
+    height: calc(100dvh - 20px) !important;
+    max-height: 740px !important;
+    border: 8px solid #333;
+    border-radius: 40px !important;
+    display: block !important;
+    position: relative;
+    overflow: hidden !important;
+    background: #000;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
 
     .page-spread::after {
         display: none !important;
@@ -271,33 +273,33 @@ body.panel-hidden .page-counter {
     }
 
     .text-half {
-        position: absolute !important;
-        bottom: 22px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
+    position: absolute !important;
+    bottom: 84px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
 
-        width: 82% !important;
-        min-width: 0 !important;
-        max-width: 82% !important;
-        height: 110px !important;
+    width: 82% !important;
+    min-width: 0 !important;
+    max-width: 82% !important;
+    height: 110px !important;
 
-        z-index: 5;
-        background: rgba(0, 0, 0, 0.28) !important;
-        backdrop-filter: blur(10px) saturate(130%) !important;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.28) !important;
+    backdrop-filter: blur(10px) saturate(130%) !important;
 
-        color: #fff !important;
-        padding: 14px 16px !important;
-        border-radius: 18px;
-        writing-mode: horizontal-tb !important;
-        font-size: 14px !important;
-        line-height: 1.65 !important;
-        border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #fff !important;
+    padding: 14px 16px !important;
+    border-radius: 18px;
+    writing-mode: horizontal-tb !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+    border: 1px solid rgba(255, 255, 255, 0.16);
 
-        display: block !important;
-        box-sizing: border-box !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-    }
+    display: block !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
 
     .text-half > div {
         background: transparent !important;
@@ -308,24 +310,49 @@ body.panel-hidden .page-counter {
     .text-half p {
         color: #fff !important;
     }
+    /* 表紙ページだけ、スマホのテキストエリア内で見切れないようにする */
+.viewer-cover-mobile {
+    height: 100% !important;
+    justify-content: center !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+}
+
+.viewer-cover-mobile h1 {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    margin: 0 0 6px 0 !important;
+    max-height: 2.7em;
+    overflow: hidden;
+}
+
+.viewer-cover-mobile p {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+}
+
+.viewer-cover-mobile .start-guide {
+    display: none !important;
+}
 
     .page-controls {
-        position: fixed;
-        left: 50%;
-        bottom: 14px;
-        transform: translateX(-50%);
-        z-index: 90;
+    position: fixed;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    z-index: 90;
 
-        margin: 0 !important;
-        padding: 8px 12px !important;
-        border-radius: 999px;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    border-radius: 999px;
 
-        background: rgba(0, 0, 0, 0.34);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    background: rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
 
-        gap: 16px !important;
-    }
+    gap: 16px !important;
+}
 
     .page-btn {
         padding: 8px 14px;
@@ -341,26 +368,60 @@ body.panel-hidden .page-counter {
     }
 
     .panel-toggle-btn {
-        top: 10px;
+    top: 10px;
+    right: 12px;
+    z-index: 1002;
+    background: rgba(106, 13, 173, 0.38);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 11px 15px;
+    font-size: 14px;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.bookmark-toggle-btn {
+    top: 58px;
+    right: 12px;
+    background: rgba(255,255,255,0.32) !important;
+    border: 1px solid rgba(255,255,255,0.45) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.report-adult-nft-image-btn {
+    top: 106px;
+    right: 12px;
+    background: rgba(255,255,255,0.28) !important;
+    border: 1px solid rgba(204,51,51,0.55) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.illust-only-toggle-btn {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .illust-only-toggle-btn {
+        display: block;
+        position: fixed;
+        top: 154px;
         right: 12px;
-        z-index: 1002;
-        background: var(--main-purple);
+        z-index: 120;
+        background: rgba(255,255,255,0.30);
         color: #fff;
-        border: none;
-        padding: 11px 15px;
-        font-size: 14px;
+        border: 1px solid rgba(255,255,255,0.45);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+        backdrop-filter: blur(10px) saturate(130%);
     }
 
-    .bookmark-toggle-btn {
-        top: 58px;
-        right: 12px;
+    body.illust-only-mode .text-half {
+        display: none !important;
     }
-
-    .report-adult-nft-image-btn {
-        top: 106px;
-        right: 12px;
-    }
-
+}
     .control-panel {
         position: fixed !important;
         top: 0 !important;
@@ -401,6 +462,16 @@ body.panel-hidden .page-counter {
     }
 }
 
+#illustContent,
+#illustContent img,
+.viewer-illust-slot,
+.viewer-illust-slot img {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+}
+
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -418,6 +489,10 @@ body.panel-hidden .page-counter {
 </button>
 <button id="reportAdultNftImageBtn" class="report-adult-nft-image-btn" onclick="reportCurrentAdultNftImage()">
     🚩 通報
+</button>
+
+<button id="illustOnlyBtn" class="illust-only-toggle-btn" onclick="toggleIllustOnlyMode()">
+    イラスト
 </button>
 
     <div class="work-display-area">
@@ -987,11 +1062,11 @@ function renderScreen() {
         textArea.style.writingMode = "horizontal-tb";
         textArea.style.padding = "0"; 
         textArea.innerHTML = `
-            <div style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
-                <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
-                <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
-                <p style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
-            </div>
+    <div class="viewer-cover-mobile" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
+        <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
+        <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
+        <p class="start-guide" style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
+    </div>
         `;
         const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
         illustArea.classList.remove("double-illust-mode");
@@ -1049,6 +1124,7 @@ function jumpTo(epIdx, pIdx) {
     currentPageIdx = pIdx;
     renderScreen();
 }
+
 function setupMobileNftViewerUI() {
     const panel = document.querySelector(".control-panel");
     const btn = document.getElementById("panelToggleBtn");
@@ -1089,6 +1165,52 @@ function setupMobileNftViewerUI() {
 }
 
 document.addEventListener("DOMContentLoaded", setupMobileNftViewerUI);
+
+function toggleIllustOnlyMode() {
+    const btn = document.getElementById("illustOnlyBtn");
+    const enabled = document.body.classList.toggle("illust-only-mode");
+
+    if (btn) {
+        btn.innerText = enabled ? "本文" : "イラスト";
+    }
+}
+
+function setupImageDownloadGuard() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return;
+
+    // 右クリック保存・長押しメニューを抑止
+    illustArea.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 画像ドラッグ保存を抑止
+    illustArea.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 表示される画像に draggable=false を付ける
+    const observer = new MutationObserver(() => {
+        illustArea.querySelectorAll("img").forEach(img => {
+            img.setAttribute("draggable", "false");
+            img.setAttribute("loading", "lazy");
+        });
+    });
+
+    observer.observe(illustArea, {
+        childList: true,
+        subtree: true
+    });
+
+    illustArea.querySelectorAll("img").forEach(img => {
+        img.setAttribute("draggable", "false");
+        img.setAttribute("loading", "lazy");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", setupImageDownloadGuard);
 
 initViewer();
 </script>
