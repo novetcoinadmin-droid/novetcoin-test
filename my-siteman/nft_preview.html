@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novet Reader | 本編ビューワー</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --book-cream: #f8f4e6; }
+        body { background: #444; margin: 0; display: flex; height: 100vh; overflow: hidden; font-family: 'Noto Serif JP', serif; }
+
+        /* 左側：作品表示エリア */
+        .work-display-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 60px; background: #555; box-shadow: inset 0 0 100px rgba(0,0,0,0.3); position: relative; overflow-y: auto; }
+        .page-spread { display: flex; width: 900px; height: 600px; background: var(--book-cream); box-shadow: 0 40px 80px rgba(0,0,0,0.6); border-radius: 4px 15px 15px 4px; overflow: hidden; position: relative; }
+        .page-spread::after { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 100%; background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.18) 50%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0) 100%); pointer-events: none; z-index: 20; }
+
+        .text-half, .illust-half { flex: 1; max-width: 50%; box-sizing: border-box; position: relative; }
+        .text-half { padding: 60px 60px 60px 40px; writing-mode: vertical-rl; font-size: 17px; line-height: 2.4; letter-spacing: 0.05em; color: #333; z-index: 5; }
+        .illust-half { background: #eee; display: flex; align-items: center; justify-content: center; z-index: 5; overflow: hidden; }
+        .illust-half img { width: 100%; height: 100%; object-fit: cover; }
+        .illust-half.double-illust-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: #ddd;
+}
+
+.viewer-illust-slot {
+    width: 100%;
+    height: 100%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.viewer-illust-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.viewer-illust-slot.empty {
+    color: #aaa;
+    font-size: 12px;
+    text-align: center;
+}
+
+        .page-controls { margin-top: 30px; display: flex; align-items: center; gap: 30px; padding-bottom: 40px; }
+        .page-btn { background: none; border: 1px solid #fff; color: #fff; cursor: pointer; padding: 8px 20px; border-radius: 20px; font-size: 14px; }
+        .page-btn:disabled { opacity: 0.3; }
+        .page-counter { color: #fff; font-size: 16px; font-family: sans-serif; }
+
+        /* 右側：コントロールパネル */
+        .control-panel { width: 320px; background: #fff; padding: 20px; display: flex; flex-direction: column; border-left: 1px solid #333; overflow-y: auto; z-index: 50; }
+        .panel-toggle-btn {
+    position: fixed;
+    top: 16px;
+    right: 18px;
+    z-index: 120;
+    background: #fff;
+    color: var(--main-purple);
+    border: 1px solid var(--main-purple);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.bookmark-toggle-btn {
+    position: fixed;
+    top: 58px;
+    right: 18px;
+    z-index: 120;
+    background: #f0f0f0;
+    color: #777;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.report-adult-nft-image-btn {
+    position: fixed;
+    top: 100px;
+    right: 18px;
+    z-index: 120;
+    background: #fff;
+    color: #cc3333;
+    border: 1px solid #cc3333;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+}
+
+.report-adult-nft-image-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.bookmark-toggle-btn.bookmarked {
+    background: var(--main-purple);
+    color: #fff;
+    border-color: var(--main-purple);
+}
+
+.bookmark-toggle-btn.not-bookmarked {
+    background: #f0f0f0;
+    color: #777;
+    border-color: #ccc;
+}
+
+body.panel-hidden .control-panel {
+    display: none;
+}
+/* --- 目次非表示時：大画面読書モード --- */
+body.panel-hidden .work-display-area {
+    padding-top: 24px;
+    justify-content: flex-start;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* 目次を隠した時だけ、本を画面いっぱい寄りに拡大 */
+body.panel-hidden .page-spread {
+    width: min(calc(100vw - 48px), calc((100vh - 72px) * 1.5));
+    height: auto;
+    aspect-ratio: 3 / 2;
+}
+
+/* 大画面時は本文も少しだけ読みやすく拡大 */
+body.panel-hidden .text-half {
+    font-size: 18px;
+    line-height: 2.45;
+}
+
+/* 前へ/次へを本の上に半透明で重ねる */
+body.panel-hidden .page-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 90;
+
+    margin-top: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+
+    gap: 22px;
+}
+
+/* 半透明操作ボタン */
+body.panel-hidden .page-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.92);
+}
+
+/* ページ番号も半透明パネル上で見やすく */
+body.panel-hidden .page-counter {
+    color: rgba(255,255,255,0.92);
+    min-width: 110px;
+    text-align: center;
+}
+        .panel-title { font-size: 14px; font-weight: bold; color: var(--main-purple); border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin: 20px 0 10px; }
+        .back-btn { background: #f0f0f0; color: #333; text-decoration: none; padding: 10px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
+
+        /* 目次リスト */
+        .toc-list { list-style: none; padding: 0; margin: 0; }
+        .toc-item { padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; transition: 0.2s; }
+        .toc-item:hover { background: #faf5ff; color: var(--main-purple); }
+        .toc-item.active { background: #f3ebff; color: var(--main-purple); font-weight: bold; }
+
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #222; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+
+        /* --- 本全体の角丸を左右で統一 --- */
+.page-spread {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+/* 左ページ・右ページは親の角丸に合わせて自然に切り抜く */
+.text-half,
+.illust-half {
+    border-radius: 0 !important;
+}
+
+/* 表紙ページ内の背景も親の角丸からはみ出さないようにする */
+#viewContent,
+#illustContent {
+    overflow: hidden;
+}
+/* ===== スマホ表示：イラストノベル閲覧画面 最適化 ===== */
+.viewer-panel-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        display: block !important;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #444;
+    }
+
+    .work-display-area {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    padding: 10px 12px 10px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    box-sizing: border-box;
+}
+
+/* スマホでは常にスマホ風表示 */
+.page-spread {
+    width: min(88vw, 360px) !important;
+    height: calc(100dvh - 20px) !important;
+    max-height: 740px !important;
+    border: 8px solid #333;
+    border-radius: 40px !important;
+    display: block !important;
+    position: relative;
+    overflow: hidden !important;
+    background: #000;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+
+    .page-spread::after {
+        display: none !important;
+    }
+
+    .illust-half {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        z-index: 1;
+        display: flex !important;
+        background: #eee;
+    }
+
+    .illust-half img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+    }
+
+    .illust-half.double-illust-mode {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px;
+    }
+
+    .text-half {
+    position: absolute !important;
+    bottom: 84px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+
+    width: 82% !important;
+    min-width: 0 !important;
+    max-width: 82% !important;
+    height: 110px !important;
+
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.28) !important;
+    backdrop-filter: blur(10px) saturate(130%) !important;
+
+    color: #fff !important;
+    padding: 14px 16px !important;
+    border-radius: 18px;
+    writing-mode: horizontal-tb !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+
+    display: block !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+    .text-half > div {
+        background: transparent !important;
+        color: #fff !important;
+    }
+
+    .text-half h1,
+    .text-half p {
+        color: #fff !important;
+    }
+    /* 表紙ページだけ、スマホのテキストエリア内で見切れないようにする */
+.viewer-cover-mobile {
+    height: 100% !important;
+    justify-content: center !important;
+    padding: 4px 6px !important;
+    box-sizing: border-box !important;
+}
+
+.viewer-cover-mobile h1 {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    margin: 0 0 6px 0 !important;
+    max-height: 2.7em;
+    overflow: hidden;
+}
+
+.viewer-cover-mobile p {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+}
+
+.viewer-cover-mobile .start-guide {
+    display: none !important;
+}
+
+    .page-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    z-index: 90;
+
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+
+    gap: 16px !important;
+}
+
+    .page-btn {
+        padding: 8px 14px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.75);
+        color: rgba(255,255,255,0.92);
+    }
+
+    .page-counter {
+        color: rgba(255,255,255,0.92);
+        min-width: 95px;
+        text-align: center;
+    }
+
+    .panel-toggle-btn {
+    top: 10px;
+    right: 12px;
+    z-index: 1002;
+    background: rgba(106, 13, 173, 0.38);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    padding: 11px 15px;
+    font-size: 14px;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.bookmark-toggle-btn {
+    top: 58px;
+    right: 12px;
+    background: rgba(255,255,255,0.32) !important;
+    border: 1px solid rgba(255,255,255,0.45) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.report-adult-nft-image-btn {
+    top: 106px;
+    right: 12px;
+    background: rgba(255,255,255,0.28) !important;
+    border: 1px solid rgba(204,51,51,0.55) !important;
+    backdrop-filter: blur(10px) saturate(130%);
+}
+
+.illust-only-toggle-btn {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .illust-only-toggle-btn {
+        display: block;
+        position: fixed;
+        top: 154px;
+        right: 12px;
+        z-index: 120;
+        background: rgba(255,255,255,0.30);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.45);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+        backdrop-filter: blur(10px) saturate(130%);
+    }
+
+    body.illust-only-mode .text-half {
+        display: none !important;
+    }
+}
+    .control-panel {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(78vw, 310px) !important;
+        height: 100vh !important;
+        padding: 22px 18px !important;
+        border-radius: 18px 0 0 18px !important;
+        border-left: none !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+        display: flex !important;
+    }
+
+    .control-panel.is-open {
+        transform: translateX(0);
+    }
+
+    .viewer-panel-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 1000;
+    }
+
+    .viewer-panel-overlay.is-open {
+        display: block;
+    }
+
+    body.panel-hidden .control-panel {
+        display: flex !important;
+    }
+}
+
+#illustContent,
+#illustContent img,
+.viewer-illust-slot,
+.viewer-illust-slot img {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+}
+
+    </style>
+<style>body { background: #2c2e33 !important; }</style></head>
+<body>
+
+    <div id="overlay">
+        <h3 style="color: #fff;">閲覧権限を確認中...</h3>
+        <p id="overlayMsg" style="color: #aaa; font-size: 12px;"></p>
+    </div>
+
+    <button id="panelToggleBtn" class="panel-toggle-btn" onclick="toggleControlPanel()">
+    目次を隠す
+</button>
+<button id="bookmarkBtn" class="bookmark-toggle-btn not-bookmarked" onclick="saveCurrentBookmark()">
+    🔖 しおり
+</button>
+<button id="reportAdultNftImageBtn" class="report-adult-nft-image-btn" onclick="reportCurrentAdultNftImage()">
+    🚩 通報
+</button>
+
+<button id="illustOnlyBtn" class="illust-only-toggle-btn" onclick="toggleIllustOnlyMode()">
+    イラスト
+</button>
+
+    <div class="work-display-area">
+        <div class="page-spread" id="mainSpread">
+            <div class="text-half" id="viewContent"></div>
+            <div class="illust-half" id="illustContent"></div>
+        </div>
+
+        <div class="page-controls">
+            <button class="page-btn" onclick="changePage(-1)">前へ</button>
+            <span class="page-counter" id="pageCounter">-- / --</span>
+            <button class="page-btn" onclick="changePage(1)">次へ</button>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <a href="purchased.html" class="back-btn">← 本棚に戻る</a>
+        
+        <div class="panel-title">📖 目次 (エピソード)</div>
+        <ul class="toc-list" id="tocList">
+            </ul>
+
+        <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #eee;">
+            <div id="viewTitle" style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">タイトル</div>
+            <div id="viewAuthor" style="color: #888; font-size: 11px;">作者</div>
+        </div>
+    </div>
+
+<script src="auth-check.js"></script>
+<script>
+// Supabase設定は auth-check.js で共通読み込み済み
+
+let nftData = null;
+let episodes = [];
+let currentEpIdx = -1; // -1 は「表紙」の状態
+let currentPageIdx = 0;
+
+let currentUser = null;
+let currentNftId = null;
+let savedBookmark = null;
+
+function getCurrentDisplayedAdultImageUrl() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return "";
+
+    const images = Array.from(illustArea.querySelectorAll("img"));
+
+    if (images.length === 0) {
+        return "";
+    }
+
+    if (images.length === 1) {
+        return images[0].src || "";
+    }
+
+    const choice = prompt(
+        "2枚絵が表示されています。\n通報する画像を選んでください。\n\n1：左側の画像\n2：右側の画像",
+        "1"
+    );
+
+    if (choice === null) return "";
+
+    if (choice.trim() === "2") {
+        return images[1]?.src || "";
+    }
+
+    return images[0]?.src || "";
+}
+
+async function reportCurrentAdultNftImage() {
+    const params = new URLSearchParams(window.location.search);
+    const nftId = params.get("id");
+    const imageUrl = getCurrentDisplayedAdultImageUrl();
+
+    if (!nftId || !nftData) {
+        alert("NFT作品情報を確認できませんでした。");
+        return;
+    }
+
+    if (!imageUrl) {
+        alert("現在表示中のページに通報できる画像がありません。");
+        return;
+    }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        alert("通報にはログインが必要です。");
+        location.href = "../portal/login.html";
+        return;
+    }
+
+    const ok = confirm(
+        "現在表示中の画像を通報します。\n\n" +
+        "成人向け作品では、NSFW表現そのものは停止対象ではありません。\n" +
+        "未加工の男性器・女性器・挿入シーンが明確に確認できる場合のみ、このNFT作品全体が停止されます。\n\n" +
+        "通報しますか？"
+    );
+
+    if (!ok) return;
+
+    const reason = prompt(
+        "通報理由を入力してください。\n例：未加工の露骨な部分が確認できる",
+        "未加工の露骨な部分が確認できる"
+    );
+
+    if (reason === null) return;
+
+    const btn = document.getElementById("reportAdultNftImageBtn");
+    const originalText = btn ? btn.innerText : "";
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "判定中...";
+    }
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke(
+            "report-adult-nft-image-gemini-moderation",
+            {
+                body: {
+                    nft_id: nftId,
+                    image_url: imageUrl,
+                    episode_index: typeof currentEpIdx === "number" ? currentEpIdx : null,
+                    page_index: typeof currentPageIdx === "number" ? currentPageIdx : null,
+                    reason: reason.trim() || "未加工の露骨な部分が確認できる"
+                }
+            }
+        );
+
+        if (data?.already_reported) {
+    alert("この画像はすでに通報済みです。");
+    return;
+}
+
+        if (data?.already_reported) {
+            alert("この成人向けNFT作品はすでに通報済みです。");
+            return;
+        }
+
+        if (data?.decision === "already_suspended") {
+            alert("このNFT作品はすでに停止されています。");
+            location.href = "purchased.html";
+            return;
+        }
+
+        if (data?.decision === "suspended") {
+            alert(
+                "AI判定により、未加工の露骨な描写が確認されたため、このNFT作品は停止されました。"
+            );
+            location.href = "purchased.html";
+            return;
+        }
+        if (data?.decision === "image_removed") {
+    alert(
+        "AI判定により、未加工の露骨な描写が確認されたため、通報された画像を非表示にしました。"
+    );
+    location.reload();
+    return;
+}
+
+        if (data?.decision === "reported") {
+            alert(
+                "通報を受け付けました。\nAI判定では自動停止までは行わず、確認対象として記録されました。"
+            );
+            return;
+        }
+
+        alert(
+            "通報を受け付けました。\nAI判定では、この画像は自動停止対象ではないと判断されました。"
+        );
+
+    } catch (err) {
+        console.error("成人向けNFT画像通報処理エラー:", err);
+        alert("通報処理中にエラーが発生しました。");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText || "🚩 通報";
+        }
+    }
+}
+
+function buildPreviewEpisodes(rawContent, maxPreviewPages = 4) {
+    const allEpisodes = [];
+
+    if (Array.isArray(rawContent.episodes)) {
+        rawContent.episodes.forEach((ep, index) => {
+            allEpisodes.push({
+                episode_number: ep.episode_number || index + 1,
+                title: ep.title || `第${index + 1}話`,
+                pages: Array.isArray(ep.pages) ? ep.pages : [],
+                assets: ep.assets || {}
+            });
+        });
+    } else if (rawContent.episodes && typeof rawContent.episodes === "object") {
+        const keys = Object.keys(rawContent.episodes).sort();
+        keys.forEach((key, index) => {
+            const draft = rawContent.episodes[key] || {};
+            allEpisodes.push({
+                episode_number: index + 1,
+                title: draft.title || `第${index + 1}話`,
+                pages: Array.isArray(draft.pages) ? draft.pages : [],
+                assets: draft.assets || {}
+            });
+        });
+    } else if (rawContent.pages && Array.isArray(rawContent.pages)) {
+        allEpisodes.push({
+            episode_number: 1,
+            title: "本編",
+            pages: rawContent.pages,
+            assets: rawContent.assets || {}
+        });
+    }
+
+    const previewEpisodes = [];
+    let remaining = maxPreviewPages;
+
+    for (const ep of allEpisodes) {
+        if (remaining <= 0) break;
+
+        const sourcePages = Array.isArray(ep.pages) ? ep.pages : [];
+        const limitedPages = sourcePages.slice(0, remaining);
+
+        if (limitedPages.length === 0) continue;
+
+        const limitedAssets = {};
+        limitedPages.forEach((_, idx) => {
+            if (ep.assets && Object.prototype.hasOwnProperty.call(ep.assets, idx)) {
+                limitedAssets[idx] = ep.assets[idx];
+            }
+        });
+
+        previewEpisodes.push({
+            episode_number: ep.episode_number,
+            title: ep.title,
+            pages: limitedPages,
+            assets: limitedAssets
+        });
+
+        remaining -= limitedPages.length;
+    }
+
+    if (previewEpisodes.length === 0) {
+        previewEpisodes.push({
+            episode_number: 1,
+            title: "プレビュー",
+            pages: ["（プレビューデータがありません）"],
+            assets: {}
+        });
+    }
+
+    return previewEpisodes;
+}
+
+async function initViewer() {
+    const params = new URLSearchParams(window.location.search);
+    const nftId = params.get('id');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!nftId) {
+        window.location.href = "market.html";
+        return;
+    }
+
+    currentNftId = nftId;
+    currentUser = session?.user || null;
+
+    try {
+        const { data: nft, error } = await supabaseClient
+            .from('nft_metadata')
+            .select('*')
+            .eq('id', nftId)
+            .single();
+
+        if (error || !nft) {
+            throw new Error("作品が見つかりません");
+        }
+
+        nftData = nft;
+
+        const rawContent = nft.nft_content || {};
+        episodes = buildPreviewEpisodes(rawContent, 4);
+
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('username')
+            .eq('id', nft.owner_id)
+            .single();
+
+        document.getElementById("viewTitle").innerText = nft.title_at_mint;
+        document.getElementById("viewAuthor").innerText = "@" + (profile?.username || "不明");
+
+        currentEpIdx = -1;
+        currentPageIdx = 0;
+        savedBookmark = null;
+
+        renderTOC();
+        renderScreen();
+
+        document.getElementById("overlay").style.display = "none";
+    } catch (err) {
+        document.getElementById("overlayMsg").innerText = err.message || "プレビューの読み込みに失敗しました。";
+    }
+}
+
+function normalizeBookmarkPosition(epIdx, pageIdx) {
+    const safeEpIdx = Number(epIdx);
+    const safePageIdx = Number(pageIdx || 0);
+
+    if (safeEpIdx === -1) {
+        return {
+            epIdx: -1,
+            pageIdx: 0
+        };
+    }
+
+    if (!episodes[safeEpIdx]) {
+        return null;
+    }
+
+    const pages = episodes[safeEpIdx].pages || [];
+    const maxPage = Math.max(0, pages.length - 1);
+
+    return {
+        epIdx: safeEpIdx,
+        pageIdx: Math.min(Math.max(0, safePageIdx), maxPage)
+    };
+}
+
+async function loadSavedBookmark() {
+    if (!currentUser || !currentNftId) return;
+
+    const { data, error } = await supabaseClient
+        .from("nft_read_bookmarks")
+        .select("episode_index, page_index, updated_at")
+        .eq("user_id", currentUser.id)
+        .eq("nft_id", currentNftId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("しおり読み込みエラー:", error);
+        return;
+    }
+
+    if (!data) {
+        savedBookmark = null;
+        return;
+    }
+
+    const position = normalizeBookmarkPosition(data.episode_index, data.page_index);
+
+    if (!position) {
+        savedBookmark = null;
+        return;
+    }
+
+    savedBookmark = {
+        episode_index: position.epIdx,
+        page_index: position.pageIdx
+    };
+
+    currentEpIdx = position.epIdx;
+    currentPageIdx = position.pageIdx;
+}
+
+function isCurrentPageBookmarked() {
+    return (
+        savedBookmark &&
+        Number(savedBookmark.episode_index) === Number(currentEpIdx) &&
+        Number(savedBookmark.page_index) === Number(currentPageIdx)
+    );
+}
+
+function updateBookmarkButtonVisual() {
+    const btn = document.getElementById("bookmarkBtn");
+    if (!btn) return;
+
+    const bookmarked = isCurrentPageBookmarked();
+
+    btn.classList.toggle("bookmarked", bookmarked);
+    btn.classList.toggle("not-bookmarked", !bookmarked);
+    btn.innerText = bookmarked ? "🔖 しおり済み" : "🔖 しおり";
+}
+
+async function saveCurrentBookmark() {
+    if (!currentUser || !currentNftId) {
+        alert("ログイン情報を確認できませんでした。");
+        return;
+    }
+
+    if (currentEpIdx === -1) {
+        alert("本文ページでしおりを保存してください。");
+        return;
+    }
+
+    const payload = {
+        user_id: currentUser.id,
+        nft_id: currentNftId,
+        episode_index: currentEpIdx,
+        page_index: currentPageIdx,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+        .from("nft_read_bookmarks")
+        .upsert(payload, {
+            onConflict: "user_id,nft_id"
+        });
+
+    if (error) {
+        console.error("しおり保存エラー:", error);
+        alert("しおりの保存に失敗しました。");
+        return;
+    }
+
+    savedBookmark = {
+        episode_index: currentEpIdx,
+        page_index: currentPageIdx
+    };
+
+    updateBookmarkButtonVisual();
+    alert("しおりを保存しました。");
+}
+
+function isMobileViewerWidth() {
+    return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function openViewerControlPanel() {
+    const panel = document.querySelector(".control-panel");
+    const overlay = document.getElementById("viewerPanelOverlay");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !overlay) return;
+
+    panel.classList.add("is-open");
+    overlay.classList.add("is-open");
+
+    if (btn) {
+        btn.innerText = "目次を閉じる";
+    }
+}
+
+function closeViewerControlPanel() {
+    const panel = document.querySelector(".control-panel");
+    const overlay = document.getElementById("viewerPanelOverlay");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !overlay) return;
+
+    panel.classList.remove("is-open");
+    overlay.classList.remove("is-open");
+
+    if (btn) {
+        btn.innerText = "☰ 目次";
+    }
+}
+
+function toggleControlPanel() {
+    const panel = document.querySelector(".control-panel");
+
+    if (isMobileViewerWidth()) {
+        if (panel && panel.classList.contains("is-open")) {
+            closeViewerControlPanel();
+        } else {
+            openViewerControlPanel();
+        }
+        return;
+    }
+
+    const isHidden = document.body.classList.toggle("panel-hidden");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (btn) {
+        btn.innerText = isHidden ? "目次を表示" : "目次を隠す";
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getViewerAssetImageUrl(asset) {
+    if (!asset) return "";
+
+    if (typeof asset === "string") {
+        return asset;
+    }
+
+    if (typeof asset !== "object") {
+        return "";
+    }
+
+    return (
+        asset.image_url ||
+        asset.imageUrl ||
+        asset.file_url ||
+        asset.url ||
+        ""
+    );
+}
+
+function normalizeViewerPageAsset(rawAsset) {
+    if (!rawAsset) {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    if (typeof rawAsset === "string") {
+        return {
+            mode: "single",
+            left: {
+                image_url: rawAsset
+            },
+            right: null
+        };
+    }
+
+    if (typeof rawAsset !== "object") {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    if (rawAsset.mode === "double") {
+        return {
+            mode: "double",
+            left: rawAsset.left || null,
+            right: rawAsset.right || null
+        };
+    }
+
+    if (rawAsset.left || rawAsset.right) {
+        return {
+            mode: rawAsset.right ? "double" : "single",
+            left: rawAsset.left || null,
+            right: rawAsset.right || null
+        };
+    }
+
+    return {
+        mode: "single",
+        left: rawAsset,
+        right: null
+    };
+}
+
+function renderViewerIllustSlot(slot) {
+    const imageUrl = getViewerAssetImageUrl(slot);
+
+    if (!imageUrl) {
+        return `
+            <div class="viewer-illust-slot empty">
+                NO IMAGE
+            </div>
+        `;
+    }
+
+    return `
+        <div class="viewer-illust-slot">
+            <img src="${escapeHtml(imageUrl)}">
+        </div>
+    `;
+}
+
+function renderViewerPageAsset(illustArea, rawAsset) {
+    const asset = normalizeViewerPageAsset(rawAsset);
+
+    illustArea.classList.remove("double-illust-mode");
+
+    if (asset.mode === "double") {
+        illustArea.classList.add("double-illust-mode");
+        illustArea.innerHTML = `
+            ${renderViewerIllustSlot(asset.left)}
+            ${renderViewerIllustSlot(asset.right)}
+        `;
+        return;
+    }
+
+    const imageUrl = getViewerAssetImageUrl(asset.left);
+
+    if (imageUrl) {
+        illustArea.innerHTML = `<img src="${escapeHtml(imageUrl)}">`;
+    } else {
+        illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
+    }
+}
+
+function renderTOC() {
+    const list = document.getElementById("tocList");
+    list.innerHTML = `<li class="toc-item ${currentEpIdx === -1 ? 'active' : ''}" onclick="jumpTo(-1, 0)">📔 表紙</li>`;
+    
+    episodes.forEach((ep, idx) => {
+        const li = document.createElement("li");
+        li.className = `toc-item ${currentEpIdx === idx ? 'active' : ''}`;
+        li.innerText = `${ep.episode_number}. ${ep.title}`;
+        li.onclick = () => jumpTo(idx, 0);
+        list.appendChild(li);
+    });
+}
+
+function renderScreen() {
+    const textArea = document.getElementById("viewContent");
+    const illustArea = document.getElementById("illustContent");
+    const counter = document.getElementById("pageCounter");
+
+    if (currentEpIdx === -1) {
+        // 🌟 表紙表示（横書きにして綺麗に中央に配置する）
+        textArea.style.writingMode = "horizontal-tb";
+        textArea.style.padding = "0"; 
+        textArea.innerHTML = `
+    <div class="viewer-cover-mobile" style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: #fdfdfd;">
+        <h1 style="font-size:28px; color: var(--main-purple); margin-bottom: 20px;">${nftData.title_at_mint}</h1>
+        <p style="font-size:16px; color:#666;">${document.getElementById("viewAuthor").innerText}</p>
+        <p class="start-guide" style="margin-top:50px; font-size:12px; font-weight:bold; color:var(--main-purple); border: 1px solid var(--main-purple); padding: 8px 20px; border-radius: 20px;">ページをめくって開始 ＞</p>
+    </div>
+        `;
+        const coverImg = nftData.nft_content?.cover_image || nftData.cover_image_url;
+        illustArea.classList.remove("double-illust-mode");
+
+
+        if (coverImg) {
+            illustArea.innerHTML = `<img src="${coverImg}">`;
+        } else {
+            illustArea.innerHTML = `<div style="color:#bbb; font-size:12px;">NO IMAGE</div>`;
+        }
+        counter.innerText = "Cover";
+    } else {
+        // 🌟 本文表示（縦書きと余白を元に戻す）
+        textArea.style.writingMode = "vertical-rl";
+        textArea.style.padding = "60px 60px 60px 40px";
+        
+        const ep = episodes[currentEpIdx];
+        textArea.innerText = ep.pages[currentPageIdx] || "";
+        
+        const asset = ep.assets ? ep.assets[currentPageIdx] : null;
+renderViewerPageAsset(illustArea, asset);
+        counter.innerText = `Ep.${ep.episode_number} - P.${currentPageIdx + 1}/${ep.pages.length}`;
+    }
+    renderTOC();
+updateBookmarkButtonVisual();
+}
+
+function changePage(delta) {
+    if (currentEpIdx === -1) {
+        if (delta > 0) { currentEpIdx = 0; currentPageIdx = 0; }
+    } else {
+        currentPageIdx += delta;
+        // ページ範囲外の処理
+        if (currentPageIdx < 0) {
+            if (currentEpIdx > 0) {
+                currentEpIdx--;
+                currentPageIdx = episodes[currentEpIdx].pages.length - 1;
+            } else {
+                currentEpIdx = -1; // 表紙へ戻る
+            }
+        } else if (currentPageIdx >= episodes[currentEpIdx].pages.length) {
+            if (currentEpIdx < episodes.length - 1) {
+                currentEpIdx++;
+                currentPageIdx = 0;
+            } else {
+                currentPageIdx = episodes[currentEpIdx].pages.length - 1; // 終端
+            }
+        }
+    }
+    renderScreen();
+}
+
+function jumpTo(epIdx, pIdx) {
+    currentEpIdx = epIdx;
+    currentPageIdx = pIdx;
+    renderScreen();
+}
+
+function setupMobileNftViewerUI() {
+    const panel = document.querySelector(".control-panel");
+    const btn = document.getElementById("panelToggleBtn");
+
+    if (!panel || !btn) return;
+    if (document.getElementById("viewerPanelOverlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "viewerPanelOverlay";
+    overlay.className = "viewer-panel-overlay";
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", closeViewerControlPanel);
+
+    panel.addEventListener("click", (event) => {
+        if (event.target && event.target.classList.contains("toc-item")) {
+            closeViewerControlPanel();
+        }
+    });
+
+    function applyViewerMode() {
+        if (isMobileViewerWidth()) {
+            document.body.classList.remove("panel-hidden");
+            panel.classList.remove("is-open");
+            overlay.classList.remove("is-open");
+            btn.innerText = "☰ 目次";
+        } else {
+            panel.classList.remove("is-open");
+            overlay.classList.remove("is-open");
+            btn.innerText = document.body.classList.contains("panel-hidden")
+                ? "目次を表示"
+                : "目次を隠す";
+        }
+    }
+
+    window.addEventListener("resize", applyViewerMode);
+    applyViewerMode();
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileNftViewerUI);
+
+function toggleIllustOnlyMode() {
+    const btn = document.getElementById("illustOnlyBtn");
+    const enabled = document.body.classList.toggle("illust-only-mode");
+
+    if (btn) {
+        btn.innerText = enabled ? "本文" : "イラスト";
+    }
+}
+
+function setupImageDownloadGuard() {
+    const illustArea = document.getElementById("illustContent");
+    if (!illustArea) return;
+
+    // 右クリック保存・長押しメニューを抑止
+    illustArea.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 画像ドラッグ保存を抑止
+    illustArea.addEventListener("dragstart", (event) => {
+        event.preventDefault();
+        return false;
+    });
+
+    // 表示される画像に draggable=false を付ける
+    const observer = new MutationObserver(() => {
+        illustArea.querySelectorAll("img").forEach(img => {
+            img.setAttribute("draggable", "false");
+            img.setAttribute("loading", "lazy");
+        });
+    });
+
+    observer.observe(illustArea, {
+        childList: true,
+        subtree: true
+    });
+
+    illustArea.querySelectorAll("img").forEach(img => {
+        img.setAttribute("draggable", "false");
+        img.setAttribute("loading", "lazy");
+    });
+}
+
+document.addEventListener("DOMContentLoaded", setupImageDownloadGuard);
+
+initViewer();
+</script>
+</body>
+</html>
