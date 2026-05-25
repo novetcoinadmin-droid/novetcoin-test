@@ -558,6 +558,120 @@
     bottom: 14px;
   }
 }
+/* ===== ヒーローカルーセル：PC小窓・タブレット・スマホ欠け対策 ===== */
+.hero-carousel {
+  min-height: clamp(420px, 42vw, 560px);
+}
+
+.hero-slide {
+  padding: clamp(24px, 3vw, 40px) clamp(18px, 3vw, 40px) 58px;
+}
+
+.hero-slide h1 {
+  font-size: clamp(24px, 3.2vw, 36px);
+  line-height: 1.25;
+}
+
+.hero-slide p {
+  font-size: clamp(14px, 1.7vw, 18px);
+  line-height: 1.65;
+}
+
+.hero-note {
+  font-size: clamp(12px, 1.4vw, 15px);
+  line-height: 1.65;
+}
+
+.hero-reg-btn {
+  font-size: clamp(14px, 1.6vw, 18px);
+  padding: 12px 24px;
+}
+
+.hero-image-stack img {
+  height: clamp(105px, 12vw, 135px);
+}
+
+/* PCを少し狭くした時・タブレット横幅の対策 */
+@media (max-width: 1100px) {
+  .hero-carousel {
+    min-height: 650px;
+  }
+
+  .hero-slide {
+    padding: 28px 22px 62px;
+  }
+
+  .hero-visual-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .hero-visual-text {
+    text-align: center;
+  }
+
+  .hero-image-stack {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  .hero-image-stack img {
+    height: 145px;
+  }
+
+  .hero-slide h1 {
+    font-size: clamp(24px, 4.2vw, 34px);
+  }
+
+  .hero-slide p {
+    font-size: clamp(14px, 2.6vw, 18px);
+  }
+}
+
+/* スマホ幅の最終調整 */
+@media (max-width: 560px) {
+  .hero-carousel {
+    min-height: 720px;
+  }
+
+  .hero-slide {
+    padding: 24px 16px 58px;
+  }
+
+  .hero-slide h1 {
+    font-size: 26px;
+    line-height: 1.3;
+  }
+
+  .hero-slide p {
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .hero-note {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .hero-reg-btn {
+    width: 100%;
+    max-width: 320px;
+    font-size: 16px;
+    padding: 13px 14px;
+  }
+
+  .hero-image-stack {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .hero-image-stack img {
+    height: 120px;
+  }
+}
+
 </style>
 <style>body { background: #fdeff2 !important; }</style></head>
 <body>
@@ -579,7 +693,7 @@
 <div class="menu">
   <a href="index.html">トップ</a>
   <a href="works.html">本棚</a>
-  <a href="nft_mint.html">NNFTへ</a>
+  <a href="market.html">NNFTへ</a>
 </div>
 
 <button id="mobileAccountToggle" class="mobile-account-toggle" type="button">
