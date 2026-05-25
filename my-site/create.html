@@ -23,11 +23,25 @@
   background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
 }
 .preview-content {
-  background: white; width: 90%; max-width: 800px; max-height: 80vh; 
-  padding: 30px; border-radius: 12px; overflow-y: auto; position: relative;
+  background: #eaf8ff;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  padding: 30px;
+  border-radius: 12px;
+  overflow-y: auto;
+  position: relative;
+  border: 2px solid #8fd3ff;
+  box-shadow: 0 10px 30px rgba(0, 80, 140, 0.25);
 }
 .preview-body { line-height: 1.8; white-space: pre-wrap; font-size: 16px; margin-bottom: 20px; }
-
+#previewBody {
+  background: #ffffff;
+  border: 1px solid #cdefff;
+  border-radius: 10px;
+  padding: 16px;
+  box-sizing: border-box;
+}
 /* 違反箇所のマークアップ（背景を赤く） */
 .violation-highlight {
   background-color: #ffcccc; border-bottom: 2px solid #ff0000; font-weight: bold;
