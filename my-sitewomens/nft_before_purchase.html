@@ -117,6 +117,31 @@
         .btn-buy:disabled { background: #ccc; cursor: not-allowed; }
         .btn-buy:hover:not(:disabled) { background: #5a0a9d; transform: translateY(-2px); }
         .nav-back { text-decoration: none; color: #666; font-size: 14px; margin-bottom: 20px; display: inline-block; }
+        .btn-preview {
+    background: #fff;
+    color: #6a0dad;
+    border: 2px solid #6a0dad;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-bottom: 12px;
+}
+
+.btn-preview:disabled {
+    color: #aaa;
+    border-color: #ddd;
+    background: #f7f7f7;
+    cursor: not-allowed;
+}
+
+.btn-preview:hover:not(:disabled) {
+    background: #f7edff;
+    transform: translateY(-2px);
+}
+
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
@@ -187,7 +212,7 @@
 
     <div class="info-area">
         <h1 id="nftTitle" style="margin: 0 0 10px 0; font-size: 24px;">読み込み中...</h1>
-        <div id="creatorName" style="color: #6a0dad;">@-------</div>>
+        <div id="creatorName" style="color: #6a0dad;">@-------</div>
 
         <table class="meta-table">
     <tr><th>挿絵</th><td id="nftIllustCount">---</td></tr>
@@ -203,12 +228,21 @@
         </div>
 
         <div id="balanceCheck" style="font-size: 12px; margin-bottom: 10px; color: #666;">
-            あなたの残高: <span id="myNvt">--</span> NVT
-        </div>
+    あなたの残高: <span id="myNvt">--</span> NVT
+</div>
 
-        <button id="buyButton" onclick="processPurchase()" class="btn-buy" disabled>
-            読み込み中...
-        </button>
+<button
+    id="previewButton"
+    onclick="openNftPreview()"
+    class="btn-preview"
+    disabled
+>
+    プレビューを読み込み中...
+</button>
+
+<button id="buyButton" onclick="processPurchase()" class="btn-buy" disabled>
+    読み込み中...
+</button>
         
         <p style="font-size: 11px; color: #999; margin-top: 15px; line-height: 1.5;">
             ※購入すると所有権があなたに移転し、ライブラリの「購入品」タブから閲覧・管理できるようになります。
@@ -609,6 +643,13 @@ document.getElementById("nftDate").innerText =
 
     const btn = document.getElementById("buyButton");
 
+    const previewBtn = document.getElementById("previewButton");
+
+if (previewBtn) {
+    previewBtn.innerText = "3〜4ページだけプレビューを見る";
+    previewBtn.disabled = false;
+}
+
     if (!currentUser) {
         btn.innerText = "ログインが必要です";
         btn.disabled = true;
@@ -840,6 +881,17 @@ async function submitReview() {
 
 window.submitReview = submitReview;
 window.updateReviewCounter = updateReviewCounter;
+
+function openNftPreview() {
+    if (!targetNft || !targetNft.id) {
+        alert("プレビュー情報を読み込めていません。");
+        return;
+    }
+
+    window.location.href = `nft_preview.html?id=${targetNft.id}`;
+}
+
+window.openNftPreview = openNftPreview;
 
 async function processPurchase() {
     if (!currentUser || !targetNft) {
