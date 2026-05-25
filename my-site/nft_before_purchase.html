@@ -881,6 +881,17 @@ async function submitReview() {
 window.submitReview = submitReview;
 window.updateReviewCounter = updateReviewCounter;
 
+function openNftPreview() {
+    if (!targetNft || !targetNft.id) {
+        alert("プレビュー情報を読み込めていません。");
+        return;
+    }
+
+    window.location.href = `nft_preview.html?id=${targetNft.id}`;
+}
+
+window.openNftPreview = openNftPreview;
+
 async function processPurchase() {
     if (!currentUser || !targetNft) {
         alert("購入情報を読み込めていません。");
