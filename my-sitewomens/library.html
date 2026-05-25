@@ -313,8 +313,9 @@ const { data: nfts, error: nError } = await supabaseClient
     .from('nft_metadata')
     .select('*, authors!inner(zone)')
     .eq('owner_id', session.user.id)
-    .eq('authors.zone', 'womens')
+    .eq('authors.zone', 'main')
     .not('minted_at', 'is', null)
+    .or('review_status.is.null,review_status.neq.suspended')
     .order('minted_at', { ascending: false });
 
 if (window.renderNovetSharedRightPanel) {
@@ -353,19 +354,25 @@ if (window.renderNovetSharedRightPanel) {
                         <div style="font-weight:bold; font-size:14px; margin-bottom:10px; height: 34px; overflow: hidden;">${nft.title_at_mint}</div>
                         
                         ${isPublished ? `
-                            <div style="font-size: 11px; color: #6a0dad; font-weight: bold; margin-bottom: 5px;">
-                                価格: ${nft.price_nvt || 0} NVT
-                            </div>
-                            <button disabled class="btn btn-outline" style="width:100%; font-size:12px; opacity: 0.5; cursor: not-allowed; margin-bottom: 5px;">
-                                公開済み（設定変更不可）
-                            </button>
-                            <button onclick="window.location.href='nft_view.html?id=${nft.id}'" 
-                                    style="width: 100%; padding: 8px; background: #fff; color: #6a0dad; border: 1px solid #6a0dad; border-radius: 4px; font-size: 12px; cursor: pointer;">
-                                📖 自分の作品を読む
-                            </button>
-                        ` : `
-                            <button onclick="openSettingsByIndex(${index})" class="btn btn-outline" style="width:100%; font-size:12px;">設定・出品</button>
-                        `}
+    <div style="font-size: 11px; color: #6a0dad; font-weight: bold; margin-bottom: 5px;">
+        価格: ${nft.price_nvt || 0} NVT
+    </div>
+    <button disabled class="btn btn-outline" style="width:100%; font-size:12px; opacity: 0.5; cursor: not-allowed; margin-bottom: 5px;">
+        公開済み（設定変更不可）
+    </button>
+    <button onclick="window.location.href='nft_view.html?id=${nft.id}'" 
+            style="width: 100%; padding: 8px; background: #fff; color: #6a0dad; border: 1px solid #6a0dad; border-radius: 4px; font-size: 12px; cursor: pointer;">
+        📖 自分の作品を読む
+    </button>
+` : `
+    <button onclick="openSettingsByIndex(${index})" class="btn btn-outline" style="width:100%; font-size:12px; margin-bottom: 5px;">
+        設定・出品
+    </button>
+    <button onclick="window.location.href='nft_view.html?id=${nft.id}'" 
+            style="width: 100%; padding: 8px; background: #fff; color: #6a0dad; border: 1px solid #6a0dad; border-radius: 4px; font-size: 12px; cursor: pointer;">
+        📖 作品を見る
+    </button>
+`}
                     </div>
                 `;
                 listArea.appendChild(card);
