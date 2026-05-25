@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作品プレビュー | Novet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #2c2e33;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .page-wrap {
+            max-width: 960px;
+            margin: 32px auto;
+            padding: 0 18px 40px;
+        }
+
+        .preview-card {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            padding: 32px;
+        }
+
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .nav-back {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .buy-link {
+            display: inline-block;
+            background: #6a0dad;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .preview-label {
+            display: inline-block;
+            background: #f3e8ff;
+            color: #6a0dad;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 26px;
+            margin: 0 0 8px;
+            color: #222;
+        }
+
+        .creator {
+            color: #6a0dad;
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+
+        .notice {
+            background: #fff8e8;
+            border: 1px solid #f2d28a;
+            border-radius: 14px;
+            padding: 14px 16px;
+            color: #7a5600;
+            font-size: 13px;
+            line-height: 1.7;
+            margin: 20px 0;
+        }
+
+        .cover {
+            width: 100%;
+            max-width: 360px;
+            display: block;
+            margin: 16px auto 26px;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.16);
+        }
+
+        .preview-pages {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .page-box {
+            border: 1px solid #eee;
+            border-radius: 18px;
+            background: #fcfcfc;
+            padding: 22px;
+        }
+
+        .page-number {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .page-text {
+            font-size: 15px;
+            line-height: 2;
+            white-space: pre-wrap;
+            color: #222;
+        }
+
+        .locked-box {
+            margin-top: 24px;
+            border-radius: 18px;
+            background: #f5f0fa;
+            border: 1px solid #e1c9f5;
+            padding: 20px;
+            text-align: center;
+            color: #5d2588;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .locked-box strong {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .error-box {
+            background: #fff;
+            border-radius: 18px;
+            padding: 28px;
+            text-align: center;
+            color: #777;
+        }
+
+        @media (max-width: 640px) {
+            .page-wrap {
+                margin: 18px auto;
+                padding: 0 12px 28px;
+            }
+
+            .preview-card {
+                padding: 20px;
+                border-radius: 18px;
+            }
+
+            .title {
+                font-size: 22px;
+            }
+
+            .page-box {
+                padding: 18px;
+            }
+
+            .page-text {
+                font-size: 14px;
+                line-height: 1.9;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrap">
+    <div id="contentArea" class="preview-card">
+        <div class="nav-row">
+            <a id="backLink" href="market.html" class="nav-back">← 購入画面へ戻る</a>
+            <a id="buyLink" href="#" class="buy-link">購入画面へ戻る</a>
+        </div>
+
+        <div class="preview-label">購入前プレビュー</div>
+        <h1 id="nftTitle" class="title">読み込み中...</h1>
+        <div id="creatorName" class="creator">@-------</div>
+
+        <div class="notice">
+            このページでは、購入前の確認用として作品冒頭の一部のみ表示しています。<br>
+            続きは購入後、ライブラリの購入品から閲覧できます。
+        </div>
+
+        <img id="coverImage" class="cover" src="" alt="作品表紙" style="display:none;">
+
+        <div id="previewPages" class="preview-pages"></div>
+
+        <div class="locked-box">
+            <strong>ここから先は購入後に閲覧できます</strong>
+            本編の続き、すべてのページ、挿絵は購入後に開放されます。
+        </div>
+    </div>
+</div>
+
+<script src="auth-check.js"></script>
+<script>
+const supabaseClient = window.supabaseClient;
+
+let targetNft = null;
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getPreviewPagesFromContent(content, maxPages = 4) {
+    const pages = [];
+    const rawContent = content || {};
+    const episodes = rawContent.episodes;
+
+    function addPages(pageArray) {
+        if (!Array.isArray(pageArray)) return;
+
+        for (const page of pageArray) {
+            const text = String(page || "").trim();
+            if (!text) continue;
+
+            pages.push(text);
+
+            if (pages.length >= maxPages) {
+                return;
+            }
+        }
+    }
+
+    if (Array.isArray(episodes)) {
+        for (const ep of episodes) {
+            addPages(ep.pages);
+            if (pages.length >= maxPages) break;
+        }
+    } else if (episodes && typeof episodes === "object") {
+        for (const ep of Object.values(episodes)) {
+            addPages(ep.pages);
+            if (pages.length >= maxPages) break;
+        }
+    } else {
+        addPages(rawContent.pages);
+    }
+
+    return pages.slice(0, maxPages);
+}
+
+async function loadCreatorName(ownerId) {
+    if (!ownerId) return "名無し作家";
+
+    const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("username")
+        .eq("id", ownerId)
+        .single();
+
+    if (error || !data?.username) {
+        return "名無し作家";
+    }
+
+    return data.username;
+}
+
+function renderPreview(creatorName) {
+    const titleEl = document.getElementById("nftTitle");
+    const creatorEl = document.getElementById("creatorName");
+    const coverEl = document.getElementById("coverImage");
+    const previewPagesEl = document.getElementById("previewPages");
+    const backLink = document.getElementById("backLink");
+    const buyLink = document.getElementById("buyLink");
+
+    titleEl.innerText = targetNft.title_at_mint || "無題の作品";
+    creatorEl.innerText = "@" + creatorName;
+
+    backLink.href = `nft_before_purchase.html?id=${targetNft.id}`;
+    buyLink.href = `nft_before_purchase.html?id=${targetNft.id}`;
+
+    if (targetNft.cover_image_url) {
+        coverEl.src = targetNft.cover_image_url;
+        coverEl.style.display = "block";
+    }
+
+    const previewPages = getPreviewPagesFromContent(targetNft.nft_content || {}, 4);
+
+    if (previewPages.length === 0) {
+        previewPagesEl.innerHTML = `
+            <div class="page-box">
+                <div class="page-text">
+                    プレビューできる本文が見つかりませんでした。
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    previewPagesEl.innerHTML = previewPages.map((text, index) => {
+        return `
+            <div class="page-box">
+                <div class="page-number">Preview ${index + 1}</div>
+                <div class="page-text">${escapeHtml(text)}</div>
+            </div>
+        `;
+    }).join("");
+}
+
+function renderError(message) {
+    const contentArea = document.getElementById("contentArea");
+    contentArea.className = "error-box";
+    contentArea.innerHTML = `
+        <p>${escapeHtml(message)}</p>
+        <p><a href="market.html">マーケットへ戻る</a></p>
+    `;
+}
+
+async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const nftId = urlParams.get("id");
+
+    if (!nftId) {
+        renderError("作品IDが指定されていません。");
+        return;
+    }
+
+    const { data: nft, error } = await supabaseClient
+        .from("nft_metadata")
+        .select("*")
+        .eq("id", nftId)
+        .single();
+
+    if (error || !nft) {
+        console.error("NFTプレビュー取得エラー:", error);
+        renderError("作品データの取得に失敗しました。");
+        return;
+    }
+
+    targetNft = nft;
+
+    const creatorName = await loadCreatorName(targetNft.owner_id);
+    renderPreview(creatorName);
+}
+
+init();
+</script>
+</body>
+</html>
