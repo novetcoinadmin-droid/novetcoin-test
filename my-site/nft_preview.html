@@ -484,12 +484,6 @@ body.panel-hidden .page-counter {
     <button id="panelToggleBtn" class="panel-toggle-btn" onclick="toggleControlPanel()">
     目次を隠す
 </button>
-<button id="bookmarkBtn" class="bookmark-toggle-btn not-bookmarked" onclick="saveCurrentBookmark()">
-    🔖 しおり
-</button>
-<button id="reportAdultNftImageBtn" class="report-adult-nft-image-btn" onclick="reportCurrentAdultNftImage()">
-    🚩 通報
-</button>
 
 <button id="illustOnlyBtn" class="illust-only-toggle-btn" onclick="toggleIllustOnlyMode()">
     イラスト
@@ -509,7 +503,7 @@ body.panel-hidden .page-counter {
     </div>
 
     <div class="control-panel">
-        <a href="purchased.html" class="back-btn">← 本棚に戻る</a>
+        <a id="previewBackToPurchase" href="market.html" class="back-btn">← 購入画面へ戻る</a>
         
         <div class="panel-title">📖 目次 (エピソード)</div>
         <ul class="toc-list" id="tocList">
@@ -760,6 +754,12 @@ async function initViewer() {
 
     currentNftId = nftId;
     currentUser = session?.user || null;
+
+    const previewBackToPurchase = document.getElementById("previewBackToPurchase");
+
+if (previewBackToPurchase) {
+    previewBackToPurchase.href = `nft_before_purchase.html?id=${nftId}`;
+}
 
     try {
         const { data: nft, error } = await supabaseClient
