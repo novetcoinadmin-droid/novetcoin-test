@@ -140,26 +140,48 @@
         <button id="convertBtn" class="btn-convert" onclick="executeConvert()" disabled>NPを買う</button>
     </div>
     <div class="purchase-section" style="margin-top: 30px; padding: 20px; background: #fdfaf6; border: 1px solid #e1d4f2; border-radius: 10px;">
-        <h3 style="font-size: 15px; margin-top: 0; color: var(--main-purple);">💳 NPを購入する（チャージ）</h3>
-        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">クレジットカードやGoogle PayでNPをチャージできます。<br>（1 NP = 1円）</p>
+    <h3 style="font-size: 15px; margin-top: 0; color: var(--main-purple);">💳 Google Pay / クレジットカードでNPを購入</h3>
+    <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
+        Novet内で利用できるNPを購入できます。<br>
+        1NP = 1円。NPは暗号資産ではありません。
+    </p>
 
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('500円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
-                500 NP<br><small style="color:#999; font-weight:normal;">¥500</small>
-            </button>
-            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('1,000円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
-                1000 NP<br><small style="color:#999; font-weight:normal;">¥1,000</small>
-            </button>
-            <button class="amount-btn" style="flex:1; padding:10px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;" onclick="alert('5,000円分の決済画面へ移動します（現在Stripe連携の準備中です）')">
-                5000 NP<br><small style="color:#999; font-weight:normal;">¥5,000</small>
-            </button>
-        </div>
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+        <button
+            type="button"
+            class="amount-btn"
+            style="flex:1; min-width:140px; padding:12px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;"
+            onclick="startStripeNpPurchase(500)"
+        >
+            500 NP<br><small style="color:#999; font-weight:normal;">税込 ¥500</small>
+        </button>
 
-        <button onclick="alert('ここにStripe/Google Payの決済システムが組み込まれます。')" style="width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-            Google Pay / クレジットカード決済 (準備中)
+        <button
+            type="button"
+            class="amount-btn"
+            style="flex:1; min-width:140px; padding:12px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;"
+            onclick="startStripeNpPurchase(1000)"
+        >
+            1000 NP<br><small style="color:#999; font-weight:normal;">税込 ¥1,000</small>
+        </button>
+
+        <button
+            type="button"
+            class="amount-btn"
+            style="flex:1; min-width:140px; padding:12px; background:#fff; border:2px solid #e1d4f2; border-radius:8px; cursor:pointer; color:var(--main-purple); font-weight:bold;"
+            onclick="startStripeNpPurchase(3000)"
+        >
+            3000 NP<br><small style="color:#999; font-weight:normal;">税込 ¥3,000</small>
         </button>
     </div>
+
+    <div id="stripeNpPurchaseMessage" style="font-size: 13px; color: #666; line-height: 1.7;"></div>
+
+    <p style="font-size:11px; color:#888; margin-top:10px; line-height:1.6;">
+        ※ 決済はStripeの安全な決済画面で処理されます。Novetはカード情報を保存しません。<br>
+        ※ 決済完了後、NP残高へ自動反映されます。
+    </p>
+</div>
 
     <div class="web3-section">
     <h3 style="font-size: 14px; margin-top: 0;">🦊 外部ウォレットへ送金</h3>
@@ -1005,6 +1027,73 @@ window.closeNpPurchaseModal = closeNpPurchaseModal;
 window.confirmNpPurchaseFromModal = confirmNpPurchaseFromModal;
 
 window.executeConvert = executeConvert;
+
+async function startStripeNpPurchase(npAmount) {
+  const allowedAmounts = [500, 1000, 3000];
+  const messageEl = document.getElementById("stripeNpPurchaseMessage");
+
+  if (!allowedAmounts.includes(Number(npAmount))) {
+    alert("購入できるNPは 500 / 1000 / 3000 のみです。");
+    return;
+  }
+
+  const ok = confirm(
+    `${Number(npAmount).toLocaleString("ja-JP")} NPを購入します。\n` +
+    `支払額は税込 ${Number(npAmount).toLocaleString("ja-JP")} 円です。\n\n` +
+    "Stripeの決済画面へ移動しますか？"
+  );
+
+  if (!ok) return;
+
+  const buttons = document.querySelectorAll(".purchase-section .amount-btn");
+
+  buttons.forEach((btn) => {
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+    btn.style.cursor = "not-allowed";
+  });
+
+  if (messageEl) {
+    messageEl.style.color = "#666";
+    messageEl.textContent = "Stripe決済画面を作成しています。画面を閉じずにお待ちください。";
+  }
+
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke(
+      "create-np-checkout-session",
+      {
+        body: {
+          np_amount: Number(npAmount)
+        }
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success || !data?.checkout_url) {
+      throw new Error(data?.error || "Stripe決済画面の作成に失敗しました。");
+    }
+
+    location.href = data.checkout_url;
+  } catch (err) {
+    console.error("NP購入Checkout作成エラー:", err);
+
+    if (messageEl) {
+      messageEl.style.color = "#e74c3c";
+      messageEl.textContent = "NP購入画面の作成に失敗しました: " + (err?.message || String(err));
+    }
+
+    buttons.forEach((btn) => {
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.style.cursor = "pointer";
+    });
+  }
+}
+
+window.startStripeNpPurchase = startStripeNpPurchase;
 
 async function syncNvtDeposits() {
   try {
