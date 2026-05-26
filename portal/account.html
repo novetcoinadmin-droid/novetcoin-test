@@ -96,11 +96,13 @@
       <input type="text" id="newAuthorName" placeholder="（例）シュヴァルツ・ノベル">
 
       <label for="authorZone">活動ゾーン（あとで変更できません）</label>
-      <select id="authorZone">
-        <option value="main">🟢 全年齢ゾーン（一般向け作品）</option>
-        <option value="mens">⚫ 男性向けゾーン（R18/成人向け）</option>
-        <option value="womens">💖 女性向けゾーン（R18/成人向け）</option>
-      </select>
+<select id="authorZone">
+  <option value="main">🟢 全年齢ゾーン（一般向け作品）</option>
+</select>
+
+<p style="font-size:12px; color:#888; margin-top:-8px; margin-bottom:15px;">
+  ※現在、その他の活動ゾーンは準備中です。
+</p>
 
       <div style="background: #fff5f5; padding: 15px; border-radius: 10px; border: 1px solid #ffdada; margin-bottom: 20px;">
         <label style="font-size: 13px; color: #c62828; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; margin-bottom: 0;">
@@ -226,17 +228,15 @@ async function createAuthor() {
 
 // --- 各属性のトップページ（index.html）へ移動 ---
 function goToZoneIndex(id, zone) {
-  localStorage.setItem("authorId", id);
-  localStorage.setItem("authorZone", zone); 
-  
-  // ★修正: すべて相対パスに変更
-  if (zone === 'mens') {
-    location.href = "../my-siteman/index.html";
-  } else if (zone === 'womens') {
-    location.href = "../my-sitewomens/index.html";
-  } else {
-    location.href = "../my-site/index.html"; // 全年齢
+  if (zone === 'mens' || zone === 'womens') {
+    alert("現在こちらの活動ゾーンは準備中です。公開準備が整い次第、利用できるようになります。");
+    return;
   }
+
+  localStorage.setItem("authorId", id);
+  localStorage.setItem("authorZone", zone);
+
+  location.href = "../my-site/index.html"; // 全年齢
 }
 
 // --- 名前変更 ---
