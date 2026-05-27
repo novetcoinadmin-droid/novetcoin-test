@@ -429,6 +429,54 @@ body {
     .modal-asset-card:hover { border-color: #6a0dad; transform: translateY(-2px); }
     .modal-asset-img { width: 100%; height: 120px; object-fit: cover; display: block; }
     .modal-asset-name { padding: 8px; font-size: 12px; color: #555; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* --- 編集用：縦書き行ガイド --- */
+.text-half {
+    white-space: pre-wrap;
+}
+
+.line-guide-layer {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 50%;
+    box-sizing: border-box;
+
+    /* text-half の左右余白に合わせる */
+    padding: 0 50px;
+
+    pointer-events: none;
+    z-index: 12;
+    font-family: sans-serif;
+}
+
+.line-guide-note {
+    font-size: 10px;
+    color: rgba(106, 13, 173, 0.55);
+    text-align: center;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}
+
+.line-guide-numbers {
+    display: grid;
+    grid-template-columns: repeat(9, 58px);
+    justify-content: end;
+    gap: 0;
+
+    color: rgba(106, 13, 173, 0.45);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.line-guide-number {
+    text-align: center;
+    line-height: 1;
+}
+
+/* スマホ風表示では行番号ガイドを非表示 */
+.page-spread.mobile-mode .line-guide-layer {
+    display: none !important;
+}
     </style>
 
     <div class="asset-modal-overlay" id="assetModal">
@@ -494,6 +542,42 @@ body {
 <div class="section-card" style="border-left: 4px solid #6a0dad;">
     <label style="font-size:13px; font-weight:bold;">挿絵選択</label>
 
+    <div style="margin-top:10px; padding:10px; background:#f8f4ff; border:1px solid #e2d5f5; border-radius:8px;">
+    <div style="font-size:12px; font-weight:bold; color:#333; margin-bottom:6px;">
+        挿絵表示モード
+    </div>
+
+    <select
+        id="pageIllustrationModeSelect"
+        onchange="setCurrentIllustrationMode(this.value)"
+        style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+    >
+        <option value="single">1枚絵</option>
+        <option value="double">2枚絵</option>
+    </select>
+
+    <div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+        2枚絵にすると、このページの挿絵枠を左・右に分割します。
+    </div>
+    <div style="margin-top:10px;">
+    <div style="font-size:12px; font-weight:bold; color:#333; margin-bottom:6px;">
+        挿絵の挿入先
+    </div>
+
+    <select
+        id="pageIllustrationSlotSelect"
+        style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+    >
+        <option value="left">左 / 1枚絵</option>
+        <option value="right">右</option>
+    </select>
+
+    <div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+        1枚絵モードでは左側だけを使用します。2枚絵モードでは左・右を選んで挿入できます。
+    </div>
+</div>
+</div>
+
     <select
         id="insertAssetTypeSelect"
         style="width:100%; margin-top:8px; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
@@ -554,9 +638,54 @@ body {
 
             <div id="charDetailBox" style="display:none;"></div>
 
-            <button class="btn" style="background:#f0f0f0; color:#333; font-size:13px; margin-top:10px;" onclick="generateImage('std')">
-                スタンダード生成（10 NP）
+            <button
+                type="button"
+                class="btn"
+                style="background:#fff; color:#2c3e50; border:1px solid #2c3e50; font-size:13px; margin-top:10px;"
+                onclick="saveAdultGenerationTemplate()"
+            >
+                成人向けテンプレートを保存
             </button>
+
+            <button
+    type="button"
+    class="btn"
+    style="background:#f7f7f7; color:#555; border:1px solid #ccc; font-size:13px; margin-top:8px;"
+    onclick="openAdultTemplateLoadModal()"
+>
+    保存済み成人テンプレートを読み込む
+</button>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
+    <button
+        id="generateLeftBtn"
+        type="button"
+        class="btn"
+        style="background:#f0f0f0; color:#333; font-size:13px; margin-top:0;"
+        onclick="generateImage('std', 'left')"
+    >
+        左側に生成<br>（10 NP）
+    </button>
+
+    <button
+        id="generateRightBtn"
+        type="button"
+        class="btn"
+        style="background:#f0f0f0; color:#333; font-size:13px; margin-top:0;"
+        onclick="generateImage('std', 'right')"
+    >
+        右側に生成<br>（10 NP）
+    </button>
+</div>
+
+<div style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;">
+    ・1枚絵モードでは右側生成は使用できません。
+    ・2枚絵モードでは左・右を選んで生成できます。
+    ・未成年/過度な暴力等の生成はできません。
+    ・刑法代175条（わいせつ物頒布罪等）に抵触、または公序良俗に反するような、
+    　修正の無い局部露出を含むイラストを未加工で公開することは固く禁じます。
+
+</div>
 
             <button
                 id="saveGeneratedAssetBtn"
@@ -566,6 +695,11 @@ body {
             >
                 生成したイラストを保管庫に保存
             </button>
+
+            <div style="font-size:10px; color:#777; line-height:1.6; margin-top:6px;">
+                ・挿絵の挿入先で、左を選んで保存すると、左のイラストがイラスト保管庫に保存されます。<br>
+                ・挿絵の挿入先で、右を選んで保存すると、右のイラストがイラスト保管庫に保存されます。
+            </div>
 
         </div>
 
@@ -756,6 +890,7 @@ async function init() {
             // （ユーザーが手動で編集・保存した状態を最優先にするため）
             if (draftData.assets && Object.keys(draftData.assets).length > 0) {
                 pageAssets = { ...pageAssets, ...draftData.assets };
+                console.log("DBから復元したpageAssets:", pageAssets);
             }
 
             // ついでに、テキストやページ割りも最新の編集状態があれば復元する
@@ -925,6 +1060,8 @@ function showInsertCopyrightWarning() {
 
                 <p style="font-size:13px; line-height:1.8; color:#555; margin:0 0 14px;">
                     著作権のあるイラスト、利用許可のない画像、第三者の権利を侵害する可能性のある画像は使用しないでください。
+                    規約に違反と判断されたイラストを含む作品を公開された場合、
+                    作品の停止、アカウントの停止等のペナルティが発生する場合があります。
                 </p>
 
                 <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#555; margin-bottom:16px;">
@@ -979,6 +1116,216 @@ function showInsertCopyrightWarning() {
     });
 }
 
+const ADULT_GENERATION_WARNING_SKIP_KEY = "novet_adult_generation_warning_skip_session";
+
+function showAdultGenerationWarning() {
+    if (sessionStorage.getItem(ADULT_GENERATION_WARNING_SKIP_KEY) === "true") {
+        return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.id = "adultGenerationWarning";
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.6);
+            z-index:10000;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:460px;
+                background:#fff;
+                border-radius:12px;
+                padding:22px;
+                box-shadow:0 8px 30px rgba(0,0,0,0.25);
+                font-family:sans-serif;
+            ">
+                <h3 style="margin:0 0 12px; font-size:18px; color:#b00020;">
+                    成人向けAIイラスト生成に関する注意
+                </h3>
+
+                <p style="font-size:13px; line-height:1.8; color:#444; margin:0 0 14px;">
+                    男性器、女性器、挿入部分などの露骨なシーンを<strong>【未加工】</strong>で投稿することは、本サイト内での利用だけでなく、外部サイトでの転用を含め固く禁じられています。
+                </p>
+
+                <p style="font-size:13px; line-height:1.8; color:#b00020; font-weight:bold; margin:0 0 16px;">
+                    発見した場合は、アカウントの停止、削除の対象になります。
+                </p>
+
+                <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#555; margin-bottom:16px;">
+                    <input type="checkbox" id="skipAdultGenerationWarningCheck">
+                    次からこの警告を表示しない（ブラウザを閉じるまで）
+                </label>
+
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="cancelAdultGenerationWarning" style="
+                        flex:1;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #aaa;
+                        background:#f5f5f5;
+                        cursor:pointer;
+                    ">
+                        キャンセル
+                    </button>
+
+                    <button type="button" id="okAdultGenerationWarning" style="
+                        flex:1;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #b00020;
+                        background:#b00020;
+                        color:white;
+                        font-weight:bold;
+                        cursor:pointer;
+                    ">
+                        内容を確認して生成する
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById("cancelAdultGenerationWarning").onclick = () => {
+            overlay.remove();
+            resolve(false);
+        };
+
+        document.getElementById("okAdultGenerationWarning").onclick = () => {
+            const skip = document.getElementById("skipAdultGenerationWarningCheck")?.checked;
+
+            if (skip) {
+                sessionStorage.setItem(ADULT_GENERATION_WARNING_SKIP_KEY, "true");
+            }
+
+            overlay.remove();
+            resolve(true);
+        };
+    });
+}
+
+function showBlockingOkModal({
+    title = "確認",
+    message = "",
+    okText = "OK",
+    accentColor = "#6a0dad"
+}) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.62);
+            z-index:10050;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:440px;
+                background:#fff;
+                border-radius:12px;
+                padding:22px;
+                box-shadow:0 8px 30px rgba(0,0,0,0.3);
+                font-family:sans-serif;
+            ">
+                <h3 style="margin:0 0 12px; font-size:18px; color:${accentColor};">
+                    ${escapeHtml(title)}
+                </h3>
+
+                <div style="font-size:13px; line-height:1.8; color:#444; margin-bottom:18px; white-space:pre-line;">
+                    ${escapeHtml(message)}
+                </div>
+
+                <button type="button" style="
+                    width:100%;
+                    padding:11px;
+                    border-radius:8px;
+                    border:1px solid ${accentColor};
+                    background:${accentColor};
+                    color:white;
+                    font-weight:bold;
+                    cursor:pointer;
+                ">
+                    ${escapeHtml(okText)}
+                </button>
+            </div>
+        `;
+
+        const okBtn = overlay.querySelector("button");
+
+        okBtn.onclick = () => {
+            overlay.remove();
+            resolve(true);
+        };
+
+        document.body.appendChild(overlay);
+    });
+}
+
+function showNftPrepareBusyOverlay(title = "処理中...", message = "しばらくお待ちください。") {
+    let overlay = document.getElementById("nftPrepareBusyOverlay");
+
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "nftPrepareBusyOverlay";
+        overlay.style = `
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,0.78);
+            z-index:10040;
+            color:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+            font-family:sans-serif;
+            text-align:center;
+            padding:20px;
+            box-sizing:border-box;
+        `;
+
+        document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+        <div style="font-size:24px; font-weight:bold; margin-bottom:16px;">
+            ${escapeHtml(title)}
+        </div>
+        <div style="font-size:14px; line-height:1.8; color:#eee;">
+            ${escapeHtml(message)}
+        </div>
+    `;
+
+    overlay.style.display = "flex";
+}
+
+function hideNftPrepareBusyOverlay() {
+    const overlay = document.getElementById("nftPrepareBusyOverlay");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+}
+
 async function selectAssetFromList(index) {
     const asset = window.currentAssetList?.[index];
     if (!asset) return;
@@ -998,20 +1345,71 @@ async function selectAssetFromList(index) {
 
 // 画像がクリックされた時の処理
 function selectAsset(imageUrl) {
-    // 1. 現在のページの挿絵データとして、選んだ画像のURLをセットする
-    pageAssets[currentPage] = imageUrl;
-    
-    // 2. 変更があったので「未保存状態」にする（戻るボタン対策）
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    const insertSlot =
+        normalizedAsset.mode === "double"
+            ? (slotSelectEl?.value || "left")
+            : "left";
+
+    const nextSlotData = {
+        source_type: "asset",
+        image_url: imageUrl
+    };
+
+    if (normalizedAsset.mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: insertSlot === "left" ? nextSlotData : normalizedAsset.left,
+            right: insertSlot === "right" ? nextSlotData : normalizedAsset.right
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: nextSlotData,
+            right: null
+        };
+    }
+
     isEdited = true;
-    
-    // 3. 画面を再描画して、イラスト枠(illustHalf)に画像を即座に表示させる
     renderPage();
-    
-    // 4. ポップアップを閉じる
     closeAssetModal();
-    
-    // 5. ユーザーにお知らせ
-    alert("イラストを挿入しました！\n（※忘れずに「保存」ボタンを押してください）");
+
+    const insertedLabel =
+        normalizedAsset.mode === "double"
+            ? (insertSlot === "right" ? "右側" : "左側")
+            : "1枚絵";
+
+    alert(`イラストを${insertedLabel}に挿入しました！\n（※忘れずに「保存」ボタンを押してください）`);
+}
+
+function setGeneratedImageToCurrentPage(imageUrl, templateType = "character", targetSlot = "left") {
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const safeTargetSlot = targetSlot === "right" ? "right" : "left";
+
+    const nextSlotData = {
+        source_type: "ai",
+        image_url: imageUrl,
+        template_type: templateType || "character"
+    };
+
+    if (normalizedAsset.mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: safeTargetSlot === "left" ? nextSlotData : normalizedAsset.left,
+            right: safeTargetSlot === "right" ? nextSlotData : normalizedAsset.right
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: nextSlotData,
+            right: null
+        };
+    }
+
+    isEdited = true;
+    renderPage();
 }
 
 // =====================================================
@@ -1070,10 +1468,28 @@ async function convertImageUrlToWebpBlob(imageUrl) {
 }
 
 async function saveCurrentGeneratedImageToAssets() {
-    const imageUrl = pageAssets[currentPage];
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    const saveTargetSlot =
+        normalizedAsset.mode === "double"
+            ? (slotSelectEl?.value === "right" ? "right" : "left")
+            : "left";
+
+    const selectedSlot =
+        saveTargetSlot === "right"
+            ? normalizedAsset.right
+            : normalizedAsset.left;
+
+    const imageUrl = selectedSlot?.image_url || "";
 
     if (!imageUrl) {
-        alert("このページには保存できる生成イラストがありません。");
+        alert("選択中の枠には保存できる生成イラストがありません。");
+        return;
+    }
+
+    if (selectedSlot?.source_type === "asset") {
+        alert("選択中の枠はすでに保管庫から挿入された画像です。\nAI生成画像の枠を選んでください。");
         return;
     }
 
@@ -1115,52 +1531,77 @@ async function saveCurrentGeneratedImageToAssets() {
 
         const defaultName = `生成イラスト ${new Date().toLocaleString("ja-JP")}`;
 
-        const currentTemplateType =
-    String(document.getElementById("templateType")?.value || "").toLowerCase();
+        const currentTemplateType = String(
+            selectedSlot?.template_type ||
+            document.getElementById("templateType")?.value ||
+            ""
+        ).toLowerCase();
 
-let savedAssetType = "illustration";
+        let savedAssetType = "illustration";
 
-if (currentTemplateType === "scenery") {
-    savedAssetType = "scene";
-}
+        if (currentTemplateType === "scenery") {
+            savedAssetType = "scene";
+        }
 
-if (currentTemplateType === "other") {
-    savedAssetType = "other";
-}
+        if (currentTemplateType === "other") {
+            savedAssetType = "other";
+        }
 
-const { error: insertError } = await supabaseClient
-    .from("user_assets")
-    .insert({
-        user_id: user.id,
-        file_url: finalUrl,
-        file_name: defaultName,
-        asset_type: savedAssetType,
-        asset_source: "generated"
-    });
+        const { error: insertError } = await supabaseClient
+            .from("user_assets")
+            .insert({
+                user_id: user.id,
+                file_url: finalUrl,
+                file_name: defaultName,
+                asset_type: savedAssetType,
+                asset_source: "generated"
+            });
 
-if (insertError) {
-    // DB保存に失敗した場合、先にStorageへ上がった画像だけ残らないよう削除する
-    await supabaseClient.storage
-        .from("illustrations")
-        .remove([fileName]);
+        if (insertError) {
+            await supabaseClient.storage
+                .from("illustrations")
+                .remove([fileName]);
 
-    if (
-        insertError.message &&
-        insertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
-    ) {
-        throw new Error("保存庫は50枚までです。不要な画像を削除してから再度保存してください。");
-    }
+            if (
+                insertError.message &&
+                insertError.message.includes("ASSET_STORAGE_LIMIT_REACHED")
+            ) {
+                throw new Error("保存庫は50枚までです。不要な画像を削除してから再度保存してください。");
+            }
 
-    throw insertError;
-}
+            throw insertError;
+        }
 
-        alert("生成したイラストをイラスト保管庫に保存しました。");
+        const savedLabel =
+            normalizedAsset.mode === "double"
+                ? (saveTargetSlot === "right" ? "右側" : "左側")
+                : "1枚絵";
+
+        alert(`${savedLabel}の生成イラストをイラスト保管庫に保存しました。`);
 
     } catch (err) {
-        console.error("生成イラスト保管庫保存エラー:", err);
-        alert("保管庫への保存に失敗しました: " + (err.message || String(err)));
+    console.error("生成イラスト保管庫保存エラー:", err);
 
-    } finally {
+    const errorMessage = err?.message || String(err);
+
+    if (
+        errorMessage.includes("ASSET_STORAGE_LIMIT_REACHED") ||
+        errorMessage.includes("保存庫は50枚まで") ||
+        errorMessage.includes("保管庫は50枚まで")
+    ) {
+        await showBlockingOkModal({
+            title: "イラスト保管庫の上限に達しています",
+            message:
+                "イラスト保管庫がいっぱいのため、生成イラストを保管庫へ保存できませんでした。\n\n不要な画像を削除するか、保管庫の拡張サービスをご利用ください。",
+            okText: "OK",
+            accentColor: "#b00020"
+        });
+        return;
+    }
+
+    alert("保管庫への保存に失敗しました: " + errorMessage);
+
+} finally {
         if (btn) {
             btn.disabled = false;
             btn.innerText = originalText || "生成したイラストを保管庫に保存";
@@ -1294,7 +1735,7 @@ async function extractStandardReferenceFeatures() {
     const imageMimeType = blob.type || "image/webp";
 
     const { data, error } = await supabaseClient.functions.invoke(
-    "extract-standard-reference-features-allages",
+        "extract-standard-reference-features",
         {
             body: {
                 image_base64: imageBase64,
@@ -1336,83 +1777,162 @@ async function runStandardizeExtraction() {
             return;
         }
 
-        const ref = JSON.parse(raw);
+        let ref = JSON.parse(raw);
 
         if (!ref.image_url) {
             alert("基準化画像のURLが見つかりません。");
             return;
         }
 
-        const preparingRef = {
-            ...ref,
-            extracted: false,
-            extracting: true,
-            standard_ready: false,
-            standard_method: "allages_feature_extraction",
-            standardized_at: null
-        };
+        const { data: { user } } = await supabaseClient.auth.getUser();
 
-        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(preparingRef));
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        ref.extracting = true;
+        ref.extracted = false;
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
 
-        // IndexedDBにBlobがない場合は、画像URLから再取得して保存する。
-        // これにより、PCでもスマホでも「画像URLはあるがBlobがない」状態から復旧できる。
-        let cachedBlob = null;
-
-        try {
-            cachedBlob = await getStandardReferenceImageBlob();
-        } catch (blobReadErr) {
-            console.warn("基準化画像Blobの読み込みに失敗しました。URLから再取得します:", blobReadErr);
-        }
-
-        if (!cachedBlob || cachedBlob.size === 0) {
-            const fetchedBlob = await fetchImageAsBlob(ref.image_url);
-            await saveStandardReferenceImageBlob(fetchedBlob);
-            cachedBlob = await getStandardReferenceImageBlob();
-        }
-
-        if (!cachedBlob || cachedBlob.size === 0) {
-            throw new Error("基準化画像Blobを準備できませんでした。");
-        }
+        showNftPrepareBusyOverlay(
+    "顔基準テンプレ作成中...",
+    "顔立ち・髪型・雰囲気を解析しています。\n完了までこの画面を閉じずにお待ちください。"
+);
 
         const extractedRef = await extractStandardReferenceFeatures();
 
-        const completedRef = {
+// extract-standard-reference-features の返り値は、
+// data.extracted.features / data.extracted.face_prompt_fragments のような構造を想定する
+const extracted = extractedRef?.features || {};
+const featureObj = extracted.features || extracted;
+
+const facePromptFragments = Array.isArray(extracted.face_prompt_fragments)
+    ? extracted.face_prompt_fragments
+    : [];
+
+const cleanFeatureText = (value) => {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    const lower = text.toLowerCase();
+
+    if (
+        lower === "unclear" ||
+        lower === "not applicable" ||
+        lower === "unknown" ||
+        lower === "none"
+    ) {
+        return "";
+    }
+
+    return text;
+};
+
+const referencePromptParts = [
+    "same adult heroine character",
+    "adult woman character identity",
+    "use this only as character identity, not as framing or pose",
+    "keep the same hairstyle, bangs, face shape, eyes, nose, mouth, jawline, and facial impression",
+    "do not copy clothing, pose, background, explicit content, distance, framing, or scene composition",
+
+    ...facePromptFragments.map(cleanFeatureText),
+
+    cleanFeatureText(featureObj.visual_gender_presentation),
+    cleanFeatureText(featureObj.apparent_age_impression),
+    cleanFeatureText(featureObj.hair_length),
+    cleanFeatureText(featureObj.hair_style),
+    cleanFeatureText(featureObj.hair_color_value),
+    cleanFeatureText(featureObj.bangs),
+    cleanFeatureText(featureObj.face_outline),
+    cleanFeatureText(featureObj.jawline),
+    cleanFeatureText(featureObj.chin_shape),
+    cleanFeatureText(featureObj.cheek_shape),
+    cleanFeatureText(featureObj.eye_shape),
+    cleanFeatureText(featureObj.eye_angle),
+    cleanFeatureText(featureObj.eyebrow_shape),
+    cleanFeatureText(featureObj.eyelid_style),
+    cleanFeatureText(featureObj.nose_shape),
+    cleanFeatureText(featureObj.mouth_shape),
+    cleanFeatureText(featureObj.overall_impression)
+].filter(Boolean);
+
+const referencePrompt = [...new Set(referencePromptParts)].join(", ");
+
+        if (!referencePrompt || referencePrompt.length < 30) {
+            throw new Error("基準化プロンプトの作成に失敗しました。");
+        }
+
+        const title = prompt(
+            "保存する成人向け基準化プロンプト名を入力してください。",
+            ref.title ? `${ref.title} の基準化` : "成人向け基準化プロンプト"
+        );
+
+        if (!title || !title.trim()) {
+            ref.extracting = false;
+            ref.extracted = true;
+            localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+            renderStandardReferenceCard();
+            alert("保存をキャンセルしました。");
+            return;
+        }
+
+        const { data: savedPrompt, error: insertError } = await supabaseClient
+            .from("adult_reference_prompts")
+            .insert({
+                user_id: user.id,
+                asset_id: ref.asset_id || null,
+                zone: "mens",
+                title: title.trim(),
+                reference_prompt: referencePrompt,
+                source_image_url: ref.image_url || null,
+                source_asset_name: ref.title || null,
+                note: "顔アップ基準化から作成"
+            })
+            .select("id, title, reference_prompt")
+            .single();
+
+        if (insertError) {
+            throw insertError;
+        }
+
+        const updatedRef = {
             ...extractedRef,
             extracted: true,
             extracting: false,
             standard_ready: true,
-            standard_method: "allages_feature_extraction",
+            standard_method: "adult_reference_prompt_db",
+            adult_reference_prompt_id: savedPrompt.id,
+            adult_reference_prompt_title: savedPrompt.title,
+            adult_reference_prompt: savedPrompt.reference_prompt,
             standardized_at: new Date().toISOString()
         };
 
-        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(completedRef));
+        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(updatedRef));
         renderStandardReferenceCard();
 
-        alert("全年齢用の顔特徴抽出が完了しました。\n次の生成では、この抽出結果を使える状態になりました。");
+        alert("成人向け基準化プロンプトをDBに保存しました。");
 
-    } catch (err) {
-        console.error("全年齢用基準化エラー:", err);
+        } catch (err) {
+        console.error("成人向け基準化エラー:", err);
 
-        try {
-            const raw = localStorage.getItem(STANDARD_REF_KEY);
+        const raw = localStorage.getItem(STANDARD_REF_KEY);
 
-            if (raw) {
+        if (raw) {
+            try {
                 const ref = JSON.parse(raw);
-
-                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify({
-                    ...ref,
-                    extracting: false,
-                    standard_ready: false,
-                    standard_method: "allages_feature_extraction",
-                    standard_error: err?.message || String(err)
-                }));
-
+                ref.extracting = false;
+                ref.extracted = false;
+                ref.extraction_error = err instanceof Error ? err.message : String(err);
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
                 renderStandardReferenceCard();
-            }
-        } catch (_) {}
+            } catch {}
+        }
 
-        alert("全年齢用の基準化に失敗しました: " + (err?.message || String(err)));
+        alert("成人向け基準化に失敗しました: " + (err.message || String(err)));
+    } finally {
+        hideNftPrepareBusyOverlay();
     }
 }
 
@@ -1488,62 +2008,6 @@ async function clearStandardReference() {
     }
 }
 
-function escapeStandardHtml(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-function isStandardEditableFieldsOpen() {
-    return localStorage.getItem("novet_standard_reference_fields_open") === "true";
-}
-
-function toggleStandardEditableFields() {
-    const current = isStandardEditableFieldsOpen();
-    localStorage.setItem("novet_standard_reference_fields_open", current ? "false" : "true");
-    renderStandardReferenceCard();
-}
-
-function hasStandardReferenceEditableChanges() {
-    try {
-        const raw = localStorage.getItem(STANDARD_REF_KEY);
-        if (!raw) return false;
-
-        const ref = JSON.parse(raw);
-        return ref.standard_edit_modified === true;
-    } catch {
-        return false;
-    }
-}
-
-function saveStandardEditableField(key, value) {
-    try {
-        const raw = localStorage.getItem(STANDARD_REF_KEY);
-        if (!raw) return;
-
-        const ref = JSON.parse(raw);
-
-        if (!ref.features) {
-            ref.features = {};
-        }
-
-        if (!ref.features.editable_fields_japanese) {
-            ref.features.editable_fields_japanese = {};
-        }
-
-        ref.features.editable_fields_japanese[key] = value;
-
-        ref.standard_edit_modified = true;
-
-        localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-    } catch (err) {
-        console.error("基準化編集項目の保存エラー:", err);
-    }
-}
-
 function renderStandardReferenceCard() {
     const box = document.getElementById("standardStatus");
     if (!box) return;
@@ -1574,91 +2038,6 @@ function renderStandardReferenceCard() {
         ref.type === "other" ? "その他" :
         "キャラ";
 
-    const editableFields = ref.features?.editable_fields_japanese || null;
-
-    const fieldOrder = [
-        "画風",
-        "質感",
-        "色調",
-        "線の強さ",
-        "塗り",
-        "年齢感",
-        "性別印象",
-        "全体印象",
-        "表情",
-        "感情",
-        "髪色",
-        "髪色構造",
-        "髪型",
-        "髪の長さ",
-        "前髪",
-        "顔の輪郭",
-        "眉毛",
-        "瞳の形",
-        "瞳の色",
-        "瞳孔の印象",
-        "鼻の形",
-        "唇の色",
-        "唇の形",
-        "注意点"
-    ];
-
-        const fieldsOpen = isStandardEditableFieldsOpen();
-
-    const editableFieldsHtml = editableFields
-        ? `
-            <div style="margin-top:10px; padding:8px; border:1px solid #eadcf7; border-radius:8px; background:#fbf8ff;">
-                <button
-                    type="button"
-                    onclick="toggleStandardEditableFields()"
-                    style="
-                        width:100%;
-                        padding:8px;
-                        border:1px solid #6a0dad;
-                        background:#fff;
-                        color:#6a0dad;
-                        border-radius:6px;
-                        font-size:11px;
-                        font-weight:bold;
-                        cursor:pointer;
-                        text-align:left;
-                    "
-                >
-                    ${fieldsOpen ? "▼" : "▶"} 基準化された調整項目
-                    <span style="float:right; color:#999; font-weight:normal;">
-                        ${fieldsOpen ? "閉じる" : "開く"}
-                    </span>
-                </button>
-
-                <div style="font-size:10px; color:#777; line-height:1.5; margin-top:8px;">
-                    生成前に必要に応じて修正できます。未修正のまま生成する場合は、生成前に確認します。
-                </div>
-
-                <div style="display:${fieldsOpen ? "block" : "none"}; margin-top:8px;">
-                    ${fieldOrder.map((key) => {
-                        if (!(key in editableFields)) return "";
-
-                        const value = editableFields[key] || "";
-
-                        return `
-                            <div style="margin-bottom:7px;">
-                                <label style="display:block; font-size:10px; color:#666; font-weight:bold; margin-bottom:3px;">
-                                    ${escapeStandardHtml(key)}
-                                </label>
-                                <input
-                                    type="text"
-                                    value="${escapeStandardHtml(value)}"
-                                    oninput="saveStandardEditableField('${escapeStandardHtml(key)}', this.value)"
-                                    style="width:100%; box-sizing:border-box; padding:6px; border:1px solid #ddd; border-radius:5px; font-size:11px;"
-                                >
-                            </div>
-                        `;
-                    }).join("")}
-                </div>
-            </div>
-        `
-        : "";
-
     box.innerHTML = `
         <div style="margin-top:10px; border:1px solid #ddd; border-radius:8px; overflow:hidden; background:#fff;">
             <img src="${ref.image_url}" style="width:100%; height:120px; object-fit:cover; display:block;">
@@ -1667,7 +2046,7 @@ function renderStandardReferenceCard() {
                 <div style="font-size:11px; color:#666;">現在の参照画像</div>
 
                 <div style="font-size:12px; font-weight:bold; margin-top:3px;">
-                    ${escapeStandardHtml(ref.title || "無題")}
+                    ${ref.title || "無題"}
                 </div>
 
                 <div style="font-size:11px; color:#6a0dad; margin-top:4px;">
@@ -1675,11 +2054,8 @@ function renderStandardReferenceCard() {
                 </div>
 
                 <div style="font-size:10px; color:#2ecc71; margin-top:6px; line-height:1.5;">
-                    参照画像：設定済み<br>
-                    基準化：${ref.standard_ready ? "完了" : ref.extracting ? "抽出中" : "未完了"}
+                    顔基準素材：設定済み
                 </div>
-
-                ${editableFieldsHtml}
 
                 <div style="display:flex; gap:6px; margin-top:8px;">
                     <button
@@ -1687,7 +2063,7 @@ function renderStandardReferenceCard() {
                         onclick="runStandardizeExtraction()"
                         style="flex:1; padding:6px; border:1px solid #6a0dad; color:#6a0dad; background:#fff; border-radius:5px; cursor:pointer; font-size:11px;"
                     >
-                        基準化
+                        顔基準テンプレ保存
                     </button>
 
                     <button
@@ -1855,18 +2231,231 @@ function renderLineGuide() {
     if (!guide) return;
 
     const numbers = Array.from({ length: PAGE_LINE_LIMIT }, (_, index) => {
-        const n = PAGE_LINE_LIMIT - index;
-        return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
-    }).join("");
+    const n = PAGE_LINE_LIMIT - index;
+    return `<span class="line-guide-number">${toKanjiNumber(n)}</span>`;
+}).join("");
 
     guide.innerHTML = `
         <div class="line-guide-note">
             ※行数表示は編集用ガイドです。投稿後・NFT表示には保存されません。
         </div>
-        <div class="line-guide-numbers">
+        <div class="line-guide-numbers" style="grid-template-columns: repeat(${PAGE_LINE_LIMIT}, 1fr);">
             ${numbers}
         </div>
     `;
+}
+
+function commitCurrentTextAndReflow() {
+    const textHalf = document.getElementById("textHalf");
+
+    if (textHalf) {
+        pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
+        masterText = pages.join("");
+    }
+
+    refreshPages();
+
+    if (currentPage >= pages.length) {
+        currentPage = Math.max(0, pages.length - 1);
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function normalizePageAssetSlot(slot) {
+    if (!slot) return null;
+
+    // 旧形式・簡易形式：URL文字列
+    if (typeof slot === "string") {
+        return {
+            source_type: "legacy",
+            image_url: slot
+        };
+    }
+
+    if (typeof slot !== "object") return null;
+
+    const imageUrl =
+        slot.image_url ||
+        slot.imageUrl ||
+        slot.file_url ||
+        slot.url ||
+        "";
+
+    if (!imageUrl) return null;
+
+    return {
+        ...slot,
+        source_type: slot.source_type || slot.source || "unknown",
+        image_url: imageUrl
+    };
+}
+
+function normalizePageAsset(rawAsset) {
+    if (!rawAsset) {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    // 旧形式：pageAssets[page] = "画像URL"
+    if (typeof rawAsset === "string") {
+        return {
+            mode: "single",
+            left: {
+                source_type: "legacy",
+                image_url: rawAsset
+            },
+            right: null
+        };
+    }
+
+    if (typeof rawAsset !== "object") {
+        return {
+            mode: "single",
+            left: null,
+            right: null
+        };
+    }
+
+    // 新形式：2枚絵
+    if (rawAsset.mode === "double") {
+        return {
+            mode: "double",
+            left: normalizePageAssetSlot(rawAsset.left),
+            right: normalizePageAssetSlot(rawAsset.right)
+        };
+    }
+
+    // 新形式：1枚絵
+    // または image_url / imageUrl / file_url / url を持つオブジェクト形式
+    return {
+        mode: "single",
+        left: normalizePageAssetSlot(
+            rawAsset.left ||
+            rawAsset.image_url ||
+            rawAsset.imageUrl ||
+            rawAsset.file_url ||
+            rawAsset.url ||
+            rawAsset
+        ),
+        right: null
+    };
+}
+
+function renderIllustSlot(slot, labelText = "") {
+    if (!slot || !slot.image_url) {
+        return `
+            <div class="illust-slot empty">
+                <div>NO IMAGE</div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="illust-slot">
+            <img src="${escapeHtml(slot.image_url)}" alt="">
+        </div>
+    `;
+}
+
+function renderPage() {
+    const textHalf = document.getElementById("textHalf");
+    const illustHalf = document.getElementById("illustHalf");
+    const counter = document.getElementById("pageCounter");
+
+    textHalf.innerText = pages[currentPage] || "";
+
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+
+    illustHalf.classList.remove("double-illust-mode");
+
+    if (normalizedAsset.mode === "double") {
+        illustHalf.classList.add("double-illust-mode");
+        illustHalf.innerHTML = `
+            ${renderIllustSlot(normalizedAsset.left, "左")}
+            ${renderIllustSlot(normalizedAsset.right, "右")}
+        `;
+    } else if (normalizedAsset.left && normalizedAsset.left.image_url) {
+        illustHalf.innerHTML = `<img src="${escapeHtml(normalizedAsset.left.image_url)}">`;
+    } else {
+        illustHalf.innerHTML = `<span style="color:#aaa; font-size:12px;">NO IMAGE</span>`;
+    }
+
+    updateIllustrationModeSelect();
+    renderLineGuide();
+    counter.innerText = `${currentPage + 1} / ${pages.length}`;
+}
+
+function updateIllustrationModeSelect() {
+    const selectEl = document.getElementById("pageIllustrationModeSelect");
+    if (!selectEl) return;
+
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+    const isDoubleMode = normalizedAsset.mode === "double";
+
+    selectEl.value = isDoubleMode ? "double" : "single";
+
+    const slotSelectEl = document.getElementById("pageIllustrationSlotSelect");
+
+    if (slotSelectEl) {
+        slotSelectEl.disabled = !isDoubleMode;
+
+        if (!isDoubleMode) {
+            slotSelectEl.value = "left";
+            slotSelectEl.style.opacity = "0.55";
+            slotSelectEl.style.cursor = "not-allowed";
+        } else {
+            slotSelectEl.style.opacity = "1";
+            slotSelectEl.style.cursor = "pointer";
+        }
+    }
+
+    const generateRightBtn = document.getElementById("generateRightBtn");
+
+    if (generateRightBtn) {
+        generateRightBtn.disabled = !isDoubleMode;
+
+        if (!isDoubleMode) {
+            generateRightBtn.style.opacity = "0.45";
+            generateRightBtn.style.cursor = "not-allowed";
+            generateRightBtn.title = "1枚絵モードでは右側生成は使用できません。";
+        } else {
+            generateRightBtn.style.opacity = "1";
+            generateRightBtn.style.cursor = "pointer";
+            generateRightBtn.title = "";
+        }
+    }
+}
+
+function setCurrentIllustrationMode(mode) {
+    const normalizedAsset = normalizePageAsset(pageAssets[currentPage]);
+
+    if (mode === "double") {
+        pageAssets[currentPage] = {
+            mode: "double",
+            left: normalizedAsset.left || null,
+            right: normalizedAsset.right || null
+        };
+    } else {
+        pageAssets[currentPage] = {
+            mode: "single",
+            left: normalizedAsset.left || normalizedAsset.right || null,
+            right: null
+        };
+    }
+
+    isEdited = true;
+    renderPage();
 }
 
 function placeCaretAtEnd(el) {
@@ -1883,24 +2472,6 @@ function placeCaretAtEnd(el) {
     selection.addRange(range);
 }
 
-function renderPage() {
-    const textHalf = document.getElementById("textHalf");
-    const illustHalf = document.getElementById("illustHalf");
-    const counter = document.getElementById("pageCounter");
-
-    textHalf.innerText = pages[currentPage] || "";
-
-    if (pageAssets[currentPage]) {
-        illustHalf.innerHTML = `<img src="${pageAssets[currentPage]}">`;
-    } else {
-        illustHalf.innerHTML = `<span style="color:#aaa; font-size:12px;">NO IMAGE</span>`;
-    }
-
-    renderLineGuide();
-
-    counter.innerText = `${currentPage + 1} / ${pages.length}`;
-}
-
 function handleTextEdit() {
     const textHalf = document.getElementById("textHalf");
 
@@ -1908,6 +2479,8 @@ function handleTextEdit() {
         pages[currentPage] = textHalf.innerText.replace(/\r/g, "");
         masterText = pages.join("");
     }
+
+    const pageBefore = currentPage;
 
     refreshPages();
 
@@ -1917,6 +2490,11 @@ function handleTextEdit() {
 
     const nextText = pages[currentPage] || "";
 
+    /*
+      Backspace / Delete / Enter でページまたぎが起きた時、
+      現在ページにもすぐ反映させる。
+      これにより「次ページへ行って戻るまで文字が戻らない」状態を防ぐ。
+    */
     if (textHalf && textHalf.innerText !== nextText) {
         textHalf.innerText = nextText;
         placeCaretAtEnd(textHalf);
@@ -2006,94 +2584,259 @@ function updateTemplateDisplay() {
         return;
     }
 
-    if (type === "character") {
+        if (type === "character") {
         box.innerHTML = `
-            <div style="font-size:11px; color:#777; line-height:1.5; margin-bottom:10px;">
-                一人キャラクター用テンプレートです。顔や輪郭などの基準化特徴に、見え方・表情・衣装・背景などを組み合わせます。
+            <div style="font-size:11px; color:#777; line-height:1.6; margin-bottom:10px;">
+                男性向け成人イラスト用テンプレートです。<br>
+                顔基準テンプレに、女性モデル設定・服装・構図・男性シルエットを組み合わせます。<br>
+                モノクロ・小説挿絵・手書き風は固定設定として自動で入ります。
             </div>
 
-            <div style="margin-bottom:14px; padding:10px; border:1px solid #e5d7f5; border-radius:8px; background:#fbf8ff;">
-    <label style="font-size:11px; color:#6a0dad; font-weight:bold;">
-        自由入力・情景指定
-    </label>
+            <div style="margin-bottom:14px; padding:10px; background:#fff8e6; border:1px solid #f1c40f; border-radius:8px; font-size:11px; color:#7a4b00; line-height:1.6;">
+                <strong>注意</strong><br>
+                登場人物は成人として扱います。未成年に見える表現、学生・未成年を想起させる設定は避けてください。<br>
+                顔基準テンプレは、顔立ち・髪型・雰囲気を安定させるためのものです。
+            </div>
 
-    <p style="font-size:10px; color:#777; line-height:1.6; margin:6px 0 8px;">
-        テンプレートだけでは伝えにくい情景、雰囲気、小物、視線、関係性、本文から拾いたい描写などを自由に入力してください。
-    </p>
-
-    <textarea
-        id="tpl_character_free_text"
-        class="template-field"
-        data-template-mode="custom"
-        placeholder="例：
-夕暮れの図書館で、少し寂しそうな少女が本を抱えて立っている。
-窓から柔らかい光が差し込み、静かな空気が漂っている。
-手元には古びた本、背景には高い本棚が並んでいる。"
-        style="width:100%; min-height:130px; margin-top:6px; padding:10px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; resize:vertical; box-sizing:border-box;"
-    ></textarea>
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+    モデル種別
 </div>
 
-            ${buildTemplateSelect("キャラの見え方", "tpl_character_view", [
-                "顔アップ", "バストアップ", "上半身", "膝上", "全身", "少し離れた全身", "遠景の人物"
-            ])}
+<select
+    id="tpl_adult_model_type"
+    class="template-field"
+    style="width:100%; margin-bottom:10px; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px;"
+>
+    <option value="female">女性モデルテンプレート</option>
+    <option value="male">男性モデルテンプレート</option>
+</select>
+
+<div style="font-size:10px; color:#777; line-height:1.5; margin:-4px 0 10px;">
+    女性モデルは現在の成人向け生成に近い設定です。男性モデルは次の段階で男性向けLoRAと顔基準強化に接続します。
+</div>
+
+                        <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                情景入力
+            </div>
+
+            <div style="font-size:11px; color:#777; line-height:1.6; margin:6px 0 8px;">
+    作成したいシーンを本文などからコピペし、必要に応じてAIに見せたい要素を短い語句で補足してください。<br>
+    入れると安定しやすいもの：場所、登場人物、服装や状態、表情、視線、体の向き、雰囲気。<br>
+    視点人物（俺・僕・読者など）は基本的に画面外として扱い、画面に描きたい人物だけを具体的に書くと安定します。<br>
+    未成年・学生を想起させる表現、暴力・非同意表現、複数人物の曖昧な描写、矛盾する指定、長すぎる本文そのままの貼り付けは避けてください。
+</div>
+
+<div style="font-size:11px; color:#777; line-height:1.6; margin:8px 0 10px;">
+    <strong>本文例：</strong><br>
+    浴室の扉を開けると、普段とは違う雰囲気の幼馴染が、バスタオル姿でこちらを待っていた。<br><br>
+
+    <strong>プロンプト例：</strong><br>
+    「浴室の扉を開ける」「20才以上の幼馴染」「濡れたバスタオル」「シャワーを浴びた後」「魅惑的な視線」「頬を赤く染める」「正面からこちらを見ている」<br><br>
+
+    <strong>避けた方がよい例：</strong><br>
+    「俺が彼女に近づく」「彼女と俺が向き合う」「誰かが後ろにいる」「全身だけど顔アップ」「着衣無しだがドレス姿」「学生服」「未成年に見える」「無理やり」「血や暴力表現」
+</div>
+
+            <textarea
+                id="tpl_adult_scene_text"
+                class="template-field"
+                placeholder="例：浴室の扉を開けると、普段とは違う雰囲気の幼馴染が、バスタオル姿でこちらを待っていた。"
+                rows="5"
+                style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; font-size:12px; line-height:1.6; box-sizing:border-box; resize:vertical; margin-bottom:12px;"
+            ></textarea>
+
+        <!-- 一旦非表示：女性モデル詳細設定ここから
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:12px 0 8px;">
+                女性モデル設定
+            </div>
 
             ${buildTemplateSelect("年齢", "tpl_character_age", [
-                "幼少期", "少年・少女", "10代前半", "10代後半", "20代前半", "20代後半", "30代", "40代", "50代以上", "年齢不詳"
+                "20代前半", "20代後半", "30代", "40代", "50代以上"
             ])}
 
-                        <div style="margin-bottom:10px; padding:10px; border:1px solid #e5d7f5; border-radius:8px; background:#fbf8ff;">
-                <label style="font-size:11px; color:#6a0dad; font-weight:bold;">
-                    喜怒哀楽プリセット
-                </label>
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; margin-bottom:10px;">
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">身長</label>
+                    <input
+                        id="tpl_adult_height"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：160cm"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
 
-                <p style="font-size:10px; color:#777; line-height:1.6; margin:6px 0 8px;">
-                    同一人物感を残したまま、表情だけを大きめに変化させます。
-                    細かい基準化項目を直接編集しなくても、眉・目・口・感情をまとめて調整できます。
-                </p>
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">バスト</label>
+                    <input
+                        id="tpl_adult_bust"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：普通"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
 
-                <select
-                    id="tpl_character_emotion_preset"
-                    onchange="applyCharacterEmotionPreset(this.value)"
-                    style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px;"
-                >
-                    <option value="">指定なし</option>
-                    <option value="joy">歓喜の表情</option>
-                    <option value="anger">怒りの表情</option>
-                    <option value="despair">絶望の表情</option>
-                    <option value="laugh">大笑いの表情</option>
-                </select>
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">ウエスト</label>
+                    <input
+                        id="tpl_adult_waist"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：細め"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
+                </div>
 
-                <div
-                    id="characterEmotionPresetStatus"
-                    style="font-size:10px; color:#777; line-height:1.5; margin-top:6px;"
-                >
-                    表情プリセットは未選択です。
+                <div>
+                    <label style="font-size:11px; color:#666; font-weight:bold;">ヒップ</label>
+                    <input
+                        id="tpl_adult_hip"
+                        class="template-field"
+                        type="text"
+                        placeholder="例：丸み"
+                        style="width:100%; margin-top:4px; padding:6px; border-radius:5px; border:1px solid #ddd; font-size:12px; box-sizing:border-box;"
+                    >
                 </div>
             </div>
 
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                服装
+            </div>
+
+            <div style="margin-bottom:10px;">
+    <label style="font-size:11px; color:#666; font-weight:bold;">服装</label>
+
+    <input
+        id="tpl_character_outfit"
+        class="template-field"
+        type="text"
+        list="tpl_character_outfit_options"
+        placeholder="例：指定なし、着衣無し、ドレス、水着、下着"
+        maxlength="40"
+        style="width:15em; max-width:100%; margin-top:4px; padding:6px; border-radius:5px;"
+    >
+
+    <datalist id="tpl_character_outfit_options">
+        <option value="">
+        <option value="着衣無し">
+        <option value="ドレス">
+        <option value="水着">
+        <option value="下着">
+        <option value="バスタオル">
+        <option value="寝巻き">
+    </datalist>
+
+    <div style="font-size:10px; color:#777; margin-top:4px; line-height:1.5;">
+        空欄の場合は指定なしです。衣服を補完させたくない場合は「衣服を一切着ていない」を選んでください。
+    </div>
+</div>
+
+        一旦非表示：女性モデル詳細設定ここまで -->
+
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                構図
+            </div>
+<!-- 一旦非表示：構図自由入力
+               ${buildTemplateSelect("主役範囲", "tpl_adult_subject_frame", [
+    "顔アップ",
+    "全身"
+])}
+
+
+<div style="margin-bottom:10px;">
+    <label style="font-size:11px; color:#666; font-weight:bold;">構図自由入力</label>
+    <input
+        id="tpl_adult_subject_frame_free"
+        class="template-field"
+        type="text"
+        placeholder="例：椅子に座る、斜め上から、ベッドの上で横になる"
+        maxlength="80"
+        style="width:100%; margin-top:4px; padding:6px; border-radius:5px;"
+    >
+    <div style="font-size:10px; color:#777; margin-top:4px; line-height:1.5;">
+        主役範囲で「自由入力」を選んだ場合だけ、この内容を構図として使います。
+    </div>
+</div>
+-->
+
+            <div style="font-size:11px; color:#777; line-height:1.6; margin:-4px 0 10px;">
+                顔アップはキャラクターID・表情確認向け、全身は小説挿絵向けです。<br>
+                全身生成後にクローズアップしたい場合は、画像をダウンロードしてご自身のデバイスでトリミングし、イラスト保管庫にアップロードすることで挿絵として利用できます。
+            </div>
+
+  <!-- 一旦非表示：構図詳細設定ここから
+
+            ${buildTemplateSelect("顔の見え方", "tpl_adult_face_visibility", [
+                "顔が見える",
+                "目を閉じる",
+                "横顔",
+                "顔を少し隠す"
+            ])}
+
+            ${buildTemplateSelect("体の向き", "tpl_adult_body_direction", [
+                "正面向き",
+                "斜め向き",
+                "横向き",
+                "背中向き",
+                "振り返り"
+            ])}
+
+            ${buildTemplateSelect("ポーズ", "tpl_adult_pose", [
+                "使用しない",
+                "立つ",
+                "座る",
+                "横になる",
+                "膝をつく",
+                "手を胸元に置く",
+                "片手を伸ばす"
+            ])}
+
+            ${buildTemplateSelect("背景の強さ", "tpl_adult_background_strength", [
+                "使用しない",
+                "背景なし",
+                "簡易背景",
+                "室内の薄い背景",
+                "輪郭だけの背景",
+                "白背景多め"
+            ])}
+
+            ${buildTemplateSelect("画面の余白・配置", "tpl_adult_layout_margin", [
+                "使用しない",
+                "余白多め",
+                "人物を中央",
+                "人物を少し右寄せ",
+                "人物を少し左寄せ",
+                "縦長構図"
+            ])}
+
             ${buildTemplateSelect("表情", "tpl_character_expression", [
-                "無表情", "微笑み", "喜び", "悲しげ", "真面目", "怒り", "疲れ", "照れ", "緊張", "決意"
+                "無表情", "微笑み", "照れ", "緊張", "恥じらい", "挑発的", "うっとり", "戸惑い", "安心", "真剣"
             ])}
 
-            ${buildTemplateSelect("ポーズ", "tpl_character_pose", [
-                "正面立ち", "斜め立ち", "座る", "振り返る", "歩く", "手を胸に当てる", "武器を構える", "本を持つ", "祈る", "見上げる"
+            <div style="font-size:12px; font-weight:bold; color:#333; margin:14px 0 8px;">
+                男性シルエット
+            </div>
+
+            ${buildTemplateSelect("半透明の男性シルエット", "tpl_adult_male_silhouette_enabled", [
+                "なし", "あり"
             ])}
 
-            ${buildTemplateSelect("衣装デザイン", "tpl_character_outfit", [
-                "ドレス", "スーツ", "甲冑", "冒険者マント", "和服", "制服", "ローブ", "旅装", "貴族服", "カジュアル服"
+            ${buildTemplateSelect("男性シルエットの配置", "tpl_adult_male_silhouette_placement", [
+                "背後", "横", "手前", "画面端", "影として重ねる", "遠くに立たせる"
             ])}
 
-            ${buildTemplateSelect("特徴パーツ", "tpl_character_parts", [
-                "角", "翼", "獣耳", "尻尾", "宝石装飾", "髪飾り", "眼帯", "仮面", "非人間的な瞳", "魔法紋"
-            ])}
+    一旦非表示：構図詳細設定ここまで -->
 
-            ${buildTemplateSelect("背景", "tpl_character_background", [
-                "無地", "和風", "西洋風", "現代風", "自然", "城内", "路地", "森", "室内", "幻想空間"
-            ])}
-
-            ${buildTemplateSelect("ライティング・雰囲気", "tpl_character_lighting", [
-                "明るい", "暗い", "逆光", "柔らかい光", "強い影", "シリアス", "ポップ", "透明感", "神秘的", "静かな雰囲気"
-            ])}
+<!-- 一旦非表示にした構図詳細項目のJS用デフォルト値 -->
+<input type="hidden" id="tpl_adult_face_visibility" value="指定なし">
+<input type="hidden" id="tpl_adult_body_direction" value="指定なし">
+<input type="hidden" id="tpl_adult_pose" value="指定なし">
+<input type="hidden" id="tpl_adult_background_strength" value="指定なし">
+<input type="hidden" id="tpl_adult_layout_margin" value="指定なし">
+<input type="hidden" id="tpl_adult_expression" value="指定なし">
+<input type="hidden" id="tpl_adult_male_silhouette_enabled" value="なし">
+<input type="hidden" id="tpl_adult_male_silhouette_placement" value="指定なし">
 
         `;
         return;
@@ -2193,24 +2936,11 @@ function collectTemplatePayload() {
     const templateType = document.getElementById("templateType")?.value || "character";
     const fields = {};
 
-    document.querySelectorAll("#templateDisplay .template-field").forEach(fieldEl => {
-        const key = fieldEl.id;
-        if (!key) return;
+    document.querySelectorAll("#templateDisplay .template-field").forEach(select => {
+        const key = select.id;
+        let value = select.value;
 
-        const value = String(fieldEl.value || "").trim();
         if (!value) return;
-
-        const isDirectCustomField =
-            fieldEl.dataset.templateMode === "custom" ||
-            fieldEl.tagName.toLowerCase() === "textarea";
-
-        if (isDirectCustomField) {
-            fields[key] = {
-                mode: "custom",
-                value
-            };
-            return;
-        }
 
         if (value === "__custom__") {
             const customEl = document.getElementById(key + "_custom");
@@ -2237,71 +2967,6 @@ function collectTemplatePayload() {
     };
 }
 
-async function buildGeminiAllagesCharacterPayload(templatePayload) {
-    const rawRef = localStorage.getItem(STANDARD_REF_KEY);
-
-    if (!rawRef) {
-        throw new Error("キャラ生成には、先に基準化画像を選択してください。");
-    }
-
-    const standardRef = JSON.parse(rawRef);
-
-    if (!standardRef.standard_ready || !standardRef.features?.editable_fields_japanese) {
-        throw new Error("キャラ生成には、先に基準化を完了してください。");
-    }
-
-    const refType = String(standardRef.type || standardRef.asset_type || "").toLowerCase();
-
-    if (!(refType === "character" || refType === "illustration" || refType === "")) {
-        throw new Error("キャラ生成には、キャラ用の基準化画像を選択してください。");
-    }
-
-    let referenceBlob = await getStandardReferenceImageBlob();
-
-    if (!referenceBlob || referenceBlob.size === 0) {
-        if (!standardRef.image_url) {
-            throw new Error("基準化画像が見つかりません。");
-        }
-
-        referenceBlob = await fetchImageAsBlob(standardRef.image_url);
-        await saveStandardReferenceImageBlob(referenceBlob);
-    }
-
-    if (!referenceBlob || referenceBlob.size === 0) {
-        throw new Error("基準化画像Blobを準備できませんでした。");
-    }
-
-    const referenceImageBase64 = await blobToBase64(referenceBlob);
-    const referenceImageMimeType = referenceBlob.type || "image/png";
-
-    const fields = templatePayload.template_fields || {};
-
-    function fieldValue(key) {
-        return String(fields[key]?.value || "").trim();
-    }
-
-    return {
-        template_type: "character",
-
-        reference_image_base64: referenceImageBase64,
-        reference_image_mime_type: referenceImageMimeType,
-
-        editable_fields_japanese: standardRef.features.editable_fields_japanese,
-        reference_features: standardRef.features,
-
-        tpl_character_free_text: fieldValue("tpl_character_free_text"),
-        tpl_character_expression: fieldValue("tpl_character_expression"),
-        tpl_character_view: fieldValue("tpl_character_view"),
-        tpl_character_age: fieldValue("tpl_character_age"),
-        tpl_character_pose: fieldValue("tpl_character_pose"),
-        tpl_character_outfit: fieldValue("tpl_character_outfit"),
-        tpl_character_background: fieldValue("tpl_character_background"),
-        tpl_character_lighting: fieldValue("tpl_character_lighting"),
-
-        standard_edit_modified: standardRef.standard_edit_modified === true
-    };
-}
-
 // =====================================================
 // 風景設定プリセット保存
 // =====================================================
@@ -2320,6 +2985,424 @@ function getTemplateFieldValue(fieldId) {
     }
 
     return value;
+}
+
+// =====================================================
+// 成人向け生成テンプレート保存
+// =====================================================
+
+function getTemplateInputValue(fieldId) {
+    const el = document.getElementById(fieldId);
+    if (!el) return "";
+
+    const value = String(el.value || "").trim();
+
+    if (!value) return "";
+
+    if (value === "__custom__") {
+        const customEl = document.getElementById(fieldId + "_custom");
+        return String(customEl?.value || "").trim();
+    }
+
+    return value;
+}
+
+async function saveAdultGenerationTemplate() {
+    try {
+        const templateType = document.getElementById("templateType")?.value || "";
+
+        if (templateType !== "character") {
+            alert("成人向けテンプレート保存は、まずキャラテンプレートで使用します。");
+            return;
+        }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        let standardRef = null;
+
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            standardRef = raw ? JSON.parse(raw) : null;
+        } catch {
+            standardRef = null;
+        }
+
+        if (!standardRef || !standardRef.adult_reference_prompt_id) {
+            alert("先に「顔基準テンプレ保存」で、成人向け基準プロンプトを保存してください。");
+            return;
+        }
+
+        const modelSettings = {
+    age: getTemplateInputValue("tpl_character_age"),
+    height: getTemplateInputValue("tpl_adult_height"),
+    bust: getTemplateInputValue("tpl_adult_bust"),
+    waist: getTemplateInputValue("tpl_adult_waist"),
+    hip: getTemplateInputValue("tpl_adult_hip")
+};
+
+const clothingText = getTemplateInputValue("tpl_character_outfit");
+
+const compositionSettings = {
+    scene_text: getTemplateInputValue("tpl_adult_scene_text"),
+
+    subject_frame:
+    document.getElementById("tpl_adult_subject_frame")?.value || "",
+    face_visibility: getTemplateInputValue("tpl_adult_face_visibility"),
+    body_direction: getTemplateInputValue("tpl_adult_body_direction"),
+    pose: getTemplateInputValue("tpl_adult_pose"),
+    background_strength: getTemplateInputValue("tpl_adult_background_strength"),
+    layout_margin: getTemplateInputValue("tpl_adult_layout_margin"),
+
+    expression: getTemplateInputValue("tpl_character_expression")
+};
+
+const maleSilhouetteEnabled =
+    getTemplateInputValue("tpl_adult_male_silhouette_enabled") === "あり";
+
+const silhouetteSettings = {
+    enabled: maleSilhouetteEnabled,
+    count: maleSilhouetteEnabled ? 1 : 0,
+    placement: getTemplateInputValue("tpl_adult_male_silhouette_placement")
+};
+
+        const hasAnySetting =
+            Object.values(modelSettings).some(v => String(v || "").trim() !== "") ||
+            String(clothingText || "").trim() !== "" ||
+            Object.values(compositionSettings).some(v => String(v || "").trim() !== "");
+
+        if (!hasAnySetting) {
+            alert("保存するテンプレート設定がありません。少なくとも1つ項目を選択してください。");
+            return;
+        }
+
+        const defaultName = "男性向け成人テンプレート";
+        const templateName = prompt("保存する成人向けテンプレート名を入力してください。", defaultName);
+
+        if (!templateName || !templateName.trim()) {
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from("adult_generation_templates")
+            .insert({
+                user_id: user.id,
+                zone: "mens",
+                template_name: templateName.trim(),
+                model_settings: modelSettings,
+                clothing_text: clothingText || null,
+                composition_settings: compositionSettings,
+                silhouette_settings: silhouetteSettings,
+                reference_prompt_id: standardRef.adult_reference_prompt_id || null,
+                note: "my-siteman/nft_prepare.html から保存"
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        alert("成人向け生成テンプレートを保存しました。");
+
+    } catch (err) {
+        console.error("成人向けテンプレート保存エラー:", err);
+        alert("成人向けテンプレート保存に失敗しました: " + (err.message || String(err)));
+    }
+}
+
+// =====================================================
+// 成人向け生成テンプレート読込
+// =====================================================
+
+function closeAdultTemplateLoadModal() {
+    const overlay = document.getElementById("adultTemplateLoadOverlay");
+    if (overlay) overlay.remove();
+}
+
+async function applyAdultGenerationTemplate(template) {
+    try {
+        if (!template) return;
+
+        const templateTypeEl = document.getElementById("templateType");
+        if (templateTypeEl) {
+            templateTypeEl.value = "character";
+            updateTemplateDisplay();
+        }
+
+        const modelSettings = template.model_settings || {};
+        const compositionSettings = template.composition_settings || {};
+        const silhouetteSettings = template.silhouette_settings || {};
+
+        // 念のため、input/select 両対応で値を戻す
+        const setAdultFieldValue = (fieldId, value) => {
+            const el = document.getElementById(fieldId);
+            if (!el) {
+                console.warn("成人テンプレ読込：項目が見つかりません:", fieldId, value);
+                return;
+            }
+
+            const normalizedValue = String(value || "").trim();
+
+            // input / textarea
+            if (!el.options) {
+                el.value = normalizedValue;
+                return;
+            }
+
+            // select
+            if (!normalizedValue) {
+                el.value = "";
+                if (typeof toggleTemplateCustomInput === "function") {
+                    toggleTemplateCustomInput(el);
+                }
+                return;
+            }
+
+            const hasOption = Array.from(el.options).some(option => option.value === normalizedValue);
+
+            if (hasOption) {
+                el.value = normalizedValue;
+                if (typeof toggleTemplateCustomInput === "function") {
+                    toggleTemplateCustomInput(el);
+                }
+                return;
+            }
+
+            // 既存選択肢にない場合は自由入力へ
+            el.value = "__custom__";
+            if (typeof toggleTemplateCustomInput === "function") {
+                toggleTemplateCustomInput(el);
+            }
+
+            const customEl = document.getElementById(fieldId + "_custom");
+            if (customEl) {
+                customEl.value = normalizedValue;
+            }
+        };
+
+        // 女性モデル設定
+        setAdultFieldValue("tpl_character_age", modelSettings.age || "");
+        setAdultFieldValue("tpl_adult_height", modelSettings.height || "");
+        setAdultFieldValue("tpl_adult_bust", modelSettings.bust || "");
+        setAdultFieldValue("tpl_adult_waist", modelSettings.waist || "");
+        setAdultFieldValue("tpl_adult_hip", modelSettings.hip || "");
+
+        // 服装
+        setAdultFieldValue("tpl_character_outfit", template.clothing_text || "");
+
+        // 構図
+        setAdultFieldValue("tpl_adult_scene_text", compositionSettings.scene_text || "");
+
+        setAdultFieldValue("tpl_adult_subject_frame", compositionSettings.subject_frame || "");
+        setAdultFieldValue("tpl_adult_face_visibility", compositionSettings.face_visibility || "");
+        setAdultFieldValue("tpl_adult_body_direction", compositionSettings.body_direction || "");
+        setAdultFieldValue("tpl_adult_pose", compositionSettings.pose || "");
+        setAdultFieldValue("tpl_adult_background_strength", compositionSettings.background_strength || "");
+        setAdultFieldValue("tpl_adult_layout_margin", compositionSettings.layout_margin || "");
+
+        setAdultFieldValue("tpl_character_expression", compositionSettings.expression || "");
+
+        // 男性シルエット
+        setAdultFieldValue(
+            "tpl_adult_male_silhouette_enabled",
+            silhouetteSettings.enabled === true || silhouetteSettings.enabled === "true" ? "あり" : "なし"
+        );
+
+        setAdultFieldValue(
+            "tpl_adult_male_silhouette_placement",
+            silhouetteSettings.placement || ""
+        );
+
+        // 紐づく顔基準テンプレを復元
+        if (template.reference_prompt_id) {
+            const { data: referencePrompt, error: referenceError } = await supabaseClient
+                .from("adult_reference_prompts")
+                .select("id, title, reference_prompt, source_image_url, source_asset_name")
+                .eq("id", template.reference_prompt_id)
+                .eq("zone", "mens")
+                .eq("is_active", true)
+                .single();
+
+            if (referenceError || !referencePrompt?.reference_prompt) {
+                console.error("成人向け顔基準テンプレ取得エラー:", referenceError);
+                alert("テンプレートは読み込みましたが、顔基準テンプレの取得に失敗しました。");
+            } else {
+                const ref = {
+                    type: "character",
+                    asset_id: null,
+                    title: referencePrompt.source_asset_name || referencePrompt.title || "顔基準テンプレ",
+                    image_url: referencePrompt.source_image_url || "",
+                    extracted: true,
+                    extracting: false,
+                    standard_ready: true,
+                    standard_method: "adult_reference_prompt_db",
+                    adult_reference_prompt_id: referencePrompt.id,
+                    adult_reference_prompt_title: referencePrompt.title,
+                    adult_reference_prompt: referencePrompt.reference_prompt,
+                    loaded_from_template: true,
+                    loaded_at: new Date().toISOString()
+                };
+
+                localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
+                renderStandardReferenceCard();
+            }
+        }
+
+        closeAdultTemplateLoadModal();
+
+        alert("保存済み成人テンプレートを読み込みました。");
+
+    } catch (err) {
+        console.error("成人向けテンプレート読込エラー:", err);
+        alert("成人向けテンプレートの読み込みに失敗しました: " + (err.message || String(err)));
+    }
+}
+
+async function openAdultTemplateLoadModal() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+
+        if (!user) {
+            alert("ログインが必要です。");
+            return;
+        }
+
+        const { data: templates, error } = await supabaseClient
+            .from("adult_generation_templates")
+            .select("id, template_name, model_settings, clothing_text, composition_settings, silhouette_settings, reference_prompt_id, updated_at")
+            .eq("user_id", user.id)
+            .eq("zone", "mens")
+            .eq("is_active", true)
+            .order("updated_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const existing = document.getElementById("adultTemplateLoadOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "adultTemplateLoadOverlay";
+        overlay.style = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 10003;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: sans-serif;
+        `;
+
+        const listHtml = templates && templates.length > 0
+            ? templates.map((template, index) => {
+                const modelSettings = template.model_settings || {};
+                const compositionSettings = template.composition_settings || {};
+
+                const summaryParts = [
+                    modelSettings.view,
+                    modelSettings.age,
+                    modelSettings.expression,
+                    template.clothing_text,
+                    compositionSettings.pose,
+                    compositionSettings.background,
+                    compositionSettings.lighting_mood
+                ].filter(Boolean);
+
+                const summary = summaryParts.length > 0
+                    ? summaryParts.join(" / ")
+                    : "詳細設定あり";
+
+                return `
+                    <div style="
+                        border:1px solid #eee;
+                        border-radius:8px;
+                        padding:10px;
+                        margin-bottom:8px;
+                        background:#fff;
+                    ">
+                        <div style="font-size:13px; font-weight:bold; color:#333;">
+                            ${template.template_name || "無題の成人テンプレート"}
+                        </div>
+
+                        <div style="font-size:11px; color:#777; margin-top:4px; line-height:1.5;">
+                            ${summary}
+                        </div>
+
+                        <div style="font-size:10px; color:#999; margin-top:4px;">
+                            顔基準テンプレ：${template.reference_prompt_id ? "あり" : "なし"}
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="applyAdultGenerationTemplate(window.adultTemplateList[${index}])"
+                            style="
+                                width:100%;
+                                padding:8px;
+                                margin-top:8px;
+                                border:1px solid #6a0dad;
+                                background:#6a0dad;
+                                color:white;
+                                border-radius:6px;
+                                cursor:pointer;
+                                font-size:12px;
+                                font-weight:bold;
+                            "
+                        >
+                            この成人テンプレートを読み込む
+                        </button>
+                    </div>
+                `;
+            }).join("")
+            : `
+                <div style="text-align:center; color:#777; font-size:13px; padding:30px 10px;">
+                    保存済み成人テンプレートはまだありません。
+                </div>
+            `;
+
+        overlay.innerHTML = `
+            <div style="
+                width:90%;
+                max-width:520px;
+                max-height:80vh;
+                background:#fff;
+                border-radius:12px;
+                padding:18px;
+                overflow-y:auto;
+                box-shadow:0 8px 30px rgba(0,0,0,0.25);
+            ">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 style="margin:0; font-size:17px; color:#6a0dad;">
+                        保存済み成人テンプレート
+                    </h3>
+
+                    <button
+                        type="button"
+                        onclick="closeAdultTemplateLoadModal()"
+                        style="border:none; background:none; font-size:22px; cursor:pointer; color:#999;"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                ${listHtml}
+            </div>
+        `;
+
+        window.adultTemplateList = templates || [];
+        document.body.appendChild(overlay);
+
+    } catch (err) {
+        console.error("成人向けテンプレート一覧取得エラー:", err);
+        alert("成人向けテンプレート一覧の取得に失敗しました: " + (err.message || String(err)));
+    }
 }
 
 function collectCurrentSceneSettings() {
@@ -2477,137 +3560,39 @@ function closeScenePresetLoadModal() {
 }
 
 function setTemplateFieldValue(fieldId, value) {
-    const selectEl = document.getElementById(fieldId);
-    if (!selectEl) return;
+    const el = document.getElementById(fieldId);
+    if (!el) return;
 
     const normalizedValue = String(value || "").trim();
 
-    if (!normalizedValue) {
-        selectEl.value = "";
-        toggleTemplateCustomInput(selectEl);
+    // input / textarea の場合
+    if (!el.options) {
+        el.value = normalizedValue;
         return;
     }
 
-    const hasOption = Array.from(selectEl.options).some(option => option.value === normalizedValue);
+    // select の場合
+    if (!normalizedValue) {
+        el.value = "";
+        toggleTemplateCustomInput(el);
+        return;
+    }
+
+    const hasOption = Array.from(el.options).some(option => option.value === normalizedValue);
 
     if (hasOption) {
-        selectEl.value = normalizedValue;
-        toggleTemplateCustomInput(selectEl);
+        el.value = normalizedValue;
+        toggleTemplateCustomInput(el);
         return;
     }
 
     // 保存値が既存選択肢にない場合は、自由入力へ戻す
-    selectEl.value = "__custom__";
-    toggleTemplateCustomInput(selectEl);
+    el.value = "__custom__";
+    toggleTemplateCustomInput(el);
 
     const customEl = document.getElementById(fieldId + "_custom");
     if (customEl) {
         customEl.value = normalizedValue;
-    }
-}
-
-function getCharacterEmotionPresetSettings(presetKey) {
-    const presets = {
-        joy: {
-            label: "歓喜の表情",
-            expressionText: "歓喜の表情。目を大きく開き、眉を高く上げ、頬を明るくし、口角を大きく上げた強い笑顔。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
-            fields: {
-                "表情": "歓喜の表情、大きく目を開いた強い笑顔",
-                "感情": "強い喜び、高揚感、明るい幸福感",
-                "眉毛": "高く上がった眉、柔らかく開いた眉",
-                "瞳の形": "大きく開いた明るい目、輝きのある視線",
-                "唇の形": "口角が大きく上がった笑顔",
-                "全体印象": "同じ人物のまま、明るく歓喜している"
-            }
-        },
-
-        anger: {
-            label: "怒りの表情",
-            expressionText: "怒りの表情。眉を強く寄せ、目つきを鋭くし、口元を強く引き締めた激しい怒り。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
-            fields: {
-                "表情": "怒りの表情、鋭い目つき、強く引き締めた口元",
-                "感情": "激しい怒り、緊張感、強い敵意",
-                "眉毛": "深く寄せた眉、鋭く吊り上がった眉",
-                "瞳の形": "細く鋭い目、強い睨み",
-                "唇の形": "強く閉じた口、引き締まった唇",
-                "全体印象": "同じ人物のまま、怒りで緊張している"
-            }
-        },
-
-        despair: {
-            label: "絶望の表情",
-            expressionText: "絶望の表情。目から涙がこぼれ、眉は下がり、口元は小さく震える。深い悲しみと喪失感を大きく表現する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
-            fields: {
-                "表情": "絶望の表情、涙を浮かべた悲痛な顔",
-                "感情": "深い絶望、喪失感、悲しみ",
-                "眉毛": "下がった眉、苦しそうに寄った眉",
-                "瞳の形": "涙で潤んだ目、力の抜けた視線",
-                "唇の形": "小さく震える口元、弱く開いた唇",
-                "全体印象": "同じ人物のまま、深く絶望している"
-            }
-        },
-
-        laugh: {
-            label: "大笑いの表情",
-            expressionText: "大笑いの表情。目を細め、口を大きく開け、歯が見えるほど楽しそうに笑う。顔全体を大きく崩して自然に笑わせる。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。",
-            fields: {
-                "表情": "大笑いの表情、口を大きく開けた自然な笑顔",
-                "感情": "楽しい、愉快、開放的な喜び",
-                "眉毛": "笑いで柔らかく上がった眉",
-                "瞳の形": "笑って細くなった目、楽しそうな目元",
-                "唇の形": "大きく開いた笑い口、歯が見える笑顔",
-                "全体印象": "同じ人物のまま、自然に大笑いしている"
-            }
-        }
-    };
-
-    return presets[presetKey] || null;
-}
-
-function applyCharacterEmotionPreset(presetKey) {
-    const preset = getCharacterEmotionPresetSettings(presetKey);
-    const statusEl = document.getElementById("characterEmotionPresetStatus");
-
-    if (!preset) {
-        if (statusEl) {
-            statusEl.innerText = "表情プリセットは未選択です。";
-        }
-        return;
-    }
-
-    // 既存の「表情」欄にも反映する。
-    // 選択肢にない長文なので、自動で自由入力扱いになる。
-    setTemplateFieldValue("tpl_character_expression", preset.expressionText);
-
-    try {
-        const raw = localStorage.getItem(STANDARD_REF_KEY);
-
-        if (raw) {
-            const ref = JSON.parse(raw);
-
-            if (!ref.features) {
-                ref.features = {};
-            }
-
-            if (!ref.features.editable_fields_japanese) {
-                ref.features.editable_fields_japanese = {};
-            }
-
-            Object.assign(ref.features.editable_fields_japanese, preset.fields);
-
-            ref.standard_edit_modified = true;
-            ref.character_emotion_preset = preset.label;
-            ref.character_emotion_preset_updated_at = new Date().toISOString();
-
-            localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
-            renderStandardReferenceCard();
-        }
-    } catch (err) {
-        console.error("表情プリセット反映エラー:", err);
-    }
-
-    if (statusEl) {
-        statusEl.innerText = `${preset.label}を反映しました。同一性は維持しつつ、表情だけ大きめに変化させます。`;
     }
 }
 
@@ -2809,6 +3794,72 @@ async function openScenePresetLoadModal() {
 }
 
 // =====================================================
+// 成人向けCivitai生成用payload作成
+// =====================================================
+
+function buildAdultCivitaiGenerationPayload(adultReferencePrompt) {
+    const getValue = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return "";
+
+        const value = String(el.value || "").trim();
+
+        if (value === "__custom__") {
+            const customEl = document.getElementById(id + "_custom");
+            return String(customEl?.value || "").trim();
+        }
+
+        return value;
+    };
+
+    const maleSilhouetteEnabled = getValue("tpl_adult_male_silhouette_enabled") === "あり";
+    const adultModelType =
+    getValue("tpl_adult_model_type") === "male"
+        ? "male"
+        : "female";
+
+    return {
+        model_type: adultModelType,
+
+        adult_reference_prompt_id: adultReferencePrompt.id,
+        adult_reference_prompt_title: adultReferencePrompt.title,
+        adult_reference_prompt: adultReferencePrompt.reference_prompt,
+
+        model_settings: {
+            model_type: adultModelType,
+            age: getValue("tpl_character_age"),
+            height: getValue("tpl_adult_height"),
+            bust: getValue("tpl_adult_bust"),
+            waist: getValue("tpl_adult_waist"),
+            hip: getValue("tpl_adult_hip")
+        },
+
+        clothing_text: getValue("tpl_character_outfit"),
+
+        composition_settings: {
+            scene_text: getValue("tpl_adult_scene_text"),
+
+            subject_frame: getValue("tpl_adult_subject_frame"),
+            face_visibility: getValue("tpl_adult_face_visibility"),
+            body_direction: getValue("tpl_adult_body_direction"),
+            pose: getValue("tpl_adult_pose"),
+            background_strength: getValue("tpl_adult_background_strength"),
+            layout_margin: getValue("tpl_adult_layout_margin"),
+
+            expression: getValue("tpl_character_expression")
+        },
+
+        silhouette_settings: {
+            enabled: maleSilhouetteEnabled,
+            count: maleSilhouetteEnabled ? 1 : 0,
+            placement: getValue("tpl_adult_male_silhouette_placement")
+        },
+
+        debug_prompt_only: false
+    };
+}
+
+// =====================================================
 // キャラテンプレート入力 → Leonardo送信用 detail_settings 作成
 // =====================================================
 
@@ -2824,16 +3875,15 @@ function buildLeonardoReferenceDetailSettings(templatePayload = {}) {
 
     // 現在はキャラテンプレート用を優先して作る
     const detailSettingsJa = {
-    free_text: getFieldValue("tpl_character_free_text"),
-    view: getFieldValue("tpl_character_view"),
-    age: getFieldValue("tpl_character_age"),
-    expression: getFieldValue("tpl_character_expression"),
-    pose: getFieldValue("tpl_character_pose"),
-    outfit: getFieldValue("tpl_character_outfit"),
-    parts: getFieldValue("tpl_character_parts"),
-    background: getFieldValue("tpl_character_background"),
-    lighting_mood: getFieldValue("tpl_character_lighting")
-};
+        view: getFieldValue("tpl_character_view"),
+        age: getFieldValue("tpl_character_age"),
+        expression: getFieldValue("tpl_character_expression"),
+        pose: getFieldValue("tpl_character_pose"),
+        outfit: getFieldValue("tpl_character_outfit"),
+        parts: getFieldValue("tpl_character_parts"),
+        background: getFieldValue("tpl_character_background"),
+        lighting_mood: getFieldValue("tpl_character_lighting")
+    };
 
     // 日本語表示値をLeonardo向け英語値へ変換
     return convertDetailSettingsToEnglish(detailSettingsJa);
@@ -2970,6 +4020,22 @@ function showStandardReferenceGuideModal() {
                     悪い例：横顔・顔が隠れている・髪や手で目鼻口が見えない
                 </div>
 
+                <div style="
+                    font-size:12px;
+                    color:#8a4b00;
+                    line-height:1.7;
+                    background:#fff8e6;
+                    border:1px solid #f1c40f;
+                    border-radius:8px;
+                    padding:10px;
+                    margin-bottom:12px;
+                    ">
+                    <strong>成人向け基準化の注意</strong><br>
+                    基準化に使う画像は、顔アップで顔全体が見える画像を選んでください。<br>
+                    露骨な性的描写を含む画像は、基準化素材として使用しないでください。<br>
+                    基準化では顔立ち・髪型・雰囲気だけをプロンプト化し、生成時に画像そのものを参照し続けるものではありません。
+                </div>
+
                 <button
                     type="button"
                     onclick="proceedToStandardReferenceAssetModal()"
@@ -3030,11 +4096,20 @@ function updatePromptSource() {
 
 // 4. 画像生成ロジック
 // Leonardo参照画像Function 本実行版
-async function generateImage(type) {
+async function generateImage(type, targetSlot = "left") {
+    const warningOk = await showAdultGenerationWarning();
+    if (!warningOk) return;
     const charSelect = document.getElementById("charSelect");
     const charId = charSelect ? charSelect.value : "text";
     const urlParams = new URLSearchParams(window.location.search);
     const loadingOverlay = document.getElementById("loadingOverlay");
+    const generationTargetSlot = targetSlot === "right" ? "right" : "left";
+const currentAssetForGeneration = normalizePageAsset(pageAssets[currentPage]);
+
+if (generationTargetSlot === "right" && currentAssetForGeneration.mode !== "double") {
+    alert("右側に生成するには、先に挿絵表示モードを2枚絵にしてください。");
+    return;
+}
 
     // --- プレミアムの場合 ---
     if (type === "premium") {
@@ -3074,30 +4149,6 @@ async function generateImage(type) {
         }
 
         const templatePayload = collectTemplatePayload();
-
-                if (templatePayload.template_type === "character") {
-            let standardRefForConfirm = null;
-
-            try {
-                const rawRef = localStorage.getItem(STANDARD_REF_KEY);
-                standardRefForConfirm = rawRef ? JSON.parse(rawRef) : null;
-            } catch {
-                standardRefForConfirm = null;
-            }
-
-            const hasReadyCharacterReference =
-                standardRefForConfirm &&
-                standardRefForConfirm.standard_ready === true &&
-                (standardRefForConfirm.type === "character" || standardRefForConfirm.type === "illustration");
-
-            if (hasReadyCharacterReference && !hasStandardReferenceEditableChanges()) {
-                const ok = confirm("基準化項目変更なしで生成しますか？\n\nキャンセル｜生成する");
-
-                if (!ok) {
-                    return;
-                }
-            }
-        }
 
         // --- 風景テンプレートの場合 ---
 if (templatePayload.template_type === "scenery") {
@@ -3163,9 +4214,7 @@ if (templatePayload.template_type === "scenery") {
         throw new Error("風景画像URLが返ってきませんでした。");
     }
 
-    pageAssets[currentPage] = imageUrl;
-    isEdited = true;
-    renderPage();
+    setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
     const newNp = currentNp - 10;
 
@@ -3278,9 +4327,7 @@ const { data, error } = await supabaseClient.functions.invoke(
         throw new Error("その他画像URLが返ってきませんでした。");
     }
 
-    pageAssets[currentPage] = imageUrl;
-    isEdited = true;
-    renderPage();
+    setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
     const newNp = currentNp - 10;
 
@@ -3324,9 +4371,53 @@ if (templatePayload.template_type !== "character") {
     return;
 }
 
-                    const geminiPayload = await buildGeminiAllagesCharacterPayload(templatePayload);
+        let standardRef = null;
 
-        if (!confirm("Gemini image-to-imageでキャラ生成を実行しますか？\n費用: 10 NP")) {
+        try {
+            const raw = localStorage.getItem(STANDARD_REF_KEY);
+            standardRef = raw ? JSON.parse(raw) : null;
+        } catch {
+            standardRef = null;
+        }
+
+                if (!standardRef || standardRef.standard_ready !== true) {
+            alert("先に基準化用の画像を選択し、「基準化」ボタンで成人向け基準化プロンプトを保存してください。");
+            return;
+        }
+
+        if (!standardRef.adult_reference_prompt_id) {
+            alert("成人向け基準化プロンプトが見つかりません。\nもう一度「基準化」ボタンを押してDB保存してください。");
+            return;
+        }
+
+        const { data: adultReferencePrompt, error: adultReferenceError } = await supabaseClient
+            .from("adult_reference_prompts")
+            .select("id, title, reference_prompt")
+            .eq("id", standardRef.adult_reference_prompt_id)
+            .eq("zone", "mens")
+            .eq("is_active", true)
+            .single();
+
+        if (adultReferenceError || !adultReferencePrompt?.reference_prompt) {
+            console.error("成人向け基準化プロンプト取得エラー:", adultReferenceError);
+            alert("成人向け基準化プロンプトの読み込みに失敗しました。もう一度基準化してください。");
+            return;
+        }
+
+        const requestPayload = buildAdultCivitaiGenerationPayload(adultReferencePrompt);
+
+const hasAnyAdultSetting =
+    Object.values(requestPayload.model_settings || {}).some(value => String(value || "").trim() !== "") ||
+    String(requestPayload.clothing_text || "").trim() !== "" ||
+    Object.values(requestPayload.composition_settings || {}).some(value => String(value || "").trim() !== "") ||
+    requestPayload.silhouette_settings?.enabled === true;
+
+if (!hasAnyAdultSetting) {
+    alert("成人向けテンプレートの設定を1つ以上入力してください。");
+    return;
+}
+
+        if (!confirm("スタンダード生成を実行しますか？\n費用: 10 NP")) {
             return;
         }
 
@@ -3334,32 +4425,42 @@ if (templatePayload.template_type !== "character") {
             loadingOverlay.style.display = "flex";
         }
 
-        console.log("🎨 Gemini全年齢キャラ生成Functionへ送るpayload:", {
-            template_type: geminiPayload.template_type,
-            has_reference_image_base64: !!geminiPayload.reference_image_base64,
-            reference_image_mime_type: geminiPayload.reference_image_mime_type,
-            editable_fields_count: Object.keys(geminiPayload.editable_fields_japanese || {}).length,
-            has_free_text: !!geminiPayload.tpl_character_free_text,
-            expression: geminiPayload.tpl_character_expression || "",
-            standard_edit_modified: geminiPayload.standard_edit_modified
-        });
+        console.log("🎨 Civitai成人向けFunctionへ送るpayload:", {
+    has_adult_reference_prompt_id: !!requestPayload.adult_reference_prompt_id,
+    has_adult_reference_prompt: !!requestPayload.adult_reference_prompt,
+    model_settings: requestPayload.model_settings,
+    has_clothing_text: !!requestPayload.clothing_text,
+    composition_settings: requestPayload.composition_settings,
+    silhouette_settings: requestPayload.silhouette_settings,
+    debug_prompt_only: requestPayload.debug_prompt_only
+});
 
         const { data, error } = await supabaseClient.functions.invoke(
-            "generate-nft-image-gemini-allages",
+            "generate-nft-adult-image-civitai",
             {
-                body: geminiPayload
+                body: requestPayload
             }
         );
 
         if (error) {
-            console.error("Gemini全年齢キャラ生成Function Error:", error);
-            throw new Error(error.message || "Gemini全年齢キャラ生成Functionの呼び出しに失敗しました。");
+    console.error("Civitai成人向けFunction Error:", error);
+
+    try {
+        if (error.context) {
+            const errorText = await error.context.clone().text();
+            console.error("Civitai成人向けFunction Response:", errorText);
         }
+    } catch (detailErr) {
+        console.error("Civitai成人向けFunction Response取得失敗:", detailErr);
+    }
 
-        console.log("🎨 Gemini全年齢キャラ生成Function 結果:", data);
+    throw error;
+}
 
-        if (!data || data.error) {
-            throw new Error(data?.error || "Gemini画像生成に失敗しました。");
+        console.log("🎨 Civitai成人向けFunction 結果:", data);
+
+        if (!data || data.ok !== true) {
+            throw new Error(data?.error || "画像URLの取得に失敗しました。");
         }
 
         const imageUrl =
@@ -3368,16 +4469,13 @@ if (templatePayload.template_type !== "character") {
             data.generatedImageUrl ||
             data.generated_image_url ||
             data.url ||
-            data.dataUrl ||
             "";
 
         if (!imageUrl) {
-            throw new Error("Gemini生成画像が返ってきませんでした。");
+            throw new Error("画像URLが返ってきませんでした。");
         }
 
-        pageAssets[currentPage] = imageUrl;
-        isEdited = true;
-        renderPage();
+        setGeneratedImageToCurrentPage(imageUrl, templatePayload.template_type, generationTargetSlot);
 
         const newNp = currentNp - 10;
 
@@ -3387,25 +4485,25 @@ if (templatePayload.template_type !== "character") {
             .eq("id", user.id);
 
         if (updateError) {
-            console.error("NP更新エラー:", updateError);
-            alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
-        } else {
-            await recordNpUsageTransaction({
-                userId: user.id,
-                type: "ai_illustration_generation",
-                productName: "AIイラスト生成（キャラ）",
-                amountNp: 10,
-                balanceBeforeNp: currentNp,
-                balanceAfterNp: newNp,
-                relatedTable: "novels",
-                relatedId: novelData?.id || null
-            });
+    console.error("NP更新エラー:", updateError);
+    alert("画像は作成されましたが、NP残高更新でエラーが発生しました。管理者に確認してください。");
+} else {
+    await recordNpUsageTransaction({
+        userId: user.id,
+        type: "ai_illustration_generation",
+        productName: "AIイラスト生成（キャラ）",
+        amountNp: 10,
+        balanceBeforeNp: currentNp,
+        balanceAfterNp: newNp,
+        relatedTable: "novels",
+        relatedId: novelData?.id || null
+    });
 
-            const myNpEl = document.getElementById("myNp");
-            if (myNpEl) {
-                myNpEl.innerText = newNp;
-            }
-        }
+    const myNpEl = document.getElementById("myNp");
+    if (myNpEl) {
+        myNpEl.innerText = newNp;
+    }
+}
 
         if (loadingOverlay) {
             loadingOverlay.style.display = "none";
@@ -3427,6 +4525,7 @@ if (templatePayload.template_type !== "character") {
 // 5. 保存ロジック（エピソードごとに分離 ＆ ミント済み保護機能付き）
 async function saveNftDraft() {
     try {
+        commitCurrentTextAndReflow();
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) throw new Error("ログインセッションが見つかりません。");
 
