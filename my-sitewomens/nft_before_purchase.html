@@ -443,18 +443,27 @@ async function init() {
     if (error || !nft) return alert("作品データの取得に失敗しました");
     targetNft = nft;
 
-    // 🌟 追加：作者（クリエイター）のプロフィール（名前）を取得
-    let creatorName = "名無し作家";
-    if (targetNft.owner_id) {
-        const { data: authorProfile } = await supabaseClient
-            .from('profiles')
-            .select('username')
-            .eq('id', targetNft.owner_id)
-            .single();
-        if (authorProfile && authorProfile.username) {
-            creatorName = authorProfile.username;
-        }
+    // 作者（クリエイター）の公開名を取得
+let creatorName = "名無し作家";
+
+if (targetNft.owner_id) {
+    const { data: publicProfiles, error: publicProfileError } =
+        await supabaseClient.rpc("get_public_profile_names", {
+            p_user_ids: [targetNft.owner_id]
+        });
+
+    if (publicProfileError) {
+        console.error("公開プロフィール取得エラー:", publicProfileError);
     }
+
+    const authorProfile = Array.isArray(publicProfiles)
+        ? publicProfiles[0]
+        : null;
+
+    if (authorProfile && authorProfile.username) {
+        creatorName = authorProfile.username;
+    }
+}
 
     // 残高の取得：NVTはDBではなくDynamicウォレットのオンチェーン残高を見る
 let myNvt = 0;
