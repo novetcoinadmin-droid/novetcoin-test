@@ -729,9 +729,30 @@ currentUser = session.user;
         }
 
         // 作者名の取得
-        const { data: profile } = await supabaseClient.from('profiles').select('username').eq('id', nft.owner_id).single();
-        document.getElementById("viewTitle").innerText = nft.title_at_mint;
-        document.getElementById("viewAuthor").innerText = "@" + (profile?.username || "不明");
+        // 作者名の取得（公開用RPC）
+let creatorName = "名無し作家";
+
+if (nft.owner_id) {
+    const { data: publicProfiles, error: publicProfileError } =
+        await supabaseClient.rpc("get_public_profile_names", {
+            p_user_ids: [nft.owner_id]
+        });
+
+    if (publicProfileError) {
+        console.error("公開プロフィール取得エラー:", publicProfileError);
+    }
+
+    const authorProfile = Array.isArray(publicProfiles)
+        ? publicProfiles[0]
+        : null;
+
+    if (authorProfile && authorProfile.username) {
+        creatorName = authorProfile.username;
+    }
+}
+
+document.getElementById("viewTitle").innerText = nft.title_at_mint;
+document.getElementById("viewAuthor").innerText = "@" + creatorName;
 
         // 保存済みしおりがあれば、その位置から開く
 await loadSavedBookmark();
