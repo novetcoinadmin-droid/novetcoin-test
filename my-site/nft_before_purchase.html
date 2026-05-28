@@ -142,9 +142,193 @@
     transform: translateY(-2px);
 }
 
+/* ===== スマホ表示：NFT購入前ページ 最適化 ===== */
+.mobile-purchase-buttons,
+.mobile-purchase-overlay {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    body {
+        overflow-x: hidden;
+        background: #2c2e33 !important;
+    }
+
+    .mobile-purchase-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        position: sticky;
+        top: 0;
+        z-index: 1002;
+        padding: 10px 10px 8px;
+        background: #2c2e33;
+        box-sizing: border-box;
+    }
+
+    .mobile-purchase-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 8px 8px;
+        border: none;
+        border-radius: 999px;
+        background: #6a0dad;
+        color: #fff;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(106, 13, 173, 0.25);
+        cursor: pointer;
+        text-align: center;
+        line-height: 1.3;
+    }
+
+    .mobile-back-btn {
+        background: #444;
+    }
+
+    .mobile-purchase-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.28);
+        z-index: 1000;
+    }
+
+    .mobile-purchase-overlay.is-open {
+        display: block;
+    }
+
+    .container {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 12px !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        box-sizing: border-box;
+    }
+
+    .cover-area {
+        width: 100% !important;
+        max-width: 430px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative;
+        z-index: 1;
+    }
+
+    .cover-area .nav-back {
+        display: none !important;
+    }
+
+    .cover-img {
+        width: 100% !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25) !important;
+    }
+
+    .review-area {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: min(72vw, 300px) !important;
+        height: 100vh !important;
+        max-height: none !important;
+        padding: 22px 16px !important;
+        border-right: none !important;
+        border-radius: 0 18px 18px 0 !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(-110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .review-area.is-open {
+        transform: translateX(0);
+    }
+
+    .info-area {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        width: min(76vw, 330px) !important;
+        height: 100vh !important;
+        min-width: 0 !important;
+        padding: 22px 16px !important;
+        border-radius: 18px 0 0 18px !important;
+        background: #fff !important;
+        z-index: 1001 !important;
+        overflow-y: auto !important;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.25) !important;
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+        box-sizing: border-box;
+    }
+
+    .info-area.is-open {
+        transform: translateX(0);
+    }
+
+    .review-list {
+        max-height: none !important;
+    }
+
+    .meta-table th,
+    .meta-table td {
+        font-size: 12px !important;
+        padding: 10px 6px !important;
+    }
+
+    .price-tag {
+        font-size: 24px !important;
+        margin: 18px 0 !important;
+    }
+
+    .btn-preview,
+    .btn-buy {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+}
+
     </style>
 <style>body { background: #2c2e33 !important; }</style></head>
 <body>
+
+<body>
+
+<div class="mobile-purchase-buttons">
+    <a href="market.html" class="mobile-purchase-btn mobile-back-btn">
+        ← マーケットへ戻る
+    </a>
+
+    <button
+        id="mobileReviewToggle"
+        type="button"
+        class="mobile-purchase-btn"
+    >
+        レビューを見る
+    </button>
+
+    <button
+        id="mobileBuyToggle"
+        type="button"
+        class="mobile-purchase-btn"
+    >
+        購入メニュー
+    </button>
+</div>
+
+<div id="mobilePurchaseOverlay" class="mobile-purchase-overlay"></div>
 
 <div class="container">
     <div class="review-area">
@@ -899,6 +1083,56 @@ function openNftPreview() {
 
     window.location.href = `nft_preview.html?id=${targetNft.id}`;
 }
+
+function setupMobileBeforePurchasePanels() {
+    const reviewButton = document.getElementById("mobileReviewToggle");
+    const buyButton = document.getElementById("mobileBuyToggle");
+    const overlay = document.getElementById("mobilePurchaseOverlay");
+    const reviewPanel = document.querySelector(".review-area");
+    const buyPanel = document.querySelector(".info-area");
+
+    if (!reviewButton || !buyButton || !overlay || !reviewPanel || !buyPanel) {
+        return;
+    }
+
+    function closePanels() {
+        reviewPanel.classList.remove("is-open");
+        buyPanel.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+    }
+
+    function openReviewPanel() {
+        buyPanel.classList.remove("is-open");
+        reviewPanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    function openBuyPanel() {
+        reviewPanel.classList.remove("is-open");
+        buyPanel.classList.add("is-open");
+        overlay.classList.add("is-open");
+    }
+
+    reviewButton.addEventListener("click", () => {
+        if (reviewPanel.classList.contains("is-open")) {
+            closePanels();
+        } else {
+            openReviewPanel();
+        }
+    });
+
+    buyButton.addEventListener("click", () => {
+        if (buyPanel.classList.contains("is-open")) {
+            closePanels();
+        } else {
+            openBuyPanel();
+        }
+    });
+
+    overlay.addEventListener("click", closePanels);
+}
+
+document.addEventListener("DOMContentLoaded", setupMobileBeforePurchasePanels);
 
 window.openNftPreview = openNftPreview;
 
