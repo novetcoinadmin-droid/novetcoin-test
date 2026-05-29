@@ -331,32 +331,36 @@ async function fetchPendingRewards() {
       }
     });
 
-    if (pendingTotal <= 0 && claimableTotal <= 0) {
+    if (claimableTotal > 0) {
       list.innerHTML = `
-        <div style="background:#f8f8f8; border-radius:8px; padding:12px; font-size:13px; color:#777;">
-          現在、投稿報酬はありません。
+        <div style="background:#fffaf0; border:1px solid #f5d48b; border-radius:10px; padding:14px; font-size:14px; line-height:1.8;">
+          <strong style="color:#b7791f;">受け取り可能な報酬があります。</strong>
+          <p style="font-size:12px; color:#666; margin:8px 0 10px;">
+            ウォレット画面から投稿報酬を受け取れます。
+          </p>
+          <button onclick="location.href='wallet.html'" style="width:100%; padding:10px; background:#b7791f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+            ウォレットで報酬を受け取る
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    if (pendingTotal > 0) {
+      list.innerHTML = `
+        <div style="background:#f7fbff; border:1px solid #b6d9ff; border-radius:10px; padding:14px; font-size:14px; line-height:1.8;">
+          <strong style="color:#2563eb;">待機中の報酬があります。</strong>
+          <p style="font-size:12px; color:#666; margin:8px 0 0;">
+            報酬は確認期間後に受け取り可能になります。
+          </p>
         </div>
       `;
       return;
     }
 
     list.innerHTML = `
-      <div style="background:#fffaf0; border:1px solid #f5d48b; border-radius:10px; padding:14px; font-size:14px; line-height:1.8;">
-        <div>確定待ち：<strong style="color:#b7791f;">${pendingTotal.toLocaleString()} NVT</strong></div>
-        <div>未受け取り：<strong style="color:#b7791f;">${claimableTotal.toLocaleString()} NVT</strong></div>
-        <hr style="border:none; border-top:1px solid #f0dca8; margin:10px 0;">
-        <p style="font-size:12px; color:#666; margin:0 0 10px;">
-          未受け取り報酬がある場合は、ウォレットで受け取れます。
-        </p>
-        ${
-          claimableTotal > 0
-            ? `<button onclick="location.href='wallet.html'" style="width:100%; padding:10px; background:#b7791f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
-                ウォレットで報酬を受け取る
-              </button>`
-            : `<button disabled style="width:100%; padding:10px; background:#ddd; color:#777; border:none; border-radius:8px; font-weight:bold;">
-                受け取り可能な報酬はありません
-              </button>`
-        }
+      <div style="background:#f8f8f8; border-radius:8px; padding:12px; font-size:13px; color:#777;">
+        待機中の報酬も、受け取り可能な報酬もありません。
       </div>
     `;
   } catch (err) {
