@@ -379,11 +379,14 @@ async function fetchNovels() {
     document.getElementById("displayAuthorName").innerText = author?.author_name || "不明な作家";
 
     // 作品取得
-    const { data, error: novelError } = await window.supabaseClient
-      .from('novels')
-      .select('*')
-      .eq('author_id', authorId)
-      .order('created_at', { ascending: false });
+// NNFT用コピー作品は作家管理画面には表示しない。
+// 元の一般小説だけを管理対象として表示する。
+const { data, error: novelError } = await window.supabaseClient
+  .from('novels')
+  .select('*')
+  .eq('author_id', authorId)
+  .or('is_nft.is.null,is_nft.eq.false')
+  .order('created_at', { ascending: false });
 
     if (novelError) throw novelError;
 
