@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ウォレット | ノベットコイン.com</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../my-site/auth-check.js"></script>
+    <style>
+        :root { --main-purple: #6a0dad; --gold: #ffd700; --bg-gray: #f5f5f5; }
+        body { font-family: sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
+        .wallet-container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        h1 { font-size: 22px; color: var(--main-purple); border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+        .back-link { font-size: 14px; color: #666; text-decoration: none; font-weight: normal; }
+        
+        /* 残高カード */
+        .balance-card { display: flex; gap: 15px; margin-top: 20px; }
+        .bal-box { flex: 1; padding: 20px; border-radius: 10px; text-align: center; }
+        .bal-nvt { background: #fdfaf6; border: 1px solid #f9e5c3; }
+        .bal-np { background: #f4f0fa; border: 1px solid #e1d4f2; }
+        .bal-title { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 10px; }
+        .bal-amount { font-size: 28px; font-weight: bold; }
+        
+        /* 変換セクション */
+        .convert-section { margin-top: 30px; padding: 20px; background: #fffdf5; border: 1px solid #ffe082; border-radius: 10px; }
+        .convert-section h3 { font-size: 15px; margin-top: 0; color: #d4ac0d; }
+        .input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .input-group input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; text-align: right; }
+        .btn-convert { width: 100%; padding: 15px; background: linear-gradient(135deg, #f1c40f, #d4ac0d); color: #000; font-weight: bold; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-convert:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+
+        /* Web3 送金 */
+        .web3-section { margin-top: 20px; padding: 20px; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; text-align: center; }
+        .btn-send { width: 100%; padding: 12px; background: #333; color: white; border: none; border-radius: 8px; font-size: 15px; cursor: not-allowed; opacity: 0.7; }
+        
+        /* 履歴テーブル */
+        .history-section { margin-top: 30px; }
+        .history-section h3 { font-size: 16px; border-bottom: 2px solid var(--main-purple); padding-bottom: 5px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .history-table th, .history-table td { padding: 12px 8px; border-bottom: 1px solid #eee; text-align: left; }
+        .history-table th { color: #888; font-weight: normal; }
+        .amt-plus { color: #2ecc71; font-weight: bold; }
+        .amt-minus { color: #e74c3c; font-weight: bold; }
+        .legal-footer {
+  margin-top: 60px;
+  padding: 24px 16px;
+  background: #2f2f2f;
+  color: #ddd;
+  text-align: center;
+  font-size: 13px;
+}
+
+.legal-footer a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 10px;
+  white-space: nowrap;
+}
+
+.legal-footer a:hover {
+  text-decoration: underline;
+}
+
+.legal-footer .footer-links {
+  margin-bottom: 10px;
+  line-height: 2;
+}
+
+.legal-footer .footer-copy {
+  color: #aaa;
+  font-size: 12px;
+}
+    </style>
+</head>
+<body>
+
+<div class="wallet-container">
+    <h1>💳 ウォレット <a href="account.html" class="back-link">← 戻る</a></h1>
+    <p style="font-size: 12px; color: #888; text-align: right;" id="walletUserId">ID: --</p>
+    <div id="walletAddressBox" style="margin-top: 10px; padding: 12px; background: #fafafa; border: 1px solid #ddd; border-radius: 10px;">
+    <div style="font-size: 12px; color: #666; margin-bottom: 6px;">入金用ウォレットアドレス（Polygon）</div>
+    <div id="walletAddressText" style="font-size: 13px; font-weight: bold; word-break: break-all; color: #333;">読み込み中...</div>
+    <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+        <button type="button" id="copyWalletBtn" style="padding: 8px 12px; border: none; border-radius: 8px; background: var(--main-purple); color: white; cursor: pointer;">アドレスをコピー</button>
+        <a id="walletScanLink" href="#" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 8px 12px; border-radius: 8px; background: #333; color: white; text-decoration: none;">Polygonscanで確認</a>
+    </div>
+    <div style="font-size: 11px; color: #888; margin-top: 8px;">
+        ※ PolygonネットワークのPOL / 対応トークンの受け取り先です。
+    </div>
+</div>
+
+    <div class="balance-card">
+        <div class="bal-box bal-nvt">
+            <div class="bal-title">NVT 残高 (暗号資産)</div>
+            <div class="bal-amount" style="color: #d4ac0d;"><span id="nvtBal">0.00</span></div>
+        </div>
+        <div class="bal-box bal-np">
+            <div class="bal-title">NP 残高 (ポイント)</div>
+            <div class="bal-amount" style="color: var(--main-purple);"><span id="npBal">0</span></div>
+        </div>
+    </div>
+    <div class="reward-section" style="margin-top: 20px; padding: 20px; background: #fffaf0; border: 1px solid #f5d48b; border-radius: 10px;">
+  <h3 style="font-size: 16px; margin-top: 0; color: #b7791f;">✍️ 投稿報酬</h3>
+
+  <div style="font-size: 14px; line-height: 1.8; color: #444;">
+    <div>確定待ち：<strong id="pendingRewardNvt">-</strong> NVT</div>
+    <div>未受け取り：<strong id="claimableRewardNvt">-</strong> NVT</div>
+  </div>
+
+  <p style="font-size: 12px; color: #666; margin-top: 10px;">
+    未受け取り報酬がある場合は、ここからDynamicウォレットへ受け取れます。
+  </p>
+
+  <button
+    type="button"
+    id="claimTextRewardBtn"
+    style="width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 8px; background: #b7791f; color: white; font-weight: bold; cursor: pointer;"
+    disabled
+  >
+    報酬を受け取る
+  </button>
+
+  <div id="claimTextRewardMessage" style="font-size: 13px; margin-top: 10px; color: #666;"></div>
+</div>
+
+    <div class="convert-section">
+        <h3>💎 NVTでNPを買う</h3>
+        <p style="font-size: 12px; color: #666; margin-bottom: 15px;">現在のレート: <strong>NVTを買うボタンから、見積もり参照してください。</strong></p>
+        
+        <div class="input-group">
+            <input type="number" id="convertInput" placeholder="0.00" step="0.01" min="0.01" oninput="calcConvert()">
+            <span style="font-weight: bold; color: #666;">NVT</span>
+        </div>
+        <div style="text-align: center; margin-bottom: 15px; font-size: 20px; color: #ccc;">⬇</div>
+        <div class="input-group">
+            <input type="number" id="receiveInput" placeholder="0" disabled style="background: #fff; color: var(--main-purple); font-weight: bold;">
+            <span style="font-weight: bold; color: #666;">NP</span>
+        </div>
+        
+        <button id="convertBtn" class="btn-convert" onclick="executeConvert()" disabled>NPを買う</button>
+    </div>
+
+    <div class="web3-section">
+    <h3 style="font-size: 14px; margin-top: 0;">🦊 外部ウォレットへ送金</h3>
+
+    <a href="withdraw.html" style="display:block; text-decoration:none;">
+        <button type="button" class="btn-send" style="cursor:pointer; opacity:1;">
+            出金申請ページへ進む
+        </button>
+    </a>
+
+    <p style="font-size:12px; color:#666; margin-top:10px;">
+        出金申請ページで、送金先アドレス・出金額・手数料を確認して申請します。
+    </p>
+</div>
+<div class="pending-withdraw-section" style="margin-top: 30px; padding: 20px; background: #f8fff8; border: 1px solid #bbf7d0; border-radius: 10px;">
+    <h3 style="font-size: 15px; margin-top: 0; color: #2e7d32;">🚀 出金処理中の申請</h3>
+    <p style="font-size: 12px; color: #666;">
+        運営側でNVT/POL送付が完了した申請は、ここからMetaMaskへ最終出金できます。
+    </p>
+    <div id="pendingWithdrawList">
+        <div style="font-size: 13px; color: #999;">出金処理中の申請を確認中...</div>
+    </div>
+</div>
+    <div class="history-section">
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 3px solid #8a2be2; margin-bottom: 10px;">
+    <h3 style="margin: 0; border-bottom: none;">📊 取引履歴（直近5件）</h3>
+    <a href="wallet-history.html" style="font-size: 13px; color: #6a0dad; text-decoration: none; font-weight: bold;">
+      すべての履歴を見る →
+    </a>
+  </div>
+
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>内容</th>
+        <th style="text-align: right;">金額</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody">
+      <tr>
+        <td colspan="3" style="text-align: center; color: #999;">履歴を読み込み中...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+<div id="npPurchaseModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    width:min(520px, calc(100vw - 32px));
+    background:white;
+    border-radius:16px;
+    padding:24px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
+  ">
+    <h2 style="margin:0 0 14px; color:#6a0dad; font-size:20px;">NVTでNPを買う</h2>
+
+    <div id="npPurchaseQuoteBody" style="font-size:14px; line-height:1.9; color:#333;"></div>
+
+    <div id="npPurchaseProgress" style="display:none; margin-top:14px; font-size:13px; color:#666; line-height:1.7;">
+      処理を開始しています。画面を閉じずにお待ちください。
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:22px;">
+      <button id="cancelNpPurchaseBtn" type="button" onclick="closeNpPurchaseModal()" style="
+        flex:1;
+        padding:12px;
+        border:1px solid #ccc;
+        border-radius:10px;
+        background:white;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+        キャンセル
+      </button>
+
+      <button id="confirmNpPurchaseBtn" type="button" onclick="confirmNpPurchaseFromModal()" style="
+        flex:1;
+        padding:12px;
+        border:none;
+        border-radius:10px;
+        background:#d4ac0d;
+        color:#000;
+        cursor:pointer;
+        font-weight:bold;
+      ">
+        NPを買う
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  createDynamicClient,
+  getWalletAccounts,
+  isSignedIn,
+  waitForClientInitialized,
+  switchActiveNetwork,
+} from "https://esm.sh/@dynamic-labs-sdk/client";
+
+import {
+  createWaasWalletAccounts,
+  getChainsMissingWaasWalletAccounts,
+} from "https://esm.sh/@dynamic-labs-sdk/client/waas";
+
+import {
+  addEvmExtension,
+  isEvmWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm";
+
+import {
+  createWalletClientForWalletAccount,
+} from "https://esm.sh/@dynamic-labs-sdk/evm/viem";
+
+import {
+  createPublicClient,
+  encodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  http,
+  parseUnits,
+} from "https://esm.sh/viem";
+
+import { polygon } from "https://esm.sh/viem/chains";
+
+let currentUser = null;
+let currentProfile = null;
+let currentWalletAddress = "";
+let dynamicWalletAccount = null;
+let pendingWithdrawRequests = [];
+const RATE = 150;
+const NVT_TO_NP_DISPLAY_FEE_NP = 4;
+
+let pendingNpPurchaseQuote = null;
+let walletPenaltyStatus = null;
+let walletPenaltyObserver = null;
+let walletPenaltyClickGuardInstalled = false;
+
+function walletHasActivePenalty() {
+  return !!walletPenaltyStatus?.has_active_penalty;
+}
+
+function ensureWalletPenaltyNotice() {
+  let box = document.getElementById("walletPenaltyNotice");
+
+  if (box) return box;
+
+  const addressBox = document.getElementById("walletAddressBox");
+
+  box = document.createElement("div");
+  box.id = "walletPenaltyNotice";
+  box.style.display = "none";
+  box.style.marginTop = "14px";
+  box.style.padding = "14px";
+  box.style.border = "1px solid #f5c2c7";
+  box.style.background = "#fff5f5";
+  box.style.borderRadius = "10px";
+  box.style.color = "#842029";
+  box.style.fontSize = "13px";
+  box.style.lineHeight = "1.7";
+
+  if (addressBox && addressBox.parentNode) {
+    addressBox.parentNode.insertBefore(box, addressBox.nextSibling);
+  }
+
+  return box;
+}
+
+function renderWalletPenaltyNotice() {
+  const box = ensureWalletPenaltyNotice();
+
+  if (!walletHasActivePenalty()) {
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+
+  const remainingNvt = Number(walletPenaltyStatus.remaining_nvt_debt || 0);
+  const remainingNp = Number(walletPenaltyStatus.remaining_np_debt || 0);
+
+  box.style.display = "block";
+  box.innerHTML = `
+    <strong>アカウント制限中です。</strong><br>
+    制限中は、出金・NVTでNPを買う・報酬受け取りを利用できません。<br>
+    残り返還額：${remainingNvt.toLocaleString("ja-JP")} NVT / ${remainingNp.toLocaleString("ja-JP")} NP
+    <div style="margin-top:10px;">
+      <button
+        type="button"
+        onclick="location.href='penalty.html'"
+        style="padding:9px 12px; border:none; border-radius:8px; background:#6a0dad; color:white; font-weight:bold; cursor:pointer;"
+      >
+        返還・制限内容を確認する
+      </button>
+    </div>
+  `;
+}
+
+function markPenaltyLockedElement(el, label) {
+  if (!el) return;
+
+  el.dataset.penaltyLocked = "true";
+  el.dataset.penaltyLabel = label || "この操作";
+
+  if ("disabled" in el) {
+    el.disabled = true;
+  }
+
+  el.style.opacity = "0.55";
+  el.style.cursor = "not-allowed";
+}
+
+function applyWalletPenaltyLocks() {
+  if (!walletHasActivePenalty()) return;
+
+  renderWalletPenaltyNotice();
+
+  markPenaltyLockedElement(
+    document.getElementById("claimTextRewardBtn"),
+    "投稿報酬の受け取り"
+  );
+
+  markPenaltyLockedElement(
+    document.getElementById("convertBtn"),
+    "NVTでNPを買う"
+  );
+
+  markPenaltyLockedElement(
+    document.getElementById("confirmNpPurchaseBtn"),
+    "NVTでNPを買う"
+  );
+
+  const convertInput = document.getElementById("convertInput");
+  if (convertInput) {
+    convertInput.disabled = true;
+    convertInput.placeholder = "アカウント制限中は利用できません";
+  }
+
+  const withdrawLink = document.querySelector('.web3-section a[href="withdraw.html"]');
+  if (withdrawLink) {
+    markPenaltyLockedElement(withdrawLink, "出金申請");
+    const withdrawButton = withdrawLink.querySelector("button");
+    markPenaltyLockedElement(withdrawButton, "出金申請");
+    if (withdrawButton) {
+      withdrawButton.innerText = "アカウント制限中は出金できません";
+    }
+  }
+
+  const pendingWithdrawButtons = document.querySelectorAll(
+    "#pendingWithdrawList button"
+  );
+
+  pendingWithdrawButtons.forEach((btn) => {
+    markPenaltyLockedElement(btn, "出金の完了");
+    btn.innerText = "アカウント制限中は出金保留";
+  });
+}
+
+function installWalletPenaltyClickGuard() {
+  if (walletPenaltyClickGuardInstalled) return;
+  walletPenaltyClickGuardInstalled = true;
+
+  document.addEventListener("click", (event) => {
+    if (!walletHasActivePenalty()) return;
+
+    const locked = event.target?.closest?.('[data-penalty-locked="true"]');
+
+    if (!locked) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const label = locked.dataset.penaltyLabel || "この操作";
+
+    alert(
+      "アカウント制限中のため、" + label + "は利用できません。\n\n" +
+      "返還または停止期間の終了後に再開できます。"
+    );
+  }, true);
+}
+
+function installWalletPenaltyObserver() {
+  if (walletPenaltyObserver) return;
+
+  walletPenaltyObserver = new MutationObserver(() => {
+    if (walletHasActivePenalty()) {
+      applyWalletPenaltyLocks();
+    }
+  });
+
+  walletPenaltyObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["disabled", "style"]
+  });
+}
+
+async function refreshWalletPenaltyStatus() {
+  try {
+    const { data, error } = await window.supabaseClient.rpc("get_my_active_penalty_case");
+
+    if (error) {
+      console.warn("ペナルティ状態取得エラー:", error);
+      return;
+    }
+
+    walletPenaltyStatus = data || null;
+
+    if (walletHasActivePenalty()) {
+      renderWalletPenaltyNotice();
+      applyWalletPenaltyLocks();
+      installWalletPenaltyClickGuard();
+      installWalletPenaltyObserver();
+    }
+
+  } catch (err) {
+    console.warn("ペナルティ状態確認に失敗:", err);
+  }
+}
+const DYNAMIC_ENVIRONMENT_ID = "4ab745f8-fd7f-47c3-9f70-b024af2fc63b";
+const NVT_CONTRACT_ADDRESS = "0x2bcabf131ab1d3620914f17b576bd3d6fa76812e";
+const OPERATION_WALLET_ADDRESS = "0xe5E2f6fbC112E78E466b4be1EbA735667C6e7FFD";
+const POLYGON_RPC_URL = "https://polygon.publicnode.com";
+const NVT_TO_NP_USER_FEE_POL = 0.06; // ユーザー表示用の固定手数料相当
+const NVT_TO_NP_INTERNAL_MAX_GAS_POL = "0.03"; // 内部ガス上限
+const NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS = 10000;
+
+function withTimeout(promise, ms, timeoutMessage) {
+  let timer;
+
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+const publicClient = createPublicClient({
+  chain: polygon,
+  transport: http(POLYGON_RPC_URL),
+});
+
+createDynamicClient({
+  environmentId: DYNAMIC_ENVIRONMENT_ID,
+  metadata: {
+    name: "ノベットコイン.com",
+    universalLink: window.location.origin,
+  },
+  transformers: {
+    networkData: (network) => {
+      if (String(network.networkId) === "137") {
+        return {
+          ...network,
+          rpcUrls: {
+            ...(network.rpcUrls || {}),
+            http: [POLYGON_RPC_URL],
+          },
+        };
+      }
+
+      return network;
+    },
+  },
+});
+
+addEvmExtension();
+
+async function initWallet() {
+  const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+  if (!user) {
+    location.href = "../my-site/login.html";
+    return;
+  }
+
+  currentUser = user;
+
+await refreshWalletPenaltyStatus();
+
+document.getElementById("walletUserId").innerText =
+  `ID: ${user.id.substring(0, 8)}...`;
+
+  await fetchBalances();
+  await fetchHistory();
+  await fetchTextRewards();
+
+try {
+  await prepareDynamicWalletAccount();
+} catch (err) {
+  console.warn("Dynamicウォレット確認:", err);
+}
+
+await fetchPendingWithdrawRequests();
+
+// 入金履歴は残高表示とは別に、裏で同期する
+await syncNvtDeposits();
+}
+
+async function prepareDynamicWalletAccount() {
+  await waitForClientInitialized();
+
+  if (!isSignedIn()) {
+    throw new Error("Dynamicにログインしていません。portal/login.htmlからログインし直してください。");
+  }
+
+  const missingChains = getChainsMissingWaasWalletAccounts();
+
+  if (missingChains.length > 0) {
+    await createWaasWalletAccounts({ chains: missingChains });
+  }
+
+  const walletAccounts = getWalletAccounts();
+
+  const evmWalletAccount =
+    walletAccounts.find((account) => isEvmWalletAccount(account)) ||
+    walletAccounts[0] ||
+    null;
+
+  if (!evmWalletAccount) {
+    throw new Error("Dynamicウォレットアカウントが見つかりません。");
+  }
+
+  dynamicWalletAccount = evmWalletAccount;
+
+  await switchActiveNetwork({
+    walletAccount: dynamicWalletAccount,
+    networkId: "137",
+  });
+
+  console.log("Dynamic wallet ready:", {
+    address: dynamicWalletAccount.address,
+    activeNetwork: "137",
+  });
+
+  return dynamicWalletAccount;
+}
+
+async function sendNvtFromDynamicWallet({
+  toAddress,
+  amountNvt,
+  checkNvtToNpGas = false
+}) {
+  if (!dynamicWalletAccount) {
+    await prepareDynamicWalletAccount();
+  }
+
+  if (!isEvmWalletAccount(dynamicWalletAccount)) {
+    throw new Error("DynamicウォレットがEVMウォレットではありません。");
+  }
+
+  const walletClient = await createWalletClientForWalletAccount({
+    walletAccount: dynamicWalletAccount,
+  });
+
+  const amountRaw = parseUnits(String(amountNvt), 18);
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [toAddress, amountRaw],
+  });
+
+  // NVTでNPを買う時だけ、送信前にガス見積もりを確認する
+  if (checkNvtToNpGas) {
+    const fromAddress = dynamicWalletAccount.address;
+
+    const [gasEstimate, gasPrice] = await withTimeout(
+      Promise.all([
+        publicClient.estimateGas({
+          account: fromAddress,
+          to: NVT_CONTRACT_ADDRESS,
+          data,
+          value: 0n,
+        }),
+        publicClient.getGasPrice(),
+      ]),
+      NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS,
+      "ガス見積もりに時間がかかったため、処理を中止しました。時間をおいてやり直してください。"
+    );
+
+    const estimatedGasCostRaw = gasEstimate * gasPrice;
+    const maxGasCostRaw = parseUnits(NVT_TO_NP_INTERNAL_MAX_GAS_POL, 18);
+
+    console.log("NVT→NP ガス見積もり:", {
+      gasEstimate: gasEstimate.toString(),
+      gasPrice: gasPrice.toString(),
+      estimatedPol: formatUnits(estimatedGasCostRaw, 18),
+      maxPol: NVT_TO_NP_INTERNAL_MAX_GAS_POL,
+    });
+
+    if (estimatedGasCostRaw > maxGasCostRaw) {
+      throw new Error("現在POLが想定より高いため、時間をおいてやり直してください。");
+    }
+  }
+
+  const txHash = await walletClient.sendTransaction({
+    to: NVT_CONTRACT_ADDRESS,
+    data,
+    value: 0n,
+    chain: polygon,
+  });
+
+  return txHash;
+}
+
+async function fetchOnchainNvtBalance(walletAddress) {
+  if (!walletAddress) return 0;
+
+  const balanceRaw = await publicClient.readContract({
+    address: NVT_CONTRACT_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [walletAddress],
+  });
+
+  return Number(formatUnits(balanceRaw, 18));
+}
+
+async function fetchBalances() {
+  const { data: profile } = await window.supabaseClient
+    .from("profiles")
+    .select("nvt_balance, np_balance, wallet_address, dynamic_wallet_address")
+    .eq("id", currentUser.id)
+    .single();
+
+  if (profile) {
+    currentProfile = profile;
+    currentWalletAddress = profile.dynamic_wallet_address || profile.wallet_address || "";
+
+    document.getElementById("walletAddressText").innerText =
+      currentWalletAddress || "未設定";
+
+    try {
+  const onchainNvtBalance = await fetchOnchainNvtBalance(currentWalletAddress);
+
+  document.getElementById("nvtBal").innerText =
+    onchainNvtBalance.toLocaleString("ja-JP", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+
+  currentProfile.nvt_balance = onchainNvtBalance;
+} catch (err) {
+  console.error("NVTオンチェーン残高取得エラー:", err);
+
+  document.getElementById("nvtBal").innerText =
+    parseFloat(profile.nvt_balance || 0).toFixed(2);
+}
+
+    document.getElementById("npBal").innerText =
+      Math.floor(profile.np_balance || 0);
+
+    const walletScanLink = document.getElementById("walletScanLink");
+
+    if (walletScanLink) {
+      walletScanLink.href = currentWalletAddress
+        ? `https://polygonscan.com/address/${currentWalletAddress}`
+        : "#";
+    }
+  }
+}
+
+function calcConvert() {
+  const inputVal = parseFloat(document.getElementById("convertInput").value);
+  const btn = document.getElementById("convertBtn");
+  const receiveInput = document.getElementById("receiveInput");
+
+  if (isNaN(inputVal) || inputVal <= 0) {
+    receiveInput.value = "";
+    btn.disabled = true;
+    return;
+  }
+
+  const npAmount = Math.floor(inputVal * RATE);
+  receiveInput.value = npAmount;
+
+  if (currentProfile && inputVal <= currentProfile.nvt_balance) {
+    btn.disabled = false;
+    btn.innerText = "NPを買う";
+  } else {
+    btn.disabled = true;
+    btn.innerText = "NVT残高が不足しています";
+  }
+}
+
+async function fetchLatestNvtNpRateSnapshot() {
+  const { data, error } = await window.supabaseClient
+    .from("nvt_np_rate_snapshots")
+    .select(`
+      id,
+      floor_np_rate,
+      market_np_rate,
+      applied_np_rate,
+      rate_source,
+      rate_status,
+      rate_note,
+      fetched_at,
+      valid_until
+    `)
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("NVT/NPレート取得エラー:", error);
+  }
+
+  if (!data) {
+    return {
+      id: null,
+      floor_np_rate: 150,
+      market_np_rate: null,
+      applied_np_rate: 150,
+      rate_source: "floor",
+      rate_status: "fallback_floor",
+      rate_note: "レート取得に失敗したため、下限150NPを使用しました。"
+    };
+  }
+
+  const appliedRate = Number(data.applied_np_rate || 150);
+
+  return {
+    ...data,
+    applied_np_rate:
+      Number.isFinite(appliedRate) && appliedRate > 0
+        ? appliedRate
+        : 150
+  };
+}
+
+async function executeConvert() {
+  const inputVal = parseFloat(document.getElementById("convertInput").value);
+
+  if (isNaN(inputVal) || inputVal <= 0) {
+    alert("購入に使うNVT数量を入力してください。");
+    return;
+  }
+
+  if (!currentProfile || inputVal > Number(currentProfile.nvt_balance || 0)) {
+    alert("NVT残高が不足しています。");
+    return;
+  }
+
+  const rateSnapshot = await fetchLatestNvtNpRateSnapshot();
+const appliedRate = Number(rateSnapshot.applied_np_rate || 150);
+
+const grossNpAmount = Math.floor(inputVal * appliedRate);
+const feeNpAmount = NVT_TO_NP_DISPLAY_FEE_NP;
+const finalNpAmount = Math.max(0, grossNpAmount - feeNpAmount);
+
+  if (finalNpAmount <= 0) {
+    alert("手数料差し引き後の受け取りNPが0以下になるため、この数量では購入できません。");
+    return;
+  }
+
+  pendingNpPurchaseQuote = {
+  nvtAmount: inputVal,
+  grossNpAmount,
+  feeNpAmount,
+  finalNpAmount,
+  rateSnapshotId: rateSnapshot.id,
+  appliedNpRate: appliedRate,
+  floorNpRate: Number(rateSnapshot.floor_np_rate || 150),
+  marketNpRate: rateSnapshot.market_np_rate,
+  rateSource: rateSnapshot.rate_source,
+  rateStatus: rateSnapshot.rate_status
+};
+
+  openNpPurchaseModal(pendingNpPurchaseQuote);
+}
+
+window.calcConvert = calcConvert;
+
+function openNpPurchaseModal(quote) {
+  const modal = document.getElementById("npPurchaseModal");
+  const body = document.getElementById("npPurchaseQuoteBody");
+  const progress = document.getElementById("npPurchaseProgress");
+  const cancelBtn = document.getElementById("cancelNpPurchaseBtn");
+  const confirmBtn = document.getElementById("confirmNpPurchaseBtn");
+
+  if (!modal || !body) return;
+
+    body.innerHTML = `
+    <div><strong>支払うNVT：</strong>${quote.nvtAmount.toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT（時価）</div>
+    <div><strong>適用レート：</strong>1 NVT = ${quote.appliedNpRate.toLocaleString("ja-JP", { maximumFractionDigits: 4 })} NP</div>
+    <div><strong>購入予定NP：</strong>${quote.grossNpAmount.toLocaleString("ja-JP")} NP（1NP = 1円）</div>
+    <div><strong>手数料相当：</strong>0.06 POL（約 ${quote.feeNpAmount.toLocaleString("ja-JP")} NP）</div>
+    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+      <strong>受け取り予定NP：</strong>
+      <span style="color:#6a0dad; font-size:18px; font-weight:bold;">
+        ${quote.finalNpAmount.toLocaleString("ja-JP")} NP
+      </span>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:#777;">
+      ※「NPを買う」を押した後は、処理中のキャンセルはできません。<br>
+      ※トランザクション実行には、ウォレット側で少量のPOLが必要です。
+    </div>
+  `;
+
+  if (progress) {
+    progress.style.display = "none";
+    progress.innerText = "処理を開始しています。画面を閉じずにお待ちください。";
+  }
+
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+    cancelBtn.style.opacity = "1";
+  }
+
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.innerText = "NPを買う";
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeNpPurchaseModal() {
+  const modal = document.getElementById("npPurchaseModal");
+  if (modal) modal.style.display = "none";
+  pendingNpPurchaseQuote = null;
+}
+
+async function confirmNpPurchaseFromModal() {
+  if (!pendingNpPurchaseQuote) {
+    alert("見積もり情報を確認できませんでした。");
+    return;
+  }
+
+  const quote = pendingNpPurchaseQuote;
+  const btn = document.getElementById("convertBtn");
+  const progress = document.getElementById("npPurchaseProgress");
+  const cancelBtn = document.getElementById("cancelNpPurchaseBtn");
+  const confirmBtn = document.getElementById("confirmNpPurchaseBtn");
+
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.style.opacity = "0.5";
+  }
+
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerText = "処理中...";
+  }
+
+  if (progress) {
+    progress.style.display = "block";
+    progress.innerText = "ガス見積もりを確認しています...";
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "NP購入処理中...";
+  }
+
+  try {
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: OPERATION_WALLET_ADDRESS,
+      amountNvt: quote.nvtAmount,
+      checkNvtToNpGas: true
+    });
+
+    if (progress) {
+      progress.innerText = "NVT送金を確認しています...";
+    }
+
+    const { data: confirmResult, error: confirmError } =
+      await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
+        body: {
+  tx_hash: txHash,
+  rate_snapshot_id: quote.rateSnapshotId,
+  note: "wallet.htmlからNVTでNPを購入"
+}
+      });
+
+    if (confirmError) {
+      throw confirmError;
+    }
+
+    if (!confirmResult?.success) {
+      throw new Error(confirmResult?.error || "NP購入確認に失敗しました");
+    }
+
+    if (progress) {
+      progress.innerText = "NP残高へ反映しました。";
+    }
+
+    alert(
+      "NP購入が完了しました。\n" +
+      "tx_hash: " + txHash + "\n" +
+      "受け取りNP: " + confirmResult.final_np_amount
+    );
+
+    closeNpPurchaseModal();
+
+    document.getElementById("convertInput").value = "";
+    document.getElementById("receiveInput").value = "";
+
+    await fetchBalances();
+    await fetchHistory();
+  } catch (err) {
+    console.error(err);
+
+    alert("NP購入に失敗しました: " + (err?.message || String(err)));
+
+    if (progress) {
+      progress.innerText = "処理に失敗しました。内容を確認して、時間をおいてやり直してください。";
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "NPを買う";
+      calcConvert();
+    }
+
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerText = "NPを買う";
+    }
+
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.style.opacity = "1";
+    }
+  }
+}
+
+window.closeNpPurchaseModal = closeNpPurchaseModal;
+window.confirmNpPurchaseFromModal = confirmNpPurchaseFromModal;
+
+window.executeConvert = executeConvert;
+
+
+async function syncNvtDeposits() {
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("sync-nvt-deposits", {
+      body: {}
+    });
+
+    if (error) {
+      console.warn("NVT入金履歴同期エラー:", error);
+      return;
+    }
+
+    console.log("NVT入金履歴同期:", data);
+  } catch (err) {
+    console.warn("NVT入金履歴同期失敗:", err);
+  }
+}
+
+async function fetchPendingWithdrawRequests() {
+  const listEl = document.getElementById("pendingWithdrawList");
+
+  if (!listEl) return;
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("withdraw_requests")
+      .select(`
+        id,
+        status,
+        destination_wallet_address,
+        request_amount,
+        fee_amount,
+        net_amount,
+        estimated_pol,
+        nvt_sent,
+        pol_sent,
+        user_transfer_tx_hash,
+        created_at
+      `)
+      .eq("user_id", currentUser.id)
+      .eq("status", "pol_sent")
+      .eq("pol_sent", true)
+      .is("user_transfer_tx_hash", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      listEl.innerHTML = `<div style="font-size:13px; color:#e74c3c;">出金処理中の申請を読み込めませんでした。</div>`;
+      return;
+    }
+
+    pendingWithdrawRequests = data || [];
+    renderPendingWithdrawRequests();
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = `<div style="font-size:13px; color:#e74c3c;">出金処理中の申請を読み込めませんでした。</div>`;
+  }
+}
+
+function renderPendingWithdrawRequests() {
+  const listEl = document.getElementById("pendingWithdrawList");
+
+  if (!listEl) return;
+
+  if (!pendingWithdrawRequests.length) {
+    listEl.innerHTML = `<div style="font-size: 13px; color: #999;">現在、出金処理中の申請はありません。</div>`;
+    return;
+  }
+
+  listEl.innerHTML = pendingWithdrawRequests.map((req) => {
+    const createdAt = req.created_at
+      ? new Date(req.created_at).toLocaleString("ja-JP")
+      : "-";
+
+    return `
+      <div style="border:1px solid #bbf7d0; border-radius:10px; padding:14px; margin-top:12px; background:#fff;">
+        <div style="font-size:12px; color:#666; margin-bottom:8px;">申請ID: ${req.id}</div>
+
+        <div style="font-size:13px; line-height:1.7;">
+          <strong>出金先:</strong><br>
+          <span style="word-break:break-all;">${req.destination_wallet_address}</span><br>
+          <strong>申請額:</strong> ${Number(req.request_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>手数料:</strong> ${Number(req.fee_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>最終送金額:</strong> ${Number(req.net_amount || 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} NVT<br>
+          <strong>作成日時:</strong> ${createdAt}
+        </div>
+
+        <button
+          type="button"
+          onclick="executePendingWithdrawal('${req.id}')"
+          style="width:100%; margin-top:12px; padding:12px; border:none; border-radius:8px; background:#2e7d32; color:white; font-weight:bold; cursor:pointer;"
+        >
+          MetaMaskへ出金を完了する
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
+async function executePendingWithdrawal(requestId) {
+  const req = pendingWithdrawRequests.find((item) => item.id === requestId);
+
+  if (!req) {
+    alert("対象の出金申請が見つかりません。");
+    return;
+  }
+
+  if (req.user_transfer_tx_hash) {
+    alert("この出金申請はすでに完了しています。");
+    return;
+  }
+
+  const ok = confirm(
+    [
+      "ユーザーDynamicウォレットからMetaMaskへNVTを送金します。",
+      "",
+      `送金先: ${req.destination_wallet_address}`,
+      `送金額: ${req.net_amount} NVT`,
+      "",
+      "実トランザクションが発生します。実行しますか？"
+    ].join("\n")
+  );
+
+  if (!ok) return;
+
+  try {
+    const listEl = document.getElementById("pendingWithdrawList");
+    listEl.innerHTML = `<div style="font-size:13px; color:#666;">NVTをMetaMaskへ送金中です...</div>`;
+
+    const txHash = await sendNvtFromDynamicWallet({
+      toAddress: req.destination_wallet_address,
+      amountNvt: req.net_amount
+    });
+
+    listEl.innerHTML = `
+  <div style="font-size:13px; color:#666; line-height:1.7;">
+    外部ウォレットへの送金トランザクションを送信しました。<br>
+    オンチェーン反映を確認しています。<br>
+    画面を閉じずにお待ちください。
+  </div>
+`;
+
+const receipt = await publicClient.waitForTransactionReceipt({
+  hash: txHash,
+});
+
+if (!receipt || receipt.status !== "success") {
+  throw new Error(
+    "外部ウォレットへの送金トランザクション確認に失敗しました。"
+  );
+}
+
+    const { error: updateError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .update({
+        status: "completed",
+        user_transfer_tx_hash: txHash,
+        user_transfer_confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", req.id)
+      .eq("user_id", currentUser.id)
+      .eq("status", "pol_sent")
+      .is("user_transfer_tx_hash", null);
+
+    if (updateError) {
+      alert(
+        "送金は完了しましたが、DB更新に失敗しました。\n" +
+        "tx_hash: " + txHash + "\n" +
+        "error: " + updateError.message
+      );
+      await fetchPendingWithdrawRequests();
+      return;
+    }
+
+    alert("出金が完了しました。\ntx_hash: " + txHash);
+
+    await fetchBalances();
+    await fetchHistory();
+    await fetchPendingWithdrawRequests();
+  } catch (err) {
+    console.error(err);
+    alert("出金送金に失敗しました: " + (err?.message || String(err)));
+    await fetchPendingWithdrawRequests();
+  }
+}
+
+window.executePendingWithdrawal = executePendingWithdrawal;
+
+async function confirmDepositTxHash() {
+  const inputEl = document.getElementById("depositTxHashInput");
+  const btn = document.getElementById("confirmDepositBtn");
+  const msgEl = document.getElementById("depositConfirmMessage");
+
+  if (!inputEl || !btn || !msgEl) return;
+
+  const txHash = inputEl.value.trim();
+
+  if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+    msgEl.style.color = "#e74c3c";
+    msgEl.textContent = "tx_hash の形式が不正です。0xから始まる64桁のハッシュを入力してください。";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "入金tx確認中...";
+  msgEl.style.color = "#666";
+  msgEl.textContent = "オンチェーン上のNVT入金を確認しています...";
+
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("confirm-nvt-deposit", {
+      body: {
+        tx_hash: txHash,
+        note: "wallet.htmlからNVT入金tx_hash登録"
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "入金tx_hashの登録に失敗しました。");
+    }
+
+    if (data.already_registered) {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent = "このtx_hashはすでに入金履歴に登録済みです。";
+    } else {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent =
+        `入金履歴を登録しました。入金額: ${data.amount_nvt} NVT`;
+    }
+
+    inputEl.value = "";
+
+    await fetchBalances();
+  } catch (err) {
+    console.error(err);
+    msgEl.style.color = "#e74c3c";
+    msgEl.textContent = "入金tx_hash登録に失敗しました: " + (err?.message || String(err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "入金tx_hashを登録する";
+  }
+}
+
+window.confirmDepositTxHash = confirmDepositTxHash;
+
+async function fetchTextRewards() {
+  const pendingEl = document.getElementById("pendingRewardNvt");
+  const claimableEl = document.getElementById("claimableRewardNvt");
+  const claimBtn = document.getElementById("claimTextRewardBtn");
+  const msgEl = document.getElementById("claimTextRewardMessage");
+
+  if (!pendingEl || !claimableEl || !claimBtn || !currentUser) return;
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("rewards_pending")
+      .select("id, amount, status, claimable_at")
+      .eq("user_id", currentUser.id)
+      .eq("status", "pending");
+
+    if (error) {
+      console.error("fetchTextRewards error:", error);
+      pendingEl.textContent = "-";
+      claimableEl.textContent = "-";
+      claimBtn.disabled = true;
+      if (msgEl) msgEl.textContent = "報酬情報を読み込めませんでした。";
+      return;
+    }
+
+    const now = new Date();
+    let pendingTotal = 0;
+    let claimableTotal = 0;
+
+    (data || []).forEach(row => {
+      const amount = Number(row.amount || 0);
+      const claimableAt = row.claimable_at ? new Date(row.claimable_at) : null;
+
+      if (claimableAt && claimableAt <= now) {
+        claimableTotal += amount;
+      } else {
+        pendingTotal += amount;
+      }
+    });
+
+    pendingEl.textContent = pendingTotal.toLocaleString("ja-JP", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6
+    });
+
+    claimableEl.textContent = claimableTotal.toLocaleString("ja-JP", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 6
+    });
+
+    claimBtn.disabled = claimableTotal <= 0;
+
+    if (msgEl) {
+      msgEl.textContent = claimableTotal > 0
+        ? "受け取り可能な投稿報酬があります。"
+        : "現在、受け取り可能な投稿報酬はありません。";
+    }
+  } catch (err) {
+    console.error("fetchTextRewards failed:", err);
+    pendingEl.textContent = "-";
+    claimableEl.textContent = "-";
+    claimBtn.disabled = true;
+    if (msgEl) msgEl.textContent = "報酬情報を読み込めませんでした。";
+  }
+}
+
+async function claimTextRewards() {
+  const claimBtn = document.getElementById("claimTextRewardBtn");
+  const msgEl = document.getElementById("claimTextRewardMessage");
+
+  if (!claimBtn) return;
+
+  const ok = confirm("未受け取りの投稿報酬NVTをDynamicウォレットへ受け取ります。実行しますか？");
+  if (!ok) return;
+
+  claimBtn.disabled = true;
+  claimBtn.textContent = "報酬受け取り中...";
+
+  if (msgEl) {
+    msgEl.style.color = "#666";
+    msgEl.textContent = "Operation WalletからDynamicウォレットへNVTを送信中です...";
+  }
+
+  try {
+    const { data, error } = await window.supabaseClient.functions.invoke("claim-text-rewards", {
+      body: {
+        confirm: "CLAIM_TEXT_REWARDS_ONCE"
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.error || "報酬受け取りに失敗しました。");
+    }
+
+    if (!data.claimed) {
+      if (msgEl) {
+        msgEl.style.color = "#666";
+        msgEl.textContent = data.message || "受け取り可能な報酬はありません。";
+      }
+      await fetchTextRewards();
+      return;
+    }
+
+    if (msgEl) {
+      msgEl.style.color = "#2e7d32";
+      msgEl.textContent =
+        `報酬 ${data.reward_nvt} NVT を受け取りました。tx_hash: ${data.tx_hash}`;
+    }
+
+    alert(
+      "投稿報酬を受け取りました。\n" +
+      "受け取りNVT: " + data.reward_nvt + "\n" +
+      "tx_hash: " + data.tx_hash
+    );
+
+    await fetchBalances();
+    await fetchHistory();
+    await fetchTextRewards();
+  } catch (err) {
+    console.error("claimTextRewards error:", err);
+
+    if (msgEl) {
+      msgEl.style.color = "#e74c3c";
+      msgEl.textContent = "報酬受け取りに失敗しました: " + (err?.message || String(err));
+    }
+  } finally {
+    claimBtn.textContent = "報酬を受け取る";
+    await fetchTextRewards();
+  }
+}
+
+window.claimTextRewards = claimTextRewards;
+
+async function fetchHistory() {
+  const tbody = document.getElementById("historyBody");
+  if (!tbody || !currentUser) return;
+
+  const items = [];
+
+  try {
+    // 1. 入金履歴
+    const { data: depositLogs, error: depositError } = await window.supabaseClient
+      .from("nvt_deposit_logs")
+      .select("amount_nvt, tx_hash, status, confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!depositError && depositLogs) {
+      depositLogs.forEach(log => {
+        items.push({
+          date: log.confirmed_at || log.created_at,
+          label: "NVT入金",
+          amountText: `+${Number(log.amount_nvt || 0).toFixed(2)} NVT`,
+          amountClass: "amt-plus",
+          txHash: log.tx_hash
+        });
+      });
+    }
+
+    // 2. 出金履歴
+    const { data: withdrawLogs, error: withdrawError } = await window.supabaseClient
+      .from("withdraw_requests")
+      .select("status, request_amount, net_amount, user_transfer_tx_hash, user_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!withdrawError && withdrawLogs) {
+      withdrawLogs.forEach(log => {
+        const amount = Number(log.net_amount || log.request_amount || 0);
+        items.push({
+          date: log.user_transfer_confirmed_at || log.created_at,
+          label: `NVT出金（${log.status || "-"}）`,
+          amountText: `-${amount.toFixed(2)} NVT`,
+          amountClass: "amt-minus",
+          txHash: log.user_transfer_tx_hash
+        });
+      });
+    }
+
+    // 3. NVT → NP変換履歴
+    const { data: conversionLogs, error: conversionError } = await window.supabaseClient
+      .from("nvt_np_conversion_logs")
+      .select("nvt_amount, final_np_amount, nvt_transfer_tx_hash, status, nvt_transfer_confirmed_at, created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!conversionError && conversionLogs) {
+      conversionLogs.forEach(log => {
+        items.push({
+          date: log.nvt_transfer_confirmed_at || log.created_at,
+          label: `NVT→NP変換（${log.status || "-"}）`,
+          amountText: `-${Number(log.nvt_amount || 0).toFixed(2)} NVT / +${Number(log.final_np_amount || 0).toFixed(0)} NP`,
+          amountClass: "amt-minus",
+          txHash: log.nvt_transfer_tx_hash
+        });
+      });
+    }
+
+    // 4. 既存transactions履歴があれば拾う
+    try {
+      const { data: txLogs, error: txError } = await window.supabaseClient
+        .from("transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (!txError && txLogs) {
+        txLogs.forEach(log => {
+          const amountNvt = Number(log.amount_nvt || 0);
+          const amountNp = Number(log.amount_np || 0);
+
+          let amountText = "-";
+          let amountClass = "";
+
+          if (amountNp !== 0) {
+            amountText = `${amountNp > 0 ? "+" : ""}${amountNp.toFixed(0)} NP`;
+            amountClass = amountNp > 0 ? "amt-plus" : "amt-minus";
+          } else if (amountNvt !== 0) {
+            amountText = `${amountNvt > 0 ? "+" : ""}${amountNvt.toFixed(2)} NVT`;
+            amountClass = amountNvt > 0 ? "amt-plus" : "amt-minus";
+          }
+
+          items.push({
+            date: log.created_at,
+            label: log.product_name || log.type || "サービス利用",
+            amountText,
+            amountClass,
+            txHash: null
+          });
+        });
+      }
+    } catch (_) {
+      // transactionsテーブルが未作成でもwallet表示は止めない
+    }
+
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const recentItems = items.slice(0, 5);
+
+    if (recentItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴がありません</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = recentItems.map(item => {
+      const dateText = item.date
+        ? new Date(item.date).toLocaleDateString("ja-JP")
+        : "-";
+
+      const txLink = item.txHash
+        ? `<br><a href="https://polygonscan.com/tx/${item.txHash}" target="_blank" rel="noopener" style="font-size: 11px; color: #6a0dad;">tx確認</a>`
+        : "";
+
+      return `
+        <tr>
+          <td>${dateText}</td>
+          <td>${item.label}${txLink}</td>
+          <td style="text-align: right;" class="${item.amountClass}">${item.amountText}</td>
+        </tr>
+      `;
+    }).join("");
+  } catch (err) {
+    console.error("fetchHistory error:", err);
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #999;">履歴を読み込めませんでした</td></tr>`;
+  }
+}
+
+document.addEventListener("click", async (e) => {
+  if (e.target && e.target.id === "claimTextRewardBtn") {
+    await claimTextRewards();
+    return;
+  }
+
+  if (e.target && e.target.id === "confirmDepositBtn") {
+    await confirmDepositTxHash();
+    return;
+  }
+
+  if (e.target && e.target.id === "copyWalletBtn") {
+    if (!currentWalletAddress) {
+      alert("ウォレットアドレスがまだ読み込まれていません。");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(currentWalletAddress);
+      alert("ウォレットアドレスをコピーしました。");
+    } catch (err) {
+      alert("コピーに失敗しました。");
+    }
+
+    return;
+  }
+});
+
+initWallet();
+</script>
+<footer class="legal-footer">
+  <div class="footer-links">
+    <a href="../portal/about.html">Novetについて</a>
+    <a href="../portal/token.html">NVTについて</a>
+    <a href="../portal/terms.html">利用規約</a>
+    <a href="../portal/privacy.html">プライバシーポリシー</a>
+    <a href="../portal/tokushoho.html">特定商取引法に基づく表記</a>
+  </div>
+  <div class="footer-copy">
+    © NovetCoin運営事務局
+  </div>
+</footer>
+</body>
+</html>
