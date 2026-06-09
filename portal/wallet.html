@@ -910,23 +910,37 @@ async function confirmNpPurchaseFromModal() {
 
   try {
     const txHash = await sendNvtFromDynamicWallet({
-      toAddress: OPERATION_WALLET_ADDRESS,
-      amountNvt: quote.nvtAmount,
-      checkNvtToNpGas: true
-    });
+  toAddress: OPERATION_WALLET_ADDRESS,
+  amountNvt: quote.nvtAmount,
+  checkNvtToNpGas: true
+});
 
-    if (progress) {
-      progress.innerText = "NVT送金を確認しています...";
-    }
-
-    const { data: confirmResult, error: confirmError } =
-      await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
-        body: {
-  tx_hash: txHash,
-  rate_snapshot_id: quote.rateSnapshotId,
-  note: "wallet.htmlからNVTでNPを購入"
+if (progress) {
+  progress.innerText = "NVT送金をオンチェーン確認しています...";
 }
-      });
+
+const receipt = await publicClient.waitForTransactionReceipt({
+  hash: txHash,
+  timeout: 120_000,
+  pollingInterval: 2_000
+});
+
+if (!receipt || receipt.status !== "success") {
+  throw new Error("NVT送金トランザクションの成功確認に失敗しました。");
+}
+
+if (progress) {
+  progress.innerText = "NVT送金を確認しました。NP残高へ反映しています...";
+}
+
+const { data: confirmResult, error: confirmError } =
+  await window.supabaseClient.functions.invoke("confirm-nvt-to-np-conversion", {
+    body: {
+      tx_hash: txHash,
+      rate_snapshot_id: quote.rateSnapshotId,
+      note: "wallet.htmlからNVTでNPを購入"
+    }
+  });
 
     if (confirmError) {
       throw confirmError;
