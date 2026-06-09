@@ -524,7 +524,7 @@ async function initWallet() {
   const { data: { user } } = await window.supabaseClient.auth.getUser();
 
   if (!user) {
-    location.href = "../my-site/login.html";
+    location.href = "/login.html";
     return;
   }
 
@@ -615,11 +615,50 @@ async function sendNvtFromDynamicWallet({
     args: [toAddress, amountRaw],
   });
 
-  // NVTでNPを買う時だけ、送信前にガス見積もりを確認する
-  if (checkNvtToNpGas) {
-    const fromAddress = dynamicWalletAccount.address;
+  // NVTでNPを買う時だけ、送信前にPOL残高・NVT残高・ガス見積もりを確認する
+if (checkNvtToNpGas) {
+  const fromAddress = dynamicWalletAccount.address;
+  const minPolRaw = parseUnits(NVT_TO_NP_INTERNAL_MAX_GAS_POL, 18);
 
-    const [gasEstimate, gasPrice] = await withTimeout(
+  const [polBalanceRaw, nvtBalanceRaw] = await withTimeout(
+    Promise.all([
+      publicClient.getBalance({
+        address: fromAddress,
+      }),
+      publicClient.readContract({
+        address: NVT_CONTRACT_ADDRESS,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [fromAddress],
+      }),
+    ]),
+    NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS,
+    "ウォレット残高の確認に時間がかかったため、処理を中止しました。時間をおいてやり直してください。"
+  );
+
+  if (nvtBalanceRaw < amountRaw) {
+    throw new Error(
+      "オンチェーンNVT残高が不足しています。\n\n" +
+      "現在のNVT残高: " + formatUnits(nvtBalanceRaw, 18) + " NVT\n" +
+      "必要なNVT: " + String(amountNvt) + " NVT"
+    );
+  }
+
+  if (polBalanceRaw < minPolRaw) {
+  throw new Error(
+    "POL補助の反映を確認できませんでした。\n\n" +
+    "NVTでNPを買うために必要なPOLは、NP手数料相当分として運営が補助します。\n" +
+    "現在のPOL残高: " + formatUnits(polBalanceRaw, 18) + " POL\n" +
+    "必要目安: " + NVT_TO_NP_INTERNAL_MAX_GAS_POL + " POL\n\n" +
+    "ページを再読み込みしてから、もう一度お試しください。"
+  );
+}
+
+  let gasEstimate;
+  let gasPrice;
+
+  try {
+    [gasEstimate, gasPrice] = await withTimeout(
       Promise.all([
         publicClient.estimateGas({
           account: fromAddress,
@@ -632,21 +671,33 @@ async function sendNvtFromDynamicWallet({
       NVT_TO_NP_GAS_ESTIMATE_TIMEOUT_MS,
       "ガス見積もりに時間がかかったため、処理を中止しました。時間をおいてやり直してください。"
     );
+  } catch (err) {
+  console.warn("NVT→NP ガス見積もり失敗:", err);
 
-    const estimatedGasCostRaw = gasEstimate * gasPrice;
-    const maxGasCostRaw = parseUnits(NVT_TO_NP_INTERNAL_MAX_GAS_POL, 18);
+  throw new Error(
+    "NVT送金前のガス見積もりに失敗しました。\n\n" +
+    "NVT送金に必要なPOLは、NP手数料相当分として運営が補助します。\n" +
+    "補助POLの反映が遅れている、またはネットワークが混雑している可能性があります。\n\n" +
+    "ページを再読み込みしてから、もう一度お試しください。"
+  );
+}
 
-    console.log("NVT→NP ガス見積もり:", {
-      gasEstimate: gasEstimate.toString(),
-      gasPrice: gasPrice.toString(),
-      estimatedPol: formatUnits(estimatedGasCostRaw, 18),
-      maxPol: NVT_TO_NP_INTERNAL_MAX_GAS_POL,
-    });
+  const estimatedGasCostRaw = gasEstimate * gasPrice;
+  const maxGasCostRaw = parseUnits(NVT_TO_NP_INTERNAL_MAX_GAS_POL, 18);
 
-    if (estimatedGasCostRaw > maxGasCostRaw) {
-      throw new Error("現在POLが想定より高いため、時間をおいてやり直してください。");
-    }
+  console.log("NVT→NP ガス見積もり:", {
+    polBalance: formatUnits(polBalanceRaw, 18),
+    nvtBalance: formatUnits(nvtBalanceRaw, 18),
+    gasEstimate: gasEstimate.toString(),
+    gasPrice: gasPrice.toString(),
+    estimatedPol: formatUnits(estimatedGasCostRaw, 18),
+    maxPol: NVT_TO_NP_INTERNAL_MAX_GAS_POL,
+  });
+
+  if (estimatedGasCostRaw > maxGasCostRaw) {
+    throw new Error("現在POLが想定より高いため、時間をおいてやり直してください。");
   }
+}
 
   const txHash = await walletClient.sendTransaction({
     to: NVT_CONTRACT_ADDRESS,
@@ -847,8 +898,8 @@ function openNpPurchaseModal(quote) {
       </span>
     </div>
     <div style="margin-top:10px; font-size:12px; color:#777;">
-      ※「NPを買う」を押した後は、処理中のキャンセルはできません。<br>
-      ※トランザクション実行には、ウォレット側で少量のPOLが必要です。
+      ※『NPを買う』を押した後は、処理中のキャンセルはできません。<br>
+      ※NVT送金に必要なPOLは、NP手数料相当分として運営が補助します。
     </div>
   `;
 
@@ -909,7 +960,33 @@ async function confirmNpPurchaseFromModal() {
   }
 
   try {
-    const txHash = await sendNvtFromDynamicWallet({
+    if (progress) {
+  progress.innerText = "運営からPOL補助を送信しています...";
+}
+
+const { data: polSupportResult, error: polSupportError } =
+  await window.supabaseClient.functions.invoke("send-nvt-to-np-pol-support", {
+    body: {
+      amount_nvt: quote.nvtAmount
+    }
+  });
+
+if (polSupportError) {
+  throw polSupportError;
+}
+
+if (!polSupportResult?.success) {
+  throw new Error(
+    polSupportResult?.error ||
+    "NVT送金前のPOL補助に失敗しました。"
+  );
+}
+
+if (progress) {
+  progress.innerText = "POL補助を確認しました。NVTを送金しています...";
+}
+
+const txHash = await sendNvtFromDynamicWallet({
   toAddress: OPERATION_WALLET_ADDRESS,
   amountNvt: quote.nvtAmount,
   checkNvtToNpGas: true
@@ -1434,11 +1511,12 @@ async function fetchHistory() {
 
     // 3. NVT → NP変換履歴
     const { data: conversionLogs, error: conversionError } = await window.supabaseClient
-      .from("nvt_np_conversion_logs")
-      .select("nvt_amount, final_np_amount, nvt_transfer_tx_hash, status, nvt_transfer_confirmed_at, created_at")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
+  .from("nvt_np_conversion_logs")
+  .select("nvt_amount, final_np_amount, nvt_transfer_tx_hash, status, nvt_transfer_confirmed_at, created_at")
+  .eq("user_id", currentUser.id)
+  .eq("status", "completed")
+  .order("created_at", { ascending: false })
+  .limit(5);
 
     if (!conversionError && conversionLogs) {
       conversionLogs.forEach(log => {
