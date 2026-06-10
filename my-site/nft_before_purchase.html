@@ -1248,7 +1248,8 @@ async function processPurchase() {
                 `送金先: ${sellerWalletAddress}`,
                 `運営手数料: ${platformFeeNp} NP`,
                 "",
-                "購入者Dynamicウォレットから作者DynamicウォレットへNVT送金します。",
+                "購入に必要なPOLは、運営が補助します。",
+                "その後、購入者Dynamicウォレットから作者DynamicウォレットへNVT送金します。",
                 "実行しますか？"
             ].join("\n")
         );
@@ -1258,7 +1259,27 @@ async function processPurchase() {
             btn.innerText = "この作品を購入する";
             return;
         }
+        btn.innerText = "購入用POLを補助中...";
 
+        const { data: polSupportResult, error: polSupportError } =
+            await supabaseClient.functions.invoke("send-nnft-purchase-pol-support", {
+                body: {
+                    nft_metadata_id: targetNft.id
+                }
+            });
+
+        if (polSupportError) {
+            throw polSupportError;
+        }
+
+        if (!polSupportResult?.success) {
+            throw new Error(
+                polSupportResult?.error ||
+                "NNFT購入前のPOL補助に失敗しました。"
+            );
+        }
+
+        btn.innerText = "NVT送金中...";
         // 4. 購入者Dynamicウォレット → 作者DynamicウォレットへNVT送金
         btn.innerText = "NVT送金中...";
 
@@ -1266,6 +1287,18 @@ async function processPurchase() {
             toAddress: sellerWalletAddress,
             amountNvt: priceNvt
         });
+
+                btn.innerText = "NVT送金を確認中...";
+
+        const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+            timeout: 120_000,
+            pollingInterval: 2_000
+        });
+
+        if (!receipt || receipt.status !== "success") {
+            throw new Error("NVT送金トランザクションの成功確認に失敗しました。");
+        }
 
         // 5. tx_hashを検証して購入ログ・閲覧権・NP手数料を反映
         btn.innerText = "購入記録を保存中...";
