@@ -1187,25 +1187,7 @@ async function processPurchase() {
         btn.innerText = "購入準備中...";
 
         // 1. 販売者Dynamicウォレットを取得
-        const { data: sellerProfile, error: sellerError } = await supabaseClient
-            .from("profiles")
-            .select("wallet_address, dynamic_wallet_address")
-            .eq("id", targetNft.owner_id)
-            .single();
-
-        if (sellerError || !sellerProfile) {
-            throw new Error("販売者プロフィールの取得に失敗しました。");
-        }
-
-        const sellerWalletAddress =
-            sellerProfile.dynamic_wallet_address ||
-            sellerProfile.wallet_address ||
-            "";
-
-        if (!sellerWalletAddress) {
-            throw new Error("販売者Dynamicウォレットが登録されていません。");
-        }
-
+        
         // 2. 購入者プロフィール・NP残高確認
         const { data: buyerProfile, error: buyerError } = await supabaseClient
             .from("profiles")
@@ -1245,7 +1227,7 @@ async function processPurchase() {
                 `${targetNft.title_at_mint} を購入します。`,
                 "",
                 `作品価格: ${priceNvt} NVT`,
-                `送金先: ${sellerWalletAddress}`,
+                "送金先: 販売者Dynamicウォレット",
                 `運営手数料: ${platformFeeNp} NP`,
                 "",
                 "購入に必要なPOLは、運営が補助します。",
@@ -1279,12 +1261,18 @@ async function processPurchase() {
             );
         }
 
-        btn.innerText = "NVT送金中...";
+                const sellerWalletAddressFromSupport =
+            polSupportResult.seller_wallet_address || "";
+
+        if (!sellerWalletAddressFromSupport) {
+            throw new Error("販売者Dynamicウォレットを確認できませんでした。");
+        }
+
         // 4. 購入者Dynamicウォレット → 作者DynamicウォレットへNVT送金
         btn.innerText = "NVT送金中...";
 
         const txHash = await sendNvtFromDynamicWallet({
-            toAddress: sellerWalletAddress,
+            toAddress: sellerWalletAddressFromSupport,
             amountNvt: priceNvt
         });
 
