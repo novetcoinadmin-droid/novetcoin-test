@@ -322,8 +322,7 @@
     <a href="wallet.html" class="back-link">← ウォレットへ戻る</a>
     <h1>出金申請</h1>
     <div class="desc">
-      DB上のNVT残高から出金申請を作成します。<br>
-      手数料は <strong>3%</strong>、ただし最低手数料は <strong>0.05 POL 相当</strong> です。<br>
+      オンチェーン上のNVT残高をもとに出金申請を作成します。
       POLコストが高すぎる場合は申請できません。
     </div>
 
@@ -438,7 +437,7 @@
 
       <div class="withdraw-step-list">
         <div id="withdrawStepCreate" class="withdraw-step">1. 出金申請を作成</div>
-        <div id="withdrawStepOperation" class="withdraw-step">2. 運営ウォレットからNVT/POLを準備</div>
+        <div id="withdrawStepOperation" class="withdraw-step">2. 運営ウォレットからPOLを補助</div>
         <div id="withdrawStepUserTransfer" class="withdraw-step">3. 外部ウォレットへ最終出金</div>
         <div id="withdrawStepComplete" class="withdraw-step">4. 出金完了</div>
       </div>
@@ -1111,7 +1110,7 @@ async function createWithdrawRequest() {
 
     setWithdrawProcessMessage(
       "出金申請を作成しました。\n" +
-      "運営ウォレットからNVT/POLを準備しています。\n" +
+      "運営ウォレットから出金用POLを補助しています。\n" +
       "申請ID: " + withdrawRequestId
     );
 
@@ -1140,7 +1139,7 @@ async function createWithdrawRequest() {
     setWithdrawStep("withdrawStepUserTransfer", "active");
 
     setWithdrawProcessMessage(
-      "NVT/POLの準備が完了しました。\n" +
+      "外部ウォレットへ最終出金しています。\n" +
       "外部ウォレットへ最終出金しています。\n" +
       "この処理ではDynamicウォレットから送金トランザクションを実行します。"
     );
