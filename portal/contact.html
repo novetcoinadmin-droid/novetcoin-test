@@ -205,7 +205,7 @@
     <h1>お問い合わせ</h1>
 
     <p>
-      Novetへの要望、不具合報告、返金に関するお問い合わせを受け付けます。
+      Novetへの要望、不具合報告、返金、アカウント削除申請に関するお問い合わせを受け付けます。
       個人運営のため、当面はログイン済みユーザーからのお問い合わせのみ対応します。
     </p>
 
@@ -224,6 +224,7 @@
         <option value="request">要望</option>
         <option value="bug">不具合</option>
         <option value="refund">返金</option>
+        <option value="account_delete">アカウント削除申請</option>
       </select>
 
       <div id="categoryNote" class="category-note">
@@ -322,6 +323,16 @@
         return;
       }
 
+            if (value === "account_delete") {
+        categoryNoteEl.innerHTML = `
+          <strong>アカウント削除申請：</strong><br>
+          アカウント削除を希望する場合は、このフォームから申請できます。
+          申請内容を確認後、アカウント情報および関連するアプリ内データの削除手続きを行います。<br><br>
+          法令、決済記録、不正利用防止、セキュリティ上必要な情報については、必要な期間保持される場合があります。
+        `;
+        return;
+      }
+
       categoryNoteEl.innerHTML = `
         種別を選択すると、受付内容の説明が表示されます。
       `;
@@ -374,7 +385,7 @@
   const subject = document.getElementById("subject").value.trim();
   const body = document.getElementById("body").value.trim();
 
-  if (!["request", "bug", "refund"].includes(category)) {
+    if (!["request", "bug", "refund", "account_delete"].includes(category)) {
     setMessage("お問い合わせ種別を選択してください。", "error");
     return;
   }
@@ -427,9 +438,14 @@
         "不具合報告を受け付けました。仕様ではない可能性がある内容は運営確認対象になります。",
         "ok"
       );
-    } else if (category === "refund") {
+        } else if (category === "refund") {
       setMessage(
         "返金に関するお問い合わせを受け付けました。確認に必要な情報について、登録メール宛に案内を送信します。",
+        "ok"
+      );
+    } else if (category === "account_delete") {
+      setMessage(
+        "アカウント削除申請を受け付けました。申請内容を確認後、アカウント情報および関連データの削除手続きを行います。",
         "ok"
       );
     } else {
