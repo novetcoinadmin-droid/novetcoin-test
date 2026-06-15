@@ -533,7 +533,7 @@ body {
         <div class="section-card" style="border-left: 4px solid #999;">
             <label style="font-size:13px; font-weight:bold;">生成テンプレート</label>
 
-            <select id="templateType" onchange="updateTemplateDisplay()" style="width:100%; margin:8px 0; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            <select id="templateType" onchange="updateTemplateDisplay(); updateGenerationModeUI();" style="width:100%; margin:8px 0; padding:8px; border-radius:6px; border:1px solid #ddd;"></select>
                 <option value="">テンプレートを選択</option>
                 <option value="character">キャラテンプレート</option>
                 <option value="scenery">風景テンプレート</option>
@@ -553,6 +553,25 @@ body {
             </select>
 
             <div id="charDetailBox" style="display:none;"></div>
+            <div id="referenceModeWrap" style="display:none; margin-top:10px;">
+    <label style="font-size:12px; font-weight:bold;">生成モード</label>
+    <select id="generationMode" onchange="updateGenerationModeUI()" style="width:100%; margin-top:6px; padding:8px; border-radius:6px; border:1px solid #ddd;">
+        <option value="free">自由生成モード</option>
+        <option value="reference">参照モード</option>
+    </select>
+
+    <div id="referenceStyleWrap" style="display:none; margin-top:10px;">
+        <label style="font-size:12px; font-weight:bold;">参照スタイル</label>
+        <select id="referenceRenderStyle" style="width:100%; margin-top:6px; padding:8px; border-radius:6px; border:1px solid #ddd;">
+            <option value="light_novel">ラノベ挿絵風</option>
+            <option value="manga">漫画風</option>
+            <option value="anime">アニメ風</option>
+        </select>
+        <p style="font-size:10px; color:#777; margin-top:6px; line-height:1.5;">
+            参照モードでは、基準化画像の素材・構図をできるだけ保ちながら、見た目だけを選んだスタイルに寄せます。
+        </p>
+    </div>
+</div>
 
             <button class="btn" style="background:#f0f0f0; color:#333; font-size:13px; margin-top:10px;" onclick="generateImage('std')">
                 スタンダード生成（10 NP）
@@ -587,6 +606,42 @@ const STANDARD_REF_KEY = "novet_standard_reference";
 const STANDARD_REF_DB_NAME = "novet_standard_reference_cache";
 const STANDARD_REF_STORE_NAME = "standard_reference_images";
 const STANDARD_REF_IMAGE_KEY = "current";
+
+function getTemplateType() {
+    return String(document.getElementById("templateType")?.value || "").toLowerCase();
+}
+
+function getGenerationModeConfig() {
+    const templateType = getTemplateType();
+    const generationMode = String(document.getElementById("generationMode")?.value || "free").toLowerCase();
+    const renderStyle = String(document.getElementById("referenceRenderStyle")?.value || "light_novel").toLowerCase();
+
+    const supportsReferenceMode =
+        templateType === "scenery" || templateType === "other";
+
+    const isReferenceMode =
+        supportsReferenceMode && generationMode === "reference";
+
+    return {
+        templateType,
+        generationMode,
+        renderStyle,
+        supportsReferenceMode,
+        isReferenceMode
+    };
+}
+
+function updateGenerationModeUI() {
+    const wrap = document.getElementById("referenceModeWrap");
+    const styleWrap = document.getElementById("referenceStyleWrap");
+
+    if (!wrap || !styleWrap) return;
+
+    const modeConfig = getGenerationModeConfig();
+
+    wrap.style.display = modeConfig.supportsReferenceMode ? "block" : "none";
+    styleWrap.style.display = modeConfig.isReferenceMode ? "block" : "none";
+}
 
 // =====================================================
 // 細部設定：日本語表示値 → Leonardo送信用英語値 変換
@@ -809,10 +864,11 @@ async function init() {
         }
 
         // 🌟 最後に描画
-        renderPage();
-        renderStandardReferenceCard();
+renderPage();
+renderStandardReferenceCard();
+updateGenerationModeUI();
 
-        console.log("✅ 初期化完了：最新の画像データを読み込みました", pageAssets);
+console.log("✅ 初期化完了：最新の画像データを読み込みました", pageAssets);
 
     } catch (err) { 
         console.error("Init Error:", err); 
@@ -2398,6 +2454,7 @@ function hasAnySceneSetting(sceneSettings) {
 
 function buildSceneGenerationPayload() {
     const sceneSettings = collectCurrentSceneSettings();
+    const modeConfig = getGenerationModeConfig();
 
     let standardRef = null;
 
@@ -2410,17 +2467,20 @@ function buildSceneGenerationPayload() {
 
     const refType = String(standardRef?.type || standardRef?.asset_type || "").toLowerCase();
 
-const isSceneReference =
-    refType === "scenery" ||
-    refType === "scene" ||
-    refType === "background";
+    const isSceneReference =
+        refType === "scenery" ||
+        refType === "scene" ||
+        refType === "background";
 
-// 風景はGemini特徴抽出ではなく、Leonardoの参照画像URLとして使う
-const hasReferenceImage = !!(
-    standardRef &&
-    standardRef.image_url &&
-    isSceneReference
-);
+    const hasReferenceImage = !!(
+        standardRef &&
+        standardRef.image_url &&
+        isSceneReference &&
+        (
+            modeConfig.isReferenceMode ||
+            standardRef.standard_ready === true
+        )
+    );
 
     return {
         mode: "scene",
@@ -2429,10 +2489,14 @@ const hasReferenceImage = !!(
         // 場所タイプ・構図・世界観・時間帯など
         scene_settings: sceneSettings,
 
-        // 風景基準化は任意
+        // 風景基準化・参照画像
         reference_enabled: hasReferenceImage,
         reference_image_url: hasReferenceImage ? standardRef.image_url : null,
         reference_asset_id: hasReferenceImage ? (standardRef.asset_id || null) : null,
+
+        // 生成モード
+        generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
+        render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
 
         // 固定ルール
         fixed_style: {
@@ -3126,6 +3190,25 @@ async function generateImage(type) {
 
         const templatePayload = collectTemplatePayload();
 
+        const modeConfig = getGenerationModeConfig();
+
+let standardRefForReferenceMode = null;
+
+try {
+    const rawRef = localStorage.getItem(STANDARD_REF_KEY);
+    standardRefForReferenceMode = rawRef ? JSON.parse(rawRef) : null;
+} catch {
+    standardRefForReferenceMode = null;
+}
+
+if (
+    modeConfig.isReferenceMode &&
+    (!standardRefForReferenceMode || !standardRefForReferenceMode.image_url)
+) {
+    alert("参照モードでは、先に基準化画像を選択してください。");
+    return;
+}
+
                 if (templatePayload.template_type === "character") {
             let standardRefForConfirm = null;
 
@@ -3154,10 +3237,12 @@ async function generateImage(type) {
 if (templatePayload.template_type === "scenery") {
     const scenePayload = buildSceneGenerationPayload();
 
+    if (!scenePayload.generation_mode || scenePayload.generation_mode !== "reference") {
     if (!hasAnySceneSetting(scenePayload.scene_settings)) {
         alert("風景テンプレートの設定を1つ以上選択してください。");
         return;
     }
+}
 
     const confirmMessage = scenePayload.reference_enabled
         ? "風景生成を実行しますか？\n基準化画像あり\n費用: 10 NP"
@@ -3179,17 +3264,19 @@ if (templatePayload.template_type === "scenery") {
     });
 
     const { data, error } = await supabaseClient.functions.invoke(
-        "generate-nft-scene-image-leonardo",
-        {
-            body: {
-                scene_settings: scenePayload.scene_settings,
-                reference_enabled: scenePayload.reference_enabled,
-                reference_image_url: scenePayload.reference_image_url,
-                reference_asset_id: scenePayload.reference_asset_id,
-                debug_prompt_only: false
-            }
+    "generate-nft-scene-image-leonardo",
+    {
+        body: {
+            scene_settings: scenePayload.scene_settings,
+            reference_enabled: scenePayload.reference_enabled,
+            reference_image_url: scenePayload.reference_image_url,
+            reference_asset_id: scenePayload.reference_asset_id,
+            generation_mode: scenePayload.generation_mode,
+            render_style: scenePayload.render_style,
+            debug_prompt_only: false
         }
-    );
+    }
+);
 
     if (error) {
         console.error("風景生成Function Error:", error);
@@ -3257,11 +3344,12 @@ if (templatePayload.template_type === "scenery") {
 // --- その他テンプレートの場合 ---
 if (templatePayload.template_type === "other") {
     const otherText = String(document.getElementById("tpl_other_free_text")?.value || "").trim();
+const modeConfig = getGenerationModeConfig();
 
-    if (!otherText) {
-        alert("その他テンプレートの内容を入力してください。");
-        return;
-    }
+if (!modeConfig.isReferenceMode && !otherText) {
+    alert("その他テンプレートの内容を入力してください。");
+    return;
+}
 
     if (!confirm("その他生成を実行しますか？\n費用: 10 NP")) {
         return;
@@ -3283,13 +3371,18 @@ try {
 const otherReferenceEnabled = !!(
     otherStandardRef &&
     otherStandardRef.image_url &&
-    otherStandardRef.standard_ready === true
+    (
+        modeConfig.isReferenceMode ||
+        otherStandardRef.standard_ready === true
+    )
 );
 
 console.log("🧩 その他生成Functionへ送るpayload:", {
     other_text: otherText,
     reference_enabled: otherReferenceEnabled,
     has_reference_image_url: !!otherStandardRef?.image_url,
+    generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
+    render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
     debug_prompt_only: false
 });
 
@@ -3301,6 +3394,8 @@ const { data, error } = await supabaseClient.functions.invoke(
             reference_enabled: otherReferenceEnabled,
             reference_image_url: otherReferenceEnabled ? otherStandardRef.image_url : null,
             reference_asset_id: otherReferenceEnabled ? (otherStandardRef.asset_id || null) : null,
+            generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
+            render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
             debug_prompt_only: false
         }
     }
