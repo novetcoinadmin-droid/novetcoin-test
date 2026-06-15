@@ -1342,6 +1342,36 @@ async function runStandardizeExtraction() {
             alert("基準化画像のURLが見つかりません。");
             return;
         }
+        const refType = String(ref.type || ref.asset_type || "").toLowerCase();
+
+const isLeonardoReferenceOnly =
+    refType === "scenery" ||
+    refType === "scene" ||
+    refType === "background" ||
+    refType === "other";
+
+if (isLeonardoReferenceOnly) {
+    const normalizedType =
+        refType === "scene" || refType === "background"
+            ? "scenery"
+            : refType;
+
+    const readyRef = {
+        ...ref,
+        type: normalizedType,
+        extracted: false,
+        extracting: false,
+        standard_ready: true,
+        standard_method: "leonardo_reference_image",
+        standardized_at: new Date().toISOString()
+    };
+
+    localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(readyRef));
+    renderStandardReferenceCard();
+
+    alert("Leonardo用の参照画像として設定しました。\n風景・その他生成では、この画像URLを参照画像として使用します。");
+    return;
+}
 
         const preparingRef = {
             ...ref,
@@ -1418,7 +1448,20 @@ async function runStandardizeExtraction() {
 
 async function saveStandardReference(asset) {
     try {
-        const type = document.getElementById("templateType")?.value || "character";
+        const selectedTemplateType = String(document.getElementById("templateType")?.value || "").toLowerCase();
+const assetType = String(asset.asset_type || asset.type || "").toLowerCase();
+
+let type = selectedTemplateType || assetType || "character";
+
+if (type === "scene" || type === "background") {
+    type = "scenery";
+}
+
+if (type === "illustration") {
+    type = "character";
+}
+
+const isLeonardoReferenceOnly = type === "scenery" || type === "other";
 
         if (!asset.file_url) {
             alert("基準化画像のURLが見つかりません。");
@@ -1455,6 +1498,9 @@ async function saveStandardReference(asset) {
             reference_image_url: asset.file_url,
             extracted: false,
             extracting: false,
+            standard_ready: isLeonardoReferenceOnly,
+standard_method: isLeonardoReferenceOnly ? "leonardo_reference_image" : null,
+standardized_at: isLeonardoReferenceOnly ? new Date().toISOString() : null,
             blob_cached: blobCached,
             blob_cache_error: blobCacheError,
             saved_at: new Date().toISOString()
@@ -1462,6 +1508,11 @@ async function saveStandardReference(asset) {
 
         localStorage.setItem(STANDARD_REF_KEY, JSON.stringify(ref));
         renderStandardReferenceCard();
+
+        if (isLeonardoReferenceOnly) {
+           alert("Leonardo用の参照画像を選択しました。\n風景・その他生成では、この画像を参照画像として使用します。");
+            return;
+        }
 
         if (blobCached) {
             alert("基準化用のイラストを選択しました。\n続けて「基準化」ボタンを押すと、この画像を参照画像として確定します。");
@@ -2364,10 +2415,10 @@ const isSceneReference =
     refType === "scene" ||
     refType === "background";
 
+// 風景はGemini特徴抽出ではなく、Leonardoの参照画像URLとして使う
 const hasReferenceImage = !!(
     standardRef &&
     standardRef.image_url &&
-    standardRef.standard_ready === true &&
     isSceneReference
 );
 
