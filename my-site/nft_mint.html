@@ -297,11 +297,13 @@ async function loadEligibleWorks(user) {
     const authorIds = myAuthors.map(a => a.id);
 
     // 2. 絞り込んだ作家IDに紐づく作品一覧を取得
-    const { data: novels, error } = await window.supabaseClient
-        .from('novels')
-        .select('*')
-        .in('author_id', authorIds)
-        .order('created_at', { ascending: false });
+// is_nft=true のNNFT用コピーは、NFT化候補には出さない
+const { data: novels, error } = await window.supabaseClient
+    .from('novels')
+    .select('*')
+    .in('author_id', authorIds)
+    .or('is_nft.is.null,is_nft.eq.false')
+    .order('created_at', { ascending: false });
 
     if (error) {
         list.innerHTML = "<p>エラーが発生しました。</p>";
