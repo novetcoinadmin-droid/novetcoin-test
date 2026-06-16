@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
     /* --- レイアウト修正版 CSS --- */
-:root { 
+:root {
     --main-purple: #6a0dad; 
     --book-cream: #f8f4e6; 
 }
@@ -3280,7 +3280,7 @@ const { data, error } = await supabaseClient.functions.invoke(
             reference_asset_id: scenePayload.reference_asset_id,
             generation_mode: scenePayload.generation_mode,
             render_style: scenePayload.render_style,
-            debug_prompt_only: sceneFunctionName === "generate-nft-scene-image-gemini-allages"
+            debug_prompt_only: false
         }
     }
 );
