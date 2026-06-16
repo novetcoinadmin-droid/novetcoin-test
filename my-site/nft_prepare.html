@@ -3400,18 +3400,26 @@ console.log("🧩 その他生成Functionへ送るpayload:", {
     debug_prompt_only: false
 });
 
+const otherFunctionName =
+    modeConfig.isReferenceMode
+        ? "generate-nft-scene-image-gemini-allages"
+        : "generate-nft-other-image-leonardo";
+
+console.log("🧩 呼び出しFunction:", otherFunctionName);
+
 const { data, error } = await supabaseClient.functions.invoke(
-    "generate-nft-other-image-leonardo",
+    otherFunctionName,
     {
         body: {
-            other_text: otherText,
-            reference_enabled: otherReferenceEnabled,
-            reference_image_url: otherReferenceEnabled ? otherStandardRef.image_url : null,
-            reference_asset_id: otherReferenceEnabled ? (otherStandardRef.asset_id || null) : null,
-            generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
-            render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
-            debug_prompt_only: false
-        }
+    template_type: "other",
+    other_text: otherText,
+    reference_enabled: otherReferenceEnabled,
+    reference_image_url: otherReferenceEnabled ? otherStandardRef.image_url : null,
+    reference_asset_id: otherReferenceEnabled ? (otherStandardRef.asset_id || null) : null,
+    generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
+    render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
+    debug_prompt_only: false
+}
     }
 );
 
@@ -3422,17 +3430,24 @@ const { data, error } = await supabaseClient.functions.invoke(
 
     console.log("🧩 その他生成Function 結果:", data);
 
-    if (!data || data.ok !== true) {
-        throw new Error(data?.error || data?.message || "その他画像の取得に失敗しました。");
-    }
+    const isOtherSuccess = !!data && (
+    data.ok === true ||
+    data.status === "success"
+);
 
-    const imageUrl =
-        data.imageUrl ||
-        data.image_url ||
-        data.generatedImageUrl ||
-        data.generated_image_url ||
-        data.url ||
-        "";
+if (!isOtherSuccess) {
+    throw new Error(data?.error || data?.message || "その他画像の取得に失敗しました。");
+}
+
+const imageUrl =
+    data.imageUrl ||
+    data.image_url ||
+    data.generatedImageUrl ||
+    data.generated_image_url ||
+    data.dataUrl ||
+    data.data_url ||
+    data.url ||
+    "";
 
     if (!imageUrl) {
         throw new Error("その他画像URLが返ってきませんでした。");
