@@ -3280,7 +3280,7 @@ const { data, error } = await supabaseClient.functions.invoke(
             reference_asset_id: scenePayload.reference_asset_id,
             generation_mode: scenePayload.generation_mode,
             render_style: scenePayload.render_style,
-            debug_prompt_only: false
+            debug_prompt_only: sceneFunctionName === "generate-nft-scene-image-gemini-allages"
         }
     }
 );
