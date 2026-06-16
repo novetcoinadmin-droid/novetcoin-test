@@ -3418,7 +3418,7 @@ const { data, error } = await supabaseClient.functions.invoke(
     reference_asset_id: otherReferenceEnabled ? (otherStandardRef.asset_id || null) : null,
     generation_mode: modeConfig.isReferenceMode ? "reference" : "free",
     render_style: modeConfig.isReferenceMode ? modeConfig.renderStyle : "manga",
-    debug_prompt_only: otherFunctionName === "generate-nft-scene-image-gemini-allages"
+    debug_prompt_only: false
 }
     }
 );
