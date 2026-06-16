@@ -3263,8 +3263,15 @@ if (templatePayload.template_type === "scenery") {
         debug_prompt_only: false
     });
 
-    const { data, error } = await supabaseClient.functions.invoke(
-    "generate-nft-scene-image-leonardo",
+    const sceneFunctionName =
+    scenePayload.generation_mode === "reference"
+        ? "generate-nft-scene-image-gemini-allages"
+        : "generate-nft-scene-image-leonardo";
+
+console.log("🏞️ 呼び出しFunction:", sceneFunctionName);
+
+const { data, error } = await supabaseClient.functions.invoke(
+    sceneFunctionName,
     {
         body: {
             scene_settings: scenePayload.scene_settings,
