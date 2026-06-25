@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novet NFT Studio | イラスト生成</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --main-purple: #6a0dad;
+      --bg-gray: #f4f7f6;
+      --border: #e5e7eb;
+      --text: #333;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-gray);
+      color: var(--text);
+    }
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .nav-brand { font-weight: 700; color: var(--main-purple); }
+    .nav-link { color: #666; text-decoration: none; font-size: 14px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 20px 24px;
+    }
+    .panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .preview-area {
+      min-height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #ddd;
+      border-radius: 10px;
+      background: #fcfcfd;
+      padding: 24px;
+      text-align: center;
+      color: #777;
+    }
+    .preview-image {
+      width: 100%;
+      max-width: 720px;
+      max-height: 560px;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .control-group { margin-bottom: 14px; }
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #555;
+    }
+    input[type="text"], textarea, select, button { font: inherit; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .mode-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+    .mode-btn {
+      flex: 1;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      background: #f8f8f8;
+      cursor: pointer;
+      color: #666;
+      font-weight: 700;
+    }
+    .mode-btn.active {
+      background: var(--main-purple);
+      color: #fff;
+      border-color: var(--main-purple);
+    }
+    .btn {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--main-purple); color: #fff; }
+    .btn-secondary { background: #f3e8ff; color: var(--main-purple); }
+    .btn-danger { background: #fff5f5; color: var(--danger); border: 1px solid #fde2e2; }
+    .muted { color: #777; font-size: 12px; line-height: 1.6; }
+    .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+    .small { font-size: 12px; }
+    .reference-card {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+      background: #fafafa;
+    }
+    .reference-thumb {
+      width: 100%;
+      max-height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .reference-list { display: grid; gap: 8px; margin-top: 10px; }
+    .reference-item {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .reference-item.active { border-color: var(--main-purple); background: #faf4ff; }
+    .reference-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .message {
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .message.info { display: block; background: #f7f3ff; color: #4b247a; }
+    .message.error { display: block; background: #fff5f5; color: var(--danger); }
+    @media (max-width: 900px) {
+      nav { padding: 10px 16px; }
+      .layout { grid-template-columns: 1fr; padding: 0 14px 20px; margin-top: 16px; }
+      .preview-area { min-height: 360px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">Novet NFT Studio | イラスト生成</div>
+    <a class="nav-link" href="../my-site/index.html">一般サイトへ</a>
+  </nav>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="status-row">
+        <h2 style="margin:0;">生成画像</h2>
+        <div id="npBadge" class="small">NP: --</div>
+      </div>
+      <div id="messageBox" class="message"></div>
+      <div id="previewArea" class="preview-area">
+        <div>
+          <p style="font-size:16px; margin:0 0 8px;">ここに生成した画像が表示されます。</p>
+          <p class="muted" style="margin:0;">右側の設定からキャライラストを生成してください。</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="control-group">
+        <button class="btn btn-secondary" type="button" onclick="location.href='nft_mint.html'">NFTスタジオに戻る</button>
+      </div>
+
+      <div class="control-group">
+        <label>モード</label>
+        <div class="mode-buttons">
+          <button type="button" class="mode-btn active" data-mode="character" onclick="setMode('character')">キャラ</button>
+          <button type="button" class="mode-btn" data-mode="scenery" onclick="setMode('scenery')">風景</button>
+          <button type="button" class="mode-btn" data-mode="other" onclick="setMode('other')">その他</button>
+        </div>
+        <p class="muted">V1ではキャラ生成のみ対応します。風景・その他はV2で追加予定です。</p>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_free_text">自由入力</label>
+        <textarea id="tpl_character_free_text" placeholder="例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。"></textarea>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_expression">表情</label>
+        <select id="tpl_character_expression">
+          <option value="">指定なし</option>
+          <option value="微笑み">微笑み</option>
+          <option value="悲しげ">悲しげ</option>
+          <option value="真面目">真面目</option>
+          <option value="怒り">怒り</option>
+          <option value="決意">決意</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_view">見え方</label>
+        <select id="tpl_character_view">
+          <option value="">指定なし</option>
+          <option value="顔アップ">顔アップ</option>
+          <option value="バストアップ">バストアップ</option>
+          <option value="上半身">上半身</option>
+          <option value="全身">全身</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_age">年齢印象</label>
+        <select id="tpl_character_age">
+          <option value="">指定なし</option>
+          <option value="少年・少女">少年・少女</option>
+          <option value="10代前半">10代前半</option>
+          <option value="10代後半">10代後半</option>
+          <option value="20代前半">20代前半</option>
+          <option value="20代後半">20代後半</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_pose">ポーズ</label>
+        <select id="tpl_character_pose">
+          <option value="">指定なし</option>
+          <option value="正面立ち">正面立ち</option>
+          <option value="振り返る">振り返る</option>
+          <option value="座る">座る</option>
+          <option value="歩く">歩く</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_outfit">衣装</label>
+        <select id="tpl_character_outfit">
+          <option value="">指定なし</option>
+          <option value="制服">制服</option>
+          <option value="和服">和服</option>
+          <option value="冒険者風">冒険者風</option>
+          <option value="ドレス">ドレス</option>
+          <option value="ローブ">ローブ</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_lighting">雰囲気</label>
+        <select id="tpl_character_lighting">
+          <option value="">指定なし</option>
+          <option value="明るい">明るい</option>
+          <option value="暗い">暗い</option>
+          <option value="透明感">透明感</option>
+          <option value="柔らかい光">柔らかい光</option>
+          <option value="神秘的">神秘的</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>参照画像</label>
+        <p class="muted">任意です。選択すると、その画像を参照してキャラ生成します。</p>
+        <button type="button" class="btn btn-secondary" onclick="loadReferenceAssets()">保管庫から再読み込み</button>
+        <div id="referenceSelectionArea"></div>
+        <div id="referenceAssetList" class="reference-list"></div>
+      </div>
+
+      <div class="control-group">
+        <button id="generateBtn" class="btn btn-primary" type="button" onclick="handleGenerate()">生成する（10 NP）</button>
+      </div>
+
+      <div class="control-group">
+        <button id="saveBtn" class="btn btn-secondary" type="button" onclick="handleSaveGeneratedImage()" disabled>生成画像をイラスト保管庫に保存</button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="../portal/auth-check.js"></script>
+  <script>
+    const GENERATION_COST_NP = 10;
+    const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
+
+    let currentMode = 'character';
+    let currentUser = null;
+    let currentNpBalance = 0;
+    let currentGeneratedDataUrl = '';
+    let currentGeneratedMimeType = '';
+    let selectedReferenceAsset = null;
+    let referenceAssets = [];
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (!session?.user) {
+        document.querySelector('.layout').innerHTML = `
+          <div class="panel" style="grid-column:1 / -1; text-align:center;">
+            <h2>ログインが必要です</h2>
+            <p class="muted">このページはログイン済みユーザー向けです。</p>
+          </div>
+        `;
+        return;
+      }
+
+      currentUser = session.user;
+      await loadNpBalance();
+      await loadReferenceAssets();
+      renderReferenceSelection();
+      updateModeUI();
+    }
+
+    function showMessage(text, type = 'info') {
+      const box = document.getElementById('messageBox');
+      if (!box) return;
+      if (!text) {
+        box.className = 'message';
+        box.textContent = '';
+        return;
+      }
+      box.className = `message ${type}`;
+      box.textContent = text;
+    }
+
+    function updateModeUI() {
+      document.querySelectorAll('.mode-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === currentMode);
+      });
+
+      const generateBtn = document.getElementById('generateBtn');
+      if (currentMode !== 'character') {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'V2で対応予定';
+      } else {
+        generateBtn.disabled = false;
+        generateBtn.textContent = `生成する（${GENERATION_COST_NP} NP）`;
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode !== 'character') {
+        showMessage('V1ではキャラ生成のみ対応します。風景・その他はV2で追加予定です。');
+      } else {
+        showMessage('');
+      }
+      updateModeUI();
+    }
+
+    async function loadNpBalance() {
+      if (!currentUser) return;
+      const { data: profile, error } = await window.supabaseClient
+        .from('profiles')
+        .select('np_balance')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error || !profile) {
+        showMessage('NP残高の取得に失敗しました。', 'error');
+        return;
+      }
+
+      currentNpBalance = Number(profile.np_balance || 0);
+      renderNpBalance();
+    }
+
+    function renderNpBalance() {
+      document.getElementById('npBadge').textContent = `NP: ${Math.floor(currentNpBalance).toLocaleString()}`;
+    }
+
+    async function loadReferenceAssets() {
+      if (!currentUser) return;
+      const { data, error } = await window.supabaseClient
+        .from('user_assets')
+        .select('id,file_url,file_name,asset_type,asset_source,created_at')
+        .eq('user_id', currentUser.id)
+        .in('asset_type', ['illustration', 'character'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        showMessage('参照画像一覧の取得に失敗しました。保管庫のRLS設定を確認してください。', 'error');
+        return;
+      }
+
+      referenceAssets = data || [];
+      renderReferenceAssetList();
+    }
+
+    function renderReferenceAssetList() {
+      const list = document.getElementById('referenceAssetList');
+      if (!list) return;
+
+      if (!referenceAssets.length) {
+        list.innerHTML = '<div class="muted">参照に使える保管庫画像がまだありません。</div>';
+        return;
+      }
+
+      list.innerHTML = referenceAssets.map((asset) => {
+        const payload = encodeURIComponent(JSON.stringify(asset));
+        return `
+          <div class="reference-item ${selectedReferenceAsset?.id === asset.id ? 'active' : ''}" onclick="selectReferenceAssetFromEncoded('${payload}')">
+            <div class="reference-item-title">${escapeHtml(asset.file_name || '無題')}</div>
+            <div class="muted" style="margin-top:4px;">${escapeHtml(asset.asset_type || 'illustration')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderReferenceSelection() {
+      const area = document.getElementById('referenceSelectionArea');
+      if (!area) return;
+
+      if (!selectedReferenceAsset) {
+        area.innerHTML = '<div class="reference-card">未選択</div>';
+        return;
+      }
+
+      area.innerHTML = `
+        <div class="reference-card">
+          <div style="font-weight:700;">${escapeHtml(selectedReferenceAsset.file_name || '無題')}</div>
+          <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="参照画像" />
+          <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">解除</button>
+        </div>
+      `;
+    }
+
+    function selectReferenceAssetFromEncoded(encodedAsset) {
+      selectedReferenceAsset = JSON.parse(decodeURIComponent(encodedAsset));
+      renderReferenceSelection();
+      renderReferenceAssetList();
+      showMessage('参照画像を選択しました。');
+    }
+
+    function clearReferenceSelection() {
+      selectedReferenceAsset = null;
+      renderReferenceSelection();
+      renderReferenceAssetList();
+      showMessage('参照画像を解除しました。');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+
+    function getFieldValue(id) {
+      return document.getElementById(id).value.trim();
+    }
+
+    function buildStandalonePayload() {
+      const fields = {
+        tpl_character_free_text: getFieldValue('tpl_character_free_text'),
+        tpl_character_expression: getFieldValue('tpl_character_expression'),
+        tpl_character_view: getFieldValue('tpl_character_view'),
+        tpl_character_age: getFieldValue('tpl_character_age'),
+        tpl_character_pose: getFieldValue('tpl_character_pose'),
+        tpl_character_outfit: getFieldValue('tpl_character_outfit'),
+        tpl_character_lighting: getFieldValue('tpl_character_lighting')
+      };
+
+      const payload = {
+        template_type: 'character',
+        editable_fields_japanese: {
+          '画風': 'clean all-ages illustrated style',
+          '質感': 'soft hand-drawn illustration texture',
+          '色調': 'balanced light and shadow',
+          '表情': fields.tpl_character_expression || '自然な表情',
+          '感情': 'calm and readable emotional tone'
+        },
+        tpl_character_free_text: fields.tpl_character_free_text,
+        tpl_character_expression: fields.tpl_character_expression,
+        tpl_character_view: fields.tpl_character_view,
+        tpl_character_age: fields.tpl_character_age,
+        tpl_character_pose: fields.tpl_character_pose,
+        tpl_character_outfit: fields.tpl_character_outfit,
+        tpl_character_lighting: fields.tpl_character_lighting
+      };
+
+      if (selectedReferenceAsset?.file_url) {
+        payload.reference_image_url = selectedReferenceAsset.file_url;
+      }
+
+      return payload;
+    }
+
+    async function handleGenerate() {
+      if (currentMode !== 'character') {
+        showMessage('V1ではキャラ生成のみ対応します。', 'error');
+        return;
+      }
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+
+      const button = document.getElementById('generateBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '生成中...';
+      document.getElementById('saveBtn').disabled = true;
+      currentGeneratedDataUrl = '';
+      currentGeneratedMimeType = '';
+      showMessage('');
+
+      try {
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from('profiles')
+          .select('np_balance')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error('プロフィールの取得に失敗しました。');
+        }
+
+        const currentNp = Number(profile.np_balance || 0);
+        if (currentNp < GENERATION_COST_NP) {
+          throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
+        }
+
+        const payload = buildStandalonePayload();
+        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
+
+        if (error) {
+          throw new Error(error.message || '生成Functionの呼び出しに失敗しました。');
+        }
+        if (!data?.ok && data?.status !== 'success') {
+          throw new Error(data?.error || '画像生成に失敗しました。');
+        }
+
+        const mimeType = data.mimeType || 'image/png';
+        const imageBase64 = data.imageBase64 || '';
+        if (!imageBase64) {
+          throw new Error('生成画像が返されませんでした。');
+        }
+
+        const newNp = currentNp - GENERATION_COST_NP;
+        const { error: updateError } = await window.supabaseClient
+          .from('profiles')
+          .update({ np_balance: newNp })
+          .eq('id', currentUser.id);
+
+        if (updateError) {
+          throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+        }
+
+        currentNpBalance = newNp;
+        renderNpBalance();
+
+        const { error: txError } = await window.supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: currentUser.id,
+            tx_type: 'np_use',
+            type: 'ai_illustration_generation',
+            product_name: 'AIイラスト生成（キャラ・生成専用）',
+            amount_nvt: 0,
+            amount_np: -GENERATION_COST_NP,
+            balance_before_np: currentNp,
+            balance_after_np: newNp,
+            related_table: 'profiles',
+            related_id: currentUser.id
+          });
+
+        if (txError) {
+          console.error('transactions insert error:', txError);
+          showMessage('生成は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+        } else {
+          showMessage('生成が完了しました。');
+        }
+
+        currentGeneratedMimeType = mimeType;
+        currentGeneratedDataUrl = `data:${mimeType};base64,${imageBase64}`;
+        renderPreview(currentGeneratedDataUrl);
+        document.getElementById('saveBtn').disabled = false;
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message || '生成に失敗しました。', 'error');
+      } finally {
+        button.disabled = currentMode !== 'character';
+        button.textContent = originalText;
+      }
+    }
+
+    function renderPreview(dataUrl) {
+      const previewArea = document.getElementById('previewArea');
+      previewArea.innerHTML = `<img class="preview-image" src="${escapeAttr(dataUrl)}" alt="生成画像" />`;
+    }
+
+    async function handleSaveGeneratedImage() {
+      if (!currentGeneratedDataUrl) {
+        showMessage('まず生成してください。', 'error');
+        return;
+      }
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+
+      const button = document.getElementById('saveBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '保存中...';
+      showMessage('');
+
+      let uploadedFileName = '';
+      try {
+        const blob = dataUrlToBlob(currentGeneratedDataUrl);
+        const mimeType = currentGeneratedMimeType || blob.type || 'image/png';
+        const extension = extensionFromMimeType(mimeType);
+        const fileName = `generated_${currentUser.id}_${Date.now()}.${extension}`;
+        uploadedFileName = fileName;
+
+        const { error: uploadError } = await window.supabaseClient.storage
+          .from('illustrations')
+          .upload(fileName, blob, {
+            contentType: mimeType,
+            upsert: false
+          });
+
+        if (uploadError) {
+          throwStorageLimitAwareError(uploadError);
+        }
+
+        const { data: publicUrlData } = window.supabaseClient.storage
+          .from('illustrations')
+          .getPublicUrl(fileName);
+
+        const { error: insertError } = await window.supabaseClient
+          .from('user_assets')
+          .insert({
+            user_id: currentUser.id,
+            file_url: publicUrlData.publicUrl,
+            file_name: `生成イラスト ${new Date().toLocaleString('ja-JP')}`,
+            asset_type: 'illustration',
+            asset_source: 'generated'
+          });
+
+        if (insertError) {
+          await window.supabaseClient.storage.from('illustrations').remove([fileName]);
+          throwStorageLimitAwareError(insertError);
+        }
+
+        showMessage('イラスト保管庫に保存しました。');
+        await loadReferenceAssets();
+      } catch (err) {
+        console.error(err);
+        if (uploadedFileName) {
+          await window.supabaseClient.storage.from('illustrations').remove([uploadedFileName]);
+        }
+        showMessage(err.message || '保存に失敗しました。', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function throwStorageLimitAwareError(error) {
+      if (error?.message && error.message.includes('ASSET_STORAGE_LIMIT_REACHED')) {
+        throw new Error('保存庫は50枚までです。不要な画像を削除してから再度保存してください。');
+      }
+      throw error;
+    }
+
+    function extensionFromMimeType(mimeType) {
+      const normalized = String(mimeType || '').toLowerCase();
+      if (normalized.includes('webp')) return 'webp';
+      if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+      if (normalized.includes('png')) return 'png';
+      return 'png';
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(',');
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      const binary = atob(parts[1]);
+      const array = [];
+      for (let i = 0; i < binary.length; i += 1) {
+        array.push(binary.charCodeAt(i));
+      }
+      return new Blob([new Uint8Array(array)], { type: mime });
+    }
+  </script>
+</body>
+</html>
