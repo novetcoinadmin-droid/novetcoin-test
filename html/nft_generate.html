@@ -326,6 +326,18 @@
       </div>
 
       <div class="control-group">
+        <label>参照画像</label>
+        <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
+        <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
+          <option value="">基準化画像を選ぶ▼</option>
+          <option value="character">キャラクター</option>
+          <option value="scenery">風景</option>
+          <option value="other">その他</option>
+        </select>
+        <div id="referenceSelectionArea"></div>
+      </div>
+
+      <div class="control-group">
         <label for="tpl_character_free_text">自由入力</label>
         <textarea id="tpl_character_free_text" placeholder="例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。"></textarea>
       </div>
@@ -398,18 +410,6 @@
           <option value="柔らかい光">柔らかい光</option>
           <option value="神秘的">神秘的</option>
         </select>
-      </div>
-
-      <div class="control-group">
-        <label>参照画像</label>
-        <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
-        <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
-          <option value="">基準化画像を選ぶ▼</option>
-          <option value="character">キャラクター</option>
-          <option value="scenery">風景</option>
-          <option value="other">その他</option>
-        </select>
-        <div id="referenceSelectionArea"></div>
       </div>
 
       <div class="control-group">
