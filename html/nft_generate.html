@@ -163,6 +163,7 @@
       border-radius: 8px;
       margin-top: 8px;
     }
+    .hidden { display: none !important; }
     .reference-modal {
       position: fixed;
       inset: 0;
@@ -285,7 +286,7 @@
           <button type="button" class="mode-btn" data-mode="scenery" onclick="setMode('scenery')">風景</button>
           <button type="button" class="mode-btn" data-mode="other" onclick="setMode('other')">その他</button>
         </div>
-        <p class="muted">V1ではキャラ生成のみ対応します。風景・その他はV2で追加予定です。</p>
+        <p id="modeHelpText" class="muted">キャラ・風景・その他素材を生成できます。</p>
       </div>
 
       <div class="control-group">
@@ -299,7 +300,7 @@
         </div>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label>キャラモード変換</label>
         <input type="hidden" id="tpl_character_mode_conversion" value="">
         <div class="choice-grid" data-choice-group="tpl_character_mode_conversion">
@@ -338,11 +339,11 @@
       </div>
 
       <div class="control-group">
-        <label for="tpl_character_free_text">自由入力</label>
+        <label id="freeTextLabel" for="tpl_character_free_text">自由入力</label>
         <textarea id="tpl_character_free_text" placeholder="例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。"></textarea>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label for="tpl_character_view">見え方</label>
         <select id="tpl_character_view">
           <option value="">指定なし</option>
@@ -353,7 +354,7 @@
         </select>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label for="tpl_character_age">年齢印象</label>
         <select id="tpl_character_age">
           <option value="">指定なし</option>
@@ -365,7 +366,7 @@
         </select>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label for="tpl_character_pose">ポーズ</label>
         <select id="tpl_character_pose">
           <option value="">指定なし</option>
@@ -376,7 +377,7 @@
         </select>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label for="tpl_character_outfit">衣装</label>
         <select id="tpl_character_outfit">
           <option value="">指定なし</option>
@@ -388,7 +389,7 @@
         </select>
       </div>
 
-      <div class="control-group">
+      <div class="control-group character-only">
         <label for="tpl_character_lighting">雰囲気</label>
         <select id="tpl_character_lighting">
           <option value="">指定なし</option>
@@ -427,12 +428,16 @@
   <script>
     const GENERATION_COST_NP = 10;
     const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
+    const SCENE_GEMINI_FUNCTION_NAME = 'generate-nft-scene-image-gemini-allages';
+    const SCENE_LEONARDO_FUNCTION_NAME = 'generate-nft-scene-image-leonardo';
+    const OTHER_LEONARDO_FUNCTION_NAME = 'generate-nft-other-image-leonardo';
 
     let currentMode = 'character';
     let currentUser = null;
     let currentNpBalance = 0;
     let currentGeneratedDataUrl = '';
     let currentGeneratedMimeType = '';
+    let currentGeneratedMode = 'character';
     let selectedReferenceAsset = null;
     let referenceAssets = [];
     let currentReferenceCategory = '';
@@ -475,22 +480,36 @@
       });
 
       const generateBtn = document.getElementById('generateBtn');
-      if (currentMode !== 'character') {
-        generateBtn.disabled = true;
-        generateBtn.textContent = 'V2で対応予定';
-      } else {
-        generateBtn.disabled = false;
-        generateBtn.textContent = `生成する（${GENERATION_COST_NP} NP）`;
+      generateBtn.disabled = false;
+      generateBtn.textContent = `生成する（${GENERATION_COST_NP} NP）`;
+
+      document.querySelectorAll('.character-only').forEach((el) => {
+        el.classList.toggle('hidden', currentMode !== 'character');
+      });
+
+      const modeHelpText = document.getElementById('modeHelpText');
+      const freeTextLabel = document.getElementById('freeTextLabel');
+      const freeText = document.getElementById('tpl_character_free_text');
+      if (currentMode === 'character') {
+        if (modeHelpText) modeHelpText.textContent = 'キャラ画像を生成します。参照画像と画風、キャラ変換を組み合わせられます。';
+        if (freeTextLabel) freeTextLabel.textContent = '自由入力';
+        if (freeText) freeText.placeholder = '例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。';
+      }
+      if (currentMode === 'scenery') {
+        if (modeHelpText) modeHelpText.textContent = '風景画像を生成します。自由入力は風景ディテールとして送信します。';
+        if (freeTextLabel) freeTextLabel.textContent = '風景の自由入力';
+        if (freeText) freeText.placeholder = '例: 夕暮れの城下町、石畳、遠くに白い城、柔らかい光。';
+      }
+      if (currentMode === 'other') {
+        if (modeHelpText) modeHelpText.textContent = '装備・アイテム・魔法・スキルなどのその他素材を生成します。';
+        if (freeTextLabel) freeTextLabel.textContent = '作成したい内容';
+        if (freeText) freeText.placeholder = '例: 青い宝石が埋め込まれた銀の杖、神秘的な光、冒険者向け。';
       }
     }
 
     function setMode(mode) {
       currentMode = mode;
-      if (mode !== 'character') {
-        showMessage('V1ではキャラ生成のみ対応します。風景・その他はV2で追加予定です。');
-      } else {
-        showMessage('');
-      }
+      showMessage('');
       updateModeUI();
     }
 
@@ -636,8 +655,8 @@
 
     function getReferenceCategoryTypes(category) {
       const categoryFilters = {
-        character: ['character', 'illustration'],
-        scenery: ['scenery', 'background', 'landscape'],
+        character: ['illustration', 'character'],
+        scenery: ['scene', 'scenery', 'background', 'landscape'],
         other: ['other', 'material', 'object', 'effect']
       };
       return categoryFilters[category] || [];
@@ -808,6 +827,59 @@
       return document.getElementById(id)?.value.trim() || '';
     }
 
+    function getRenderStyleValue() {
+      const style = getFieldValue('tpl_character_art_style');
+      const styleMap = {
+        'ラノベ風': 'light_novel',
+        '漫画風': 'manga',
+        'アニメ風': 'anime'
+      };
+      return styleMap[style] || '';
+    }
+
+    function getGeneratedAssetType(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return 'scene';
+      if (mode === 'other') return 'other';
+      return 'illustration';
+    }
+
+    function getGeneratedFileLabel(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return '風景';
+      if (mode === 'other') return 'その他素材';
+      return 'イラスト';
+    }
+
+    function getTransactionProductName(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return 'AI風景生成（生成専用）';
+      if (mode === 'other') return 'AIその他素材生成（生成専用）';
+      return 'AIイラスト生成（キャラ・生成専用）';
+    }
+
+    function extractGeneratedImageSource(data) {
+      if (data?.imageBase64) {
+        const mimeType = data.mimeType || data.mime_type || 'image/png';
+        return {
+          source: `data:${mimeType};base64,${data.imageBase64}`,
+          mimeType
+        };
+      }
+
+      const source = data?.imageUrl
+        || data?.image_url
+        || data?.generatedImageUrl
+        || data?.generated_image_url
+        || data?.dataUrl
+        || data?.data_url
+        || data?.url
+        || '';
+
+      if (!source) return null;
+      return {
+        source,
+        mimeType: data?.mimeType || data?.mime_type || ''
+      };
+    }
+
     function buildStandalonePayload() {
       const fields = {
         tpl_character_free_text: getFieldValue('tpl_character_free_text'),
@@ -853,11 +925,67 @@
       return payload;
     }
 
-    async function handleGenerate() {
-      if (currentMode !== 'character') {
-        showMessage('V1ではキャラ生成のみ対応します。', 'error');
-        return;
+    function buildScenePayload() {
+      const freeText = getFieldValue('tpl_character_free_text');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const renderStyle = getRenderStyleValue() || 'manga';
+
+      return {
+        scene_settings: {
+          pov: '',
+          composition: hasReference ? '参照画像に合わせる' : 'ワイド構図',
+          scale: '中景',
+          place: '',
+          world: '',
+          detail: freeText || (hasReference ? '参照画像の風景要素を活かす' : '自然な風景'),
+          light: '',
+          tone: '',
+          person: '人物なし',
+          mood: ''
+        },
+        reference_enabled: hasReference,
+        reference_image_url: hasReference ? selectedReferenceAsset.file_url : null,
+        reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
+        generation_mode: hasReference ? 'reference' : 'free',
+        render_style: renderStyle,
+        debug_prompt_only: false
+      };
+    }
+
+    function buildOtherPayload() {
+      const freeText = getFieldValue('tpl_character_free_text');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const renderStyle = getRenderStyleValue() || 'manga';
+
+      return {
+        template_type: 'other',
+        other_text: freeText || (hasReference ? '参照画像の素材をもとにしたその他素材' : 'その他素材'),
+        reference_enabled: hasReference,
+        reference_image_url: hasReference ? selectedReferenceAsset.file_url : null,
+        reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
+        generation_mode: hasReference ? 'reference' : 'free',
+        render_style: renderStyle,
+        debug_prompt_only: false
+      };
+    }
+
+    function buildPayloadForCurrentMode() {
+      if (currentMode === 'scenery') return buildScenePayload();
+      if (currentMode === 'other') return buildOtherPayload();
+      return buildStandalonePayload();
+    }
+
+    function getFunctionNameForCurrentMode() {
+      if (currentMode === 'scenery') {
+        return selectedReferenceAsset?.file_url ? SCENE_GEMINI_FUNCTION_NAME : SCENE_LEONARDO_FUNCTION_NAME;
       }
+      if (currentMode === 'other') {
+        return selectedReferenceAsset?.file_url ? SCENE_GEMINI_FUNCTION_NAME : OTHER_LEONARDO_FUNCTION_NAME;
+      }
+      return FUNCTION_NAME;
+    }
+
+    async function handleGenerate() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
         return;
@@ -870,6 +998,7 @@
       document.getElementById('saveBtn').disabled = true;
       currentGeneratedDataUrl = '';
       currentGeneratedMimeType = '';
+      currentGeneratedMode = currentMode;
       showMessage('');
 
       try {
@@ -888,8 +1017,9 @@
           throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
         }
 
-        const payload = buildStandalonePayload();
-        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
+        const payload = buildPayloadForCurrentMode();
+        const functionName = getFunctionNameForCurrentMode();
+        const { data, error } = await window.supabaseClient.functions.invoke(functionName, { body: payload });
 
         if (error) {
           throw new Error(error.message || '生成Functionの呼び出しに失敗しました。');
@@ -898,9 +1028,8 @@
           throw new Error(data?.error || '画像生成に失敗しました。');
         }
 
-        const mimeType = data.mimeType || 'image/png';
-        const imageBase64 = data.imageBase64 || '';
-        if (!imageBase64) {
+        const generatedImage = extractGeneratedImageSource(data);
+        if (!generatedImage?.source) {
           throw new Error('生成画像が返されませんでした。');
         }
 
@@ -923,7 +1052,7 @@
             user_id: currentUser.id,
             tx_type: 'np_use',
             type: 'ai_illustration_generation',
-            product_name: 'AIイラスト生成（キャラ・生成専用）',
+            product_name: getTransactionProductName(currentGeneratedMode),
             amount_nvt: 0,
             amount_np: -GENERATION_COST_NP,
             balance_before_np: currentNp,
@@ -939,15 +1068,15 @@
           showMessage('生成が完了しました。');
         }
 
-        currentGeneratedMimeType = mimeType;
-        currentGeneratedDataUrl = `data:${mimeType};base64,${imageBase64}`;
+        currentGeneratedMimeType = generatedImage.mimeType || '';
+        currentGeneratedDataUrl = generatedImage.source;
         renderPreview(currentGeneratedDataUrl);
         document.getElementById('saveBtn').disabled = false;
       } catch (err) {
         console.error(err);
         showMessage(err.message || '生成に失敗しました。', 'error');
       } finally {
-        button.disabled = currentMode !== 'character';
+        button.disabled = false;
         button.textContent = originalText;
       }
     }
@@ -975,10 +1104,11 @@
 
       let uploadedFileName = '';
       try {
-        const blob = dataUrlToBlob(currentGeneratedDataUrl);
+        const blob = await imageSourceToBlob(currentGeneratedDataUrl);
         const mimeType = currentGeneratedMimeType || blob.type || 'image/png';
         const extension = extensionFromMimeType(mimeType);
-        const fileName = `generated_${currentUser.id}_${Date.now()}.${extension}`;
+        const assetType = getGeneratedAssetType(currentGeneratedMode);
+        const fileName = `generated_${assetType}_${currentUser.id}_${Date.now()}.${extension}`;
         uploadedFileName = fileName;
 
         const { error: uploadError } = await window.supabaseClient.storage
@@ -1001,8 +1131,8 @@
           .insert({
             user_id: currentUser.id,
             file_url: publicUrlData.publicUrl,
-            file_name: `生成イラスト ${new Date().toLocaleString('ja-JP')}`,
-            asset_type: 'illustration',
+            file_name: `生成${getGeneratedFileLabel(currentGeneratedMode)} ${new Date().toLocaleString('ja-JP')}`,
+            asset_type: assetType,
             asset_source: 'generated'
           });
 
@@ -1038,6 +1168,18 @@
       if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
       if (normalized.includes('png')) return 'png';
       return 'png';
+    }
+
+    async function imageSourceToBlob(source) {
+      if (String(source || '').startsWith('data:')) {
+        return dataUrlToBlob(source);
+      }
+
+      const response = await fetch(source);
+      if (!response.ok) {
+        throw new Error('生成画像URLの取得に失敗しました。');
+      }
+      return response.blob();
     }
 
     function dataUrlToBlob(dataUrl) {
