@@ -438,6 +438,10 @@
       </div>
 
       <div class="control-group">
+        <button id="saveTemplateBtn" class="btn btn-secondary" type="button" onclick="handleSavePromptTemplate()">現在の設定をテンプレート保存</button>
+      </div>
+
+      <div class="control-group">
         <button id="saveBtn" class="btn btn-secondary" type="button" onclick="handleSaveGeneratedImage()" disabled>生成画像をイラスト保管庫に保存</button>
       </div>
     </aside>
@@ -996,6 +1000,82 @@
       return 'AIイラスト生成（キャラ・生成専用）';
     }
 
+    function getModeLabel(mode = currentMode) {
+      if (mode === 'scenery') return '風景';
+      if (mode === 'other') return 'その他素材';
+      return 'キャラ';
+    }
+
+    function buildPromptTemplateSettings() {
+      const mode = currentMode;
+      const artStyle = getFieldValue('tpl_character_art_style');
+      const freeText = getFieldValue('tpl_character_free_text');
+      const referenceInfo = selectedReferenceAsset ? {
+        id: selectedReferenceAsset.id || null,
+        file_name: selectedReferenceAsset.file_name || '',
+        file_url: selectedReferenceAsset.file_url || '',
+        asset_type: selectedReferenceAsset.asset_type || ''
+      } : null;
+
+      const baseSettings = {
+        source_page: 'nft_generate',
+        mode,
+        mode_label: getModeLabel(mode),
+        free_text: freeText,
+        art_style: artStyle,
+        art_style_instruction: getArtStyleInstruction(artStyle),
+        reference_category: currentReferenceCategory || '',
+        reference_asset: referenceInfo
+      };
+
+      if (mode === 'character') {
+        return {
+          ...baseSettings,
+          character: {
+            view: getFieldValue('tpl_character_view'),
+            age: getFieldValue('tpl_character_age'),
+            pose: getFieldValue('tpl_character_pose'),
+            outfit: getFieldValue('tpl_character_outfit'),
+            lighting: getFieldValue('tpl_character_lighting'),
+            mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+            expression_transform: getFieldValue('tpl_character_expression_transform')
+          },
+          background: {
+            mode: getBackgroundMode(),
+            instruction: getBackgroundPromptInstruction(),
+            relative_prompt: getFieldValue('tpl_character_background_relative_prompt'),
+            asset: selectedBackgroundAsset ? {
+              id: selectedBackgroundAsset.id || null,
+              file_name: selectedBackgroundAsset.file_name || '',
+              file_url: selectedBackgroundAsset.file_url || '',
+              asset_type: selectedBackgroundAsset.asset_type || ''
+            } : null
+          }
+        };
+      }
+
+      if (mode === 'scenery') {
+        return {
+          ...baseSettings,
+          scene_settings: buildScenePayload().scene_settings,
+          generation_mode: selectedReferenceAsset?.file_url ? 'reference' : 'free',
+          render_style: getRenderStyleValue() || 'manga'
+        };
+      }
+
+      return {
+        ...baseSettings,
+        other_text: freeText,
+        generation_mode: selectedReferenceAsset?.file_url ? 'reference' : 'free',
+        render_style: getRenderStyleValue() || 'manga'
+      };
+    }
+
+    function hasPromptTemplateContent(settings) {
+      const value = JSON.stringify(settings || {});
+      return Boolean(value && value.replace(/["{}\[\],:]/g, '').trim());
+    }
+
     function extractGeneratedImageSource(data) {
       if (data?.imageBase64) {
         const mimeType = data.mimeType || data.mime_type || 'image/png';
@@ -1242,6 +1322,55 @@
       } catch (err) {
         console.error(err);
         showMessage(err.message || '生成に失敗しました。', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    async function handleSavePromptTemplate() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+
+      const settings = buildPromptTemplateSettings();
+      if (!hasPromptTemplateContent(settings)) {
+        showMessage('保存する設定がありません。', 'error');
+        return;
+      }
+
+      const defaultName = `${getModeLabel(currentMode)}生成設定 ${new Date().toLocaleString('ja-JP')}`;
+      const presetName = prompt('保存するテンプレート名を入力してください。', defaultName);
+      if (!presetName || !presetName.trim()) return;
+
+      const button = document.getElementById('saveTemplateBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '保存中...';
+      showMessage('');
+
+      try {
+        const referenceAsset = selectedReferenceAsset || null;
+        const { error } = await window.supabaseClient
+          .from('scene_presets')
+          .insert({
+            user_id: currentUser.id,
+            preset_name: presetName.trim(),
+            template_type: currentMode === 'scenery' ? 'scenery' : currentMode,
+            place_type: getModeLabel(currentMode),
+            custom_place: getFieldValue('tpl_character_free_text') || null,
+            scene_settings: settings,
+            reference_enabled: Boolean(referenceAsset?.file_url),
+            reference_asset_id: referenceAsset?.id || null,
+            reference_image_url: referenceAsset?.file_url || null
+          });
+
+        if (error) throw error;
+        showMessage('現在の設定をイラスト保管庫の生成設定に保存しました。');
+      } catch (err) {
+        console.error('prompt template save error:', err);
+        showMessage(err.message || 'テンプレート保存に失敗しました。', 'error');
       } finally {
         button.disabled = false;
         button.textContent = originalText;
