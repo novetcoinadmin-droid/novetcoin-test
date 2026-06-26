@@ -65,21 +65,25 @@ function getCharacterModeConversionInstructions(mode: string) {
     };
   }
 
-  if (mode.includes("リアルな漫画風") || mode.includes("リアル漫画")) {
+  if (
+    mode.includes("リアルな漫画風") || mode.includes("リアル漫画") ||
+    mode.includes("MMORPG") || mode.includes("8頭身")
+  ) {
     return {
       composition:
-        "full-body composition, one complete normal manga-style character, the whole body visible from head to feet",
+        "full-body vertical MMORPG character key visual, one complete 8-heads-tall anime-realistic fantasy hero, the whole body visible from head to feet",
       lines: [
-        "Character mode conversion: transform the reference SD/chibi character into a normal full-body manga character.",
-        "Strict body proportion: remove SD/chibi proportions and redraw as a natural 6-to-7-heads-tall manga character.",
-        "Use a smaller head, natural torso, longer arms, longer legs, and balanced full-body anatomy.",
-        "Show the entire body from head to feet. Do not make a face close-up, bust-up, or upper-body-only image.",
-        "Preserve the reference character identity: hairstyle, bangs, hair color, eye color, outfit, color palette, accessories, and overall personality.",
-        "Change only the body proportion and visual mode into a normal manga/light-novel character.",
-        "Avoid two-head-tall, three-head-tall, chibi, mascot, toy-like, or mini-character proportions.",
+        "Character mode conversion: transform the reference SD/chibi character into a tall, elegant, full-body MMORPG hero character.",
+        "Strict body proportion: remove SD/chibi proportions and redraw as an 8-heads-tall heroic fantasy character with long legs, balanced anatomy, and a sharp readable silhouette.",
+        "Use high-end Japanese fantasy MMORPG character concept art quality: premium gacha character illustration, official game promotional standing artwork, polished anime-realistic rendering, not a photorealistic real person.",
+        "Preserve the reference character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
+        "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, premium fabric or armor materials, polished metal ornaments, and rich texture.",
+        "Use a refined face and confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
+        "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
+        "Avoid two-head-tall, three-head-tall, chibi, mascot, toy-like, mini-character proportions, childish body, oversized head, tiny limbs, simple costume, low detail, weak silhouette, generic fantasy outfit, or losing the original design.",
       ],
       finalGoal:
-        "Create a full-body normal manga version of the same character, clearly transformed from SD/chibi into a regular illustrated character.",
+        "Create a full-body MMORPG-quality anime-realistic hero version of the same SD/chibi character, like an official high-rarity fantasy RPG character key visual.",
     };
   }
 
