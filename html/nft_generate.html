@@ -340,6 +340,24 @@
         </div>
       </div>
 
+      <div class="control-group character-only">
+        <label>背景設定</label>
+        <input type="hidden" id="tpl_character_background_mode" value="none">
+        <div class="choice-grid" data-choice-group="tpl_character_background_mode">
+          <button class="choice-btn active" type="button" data-value="none" onclick="setBackgroundMode('none')">背景なし</button>
+          <button class="choice-btn" type="button" data-value="reference" onclick="setBackgroundMode('reference')">背景あり（参照）</button>
+          <button class="choice-btn" type="button" data-value="relative" onclick="setBackgroundMode('relative')">背景あり（相対）</button>
+        </div>
+        <div id="backgroundControls" class="hidden" style="margin-top:8px;">
+          <button class="btn btn-secondary" type="button" onclick="handleBackgroundSelectClick()">背景画像を選ぶ</button>
+          <div id="backgroundSelectionArea"></div>
+          <div id="backgroundRelativePromptArea" class="hidden" style="margin-top:10px;">
+            <label for="tpl_character_background_relative_prompt">相対モード追加プロンプト</label>
+            <textarea id="tpl_character_background_relative_prompt" placeholder="例: 夕暮れの雰囲気にする、幻想的な森の印象に寄せる、廃墟感を強める"></textarea>
+          </div>
+        </div>
+      </div>
+
       <div class="control-group">
         <label>参照画像</label>
         <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
@@ -453,8 +471,10 @@
     let currentGeneratedMimeType = '';
     let currentGeneratedMode = 'character';
     let selectedReferenceAsset = null;
+    let selectedBackgroundAsset = null;
     let referenceAssets = [];
     let currentReferenceCategory = '';
+    let currentAssetPickerTarget = 'reference';
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -473,6 +493,8 @@
       currentUser = session.user;
       await loadNpBalance();
       renderReferenceSelection();
+      renderBackgroundSelection();
+      updateBackgroundModeUI();
       updateModeUI();
     }
 
@@ -539,6 +561,23 @@
       if (inputId === 'tpl_character_mode_conversion') {
         updateExpressionTransformPanel();
       }
+    }
+
+    function setBackgroundMode(mode) {
+      setChoiceValue('tpl_character_background_mode', mode);
+      updateBackgroundModeUI();
+    }
+
+    function getBackgroundMode() {
+      return getFieldValue('tpl_character_background_mode') || 'none';
+    }
+
+    function updateBackgroundModeUI() {
+      const mode = getBackgroundMode();
+      const controls = document.getElementById('backgroundControls');
+      const promptArea = document.getElementById('backgroundRelativePromptArea');
+      if (controls) controls.classList.toggle('hidden', mode === 'none');
+      if (promptArea) promptArea.classList.toggle('hidden', mode !== 'relative');
     }
 
     function updateExpressionTransformPanel() {
@@ -724,6 +763,7 @@
     }
 
     async function handleReferenceCategoryChange(category) {
+      currentAssetPickerTarget = 'reference';
       if (!category) {
         currentReferenceCategory = '';
         referenceAssets = [];
@@ -731,7 +771,7 @@
         return;
       }
 
-      openReferenceModal(category, true);
+      openReferenceModal(category, true, 'reference');
       try {
         await loadReferenceAssets(category);
       } catch (err) {
@@ -740,14 +780,17 @@
       }
     }
 
-    function openReferenceModal(category, loading = false) {
+    function openReferenceModal(category, loading = false, target = currentAssetPickerTarget) {
+      currentAssetPickerTarget = target;
       const modal = document.getElementById('referenceAssetModal');
       const title = document.getElementById('referenceModalTitle');
       const status = document.getElementById('referenceModalStatus');
       const grid = document.getElementById('referenceModalGrid');
       if (!modal || !title || !status || !grid) return;
 
-      title.textContent = `${getReferenceCategoryLabel(category)}の基準化画像を選択`;
+      title.textContent = target === 'background'
+        ? `${getReferenceCategoryLabel(category)}の背景画像を選択`
+        : `${getReferenceCategoryLabel(category)}の基準化画像を選択`;
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
       if (loading) {
@@ -781,9 +824,10 @@
       }
 
       status.textContent = `${referenceAssets.length}件の画像を表示しています。`;
+      const activeAsset = currentAssetPickerTarget === 'background' ? selectedBackgroundAsset : selectedReferenceAsset;
       grid.innerHTML = referenceAssets.map((asset, index) => {
         return `
-          <button class="reference-item ${selectedReferenceAsset?.id === asset.id ? 'active' : ''}" type="button" onclick="selectReferenceAssetByIndex(${index})">
+          <button class="reference-item ${activeAsset?.id === asset.id ? 'active' : ''}" type="button" onclick="selectReferenceAssetByIndex(${index})">
             <img src="${escapeAttr(asset.file_url || '')}" alt="${escapeAttr(asset.file_name || '参照画像')}" loading="lazy" />
             <div class="reference-item-title">${escapeHtml(asset.file_name || '無題')}</div>
             <div class="muted" style="margin-top:4px;">${escapeHtml(asset.asset_type || 'illustration')}</div>
@@ -810,7 +854,44 @@
       `;
     }
 
+    function renderBackgroundSelection() {
+      const area = document.getElementById('backgroundSelectionArea');
+      if (!area) return;
+
+      if (!selectedBackgroundAsset) {
+        area.innerHTML = '<div class="reference-card">背景画像は未選択です。</div>';
+        return;
+      }
+
+      area.innerHTML = `
+        <div class="reference-card">
+          <div style="font-weight:700;">${escapeHtml(selectedBackgroundAsset.file_name || '無題')}</div>
+          <img class="reference-thumb" src="${escapeAttr(selectedBackgroundAsset.file_url || '')}" alt="背景画像" />
+          <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearBackgroundSelection()">背景画像を解除</button>
+        </div>
+      `;
+    }
+
+    async function handleBackgroundSelectClick() {
+      currentAssetPickerTarget = 'background';
+      openReferenceModal('scenery', true, 'background');
+      try {
+        await loadReferenceAssets('scenery');
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('取得に失敗しました。');
+      }
+    }
+
     function selectReferenceAssetByIndex(index) {
+      if (currentAssetPickerTarget === 'background') {
+        selectedBackgroundAsset = referenceAssets[index] || null;
+        renderBackgroundSelection();
+        closeReferenceModal();
+        showMessage('背景画像を選択しました。');
+        return;
+      }
+
       selectedReferenceAsset = referenceAssets[index] || null;
       renderReferenceSelection();
       closeReferenceModal();
@@ -822,6 +903,13 @@
       renderReferenceSelection();
       renderReferenceModalGrid();
       showMessage('参照画像を解除しました。');
+    }
+
+    function clearBackgroundSelection() {
+      selectedBackgroundAsset = null;
+      renderBackgroundSelection();
+      renderReferenceModalGrid();
+      showMessage('背景画像を解除しました。');
     }
 
     function escapeHtml(value) {
@@ -858,6 +946,36 @@
         'アニメ風': '現代アニメ風。現在のTVアニメや配信アニメのような、鮮明な線、整った影、クリアな彩色で描く。'
       };
       return instructions[style] || '';
+    }
+
+    function getBackgroundPromptInstruction(mode = getBackgroundMode()) {
+      if (mode === 'reference') {
+        return '選択した背景画像の構図・場所・雰囲気を強く維持し、その背景内にキャラクターを自然に配置する。';
+      }
+      if (mode === 'relative') {
+        return '選択した背景画像の雰囲気・色味・世界観・空気感を参考にしつつ、構図は固定せず自然なキャライラストとして生成する。';
+      }
+      return '';
+    }
+
+    function buildCharacterFreeTextWithBackground(baseText) {
+      const backgroundMode = getBackgroundMode();
+      if (backgroundMode === 'none' || !selectedBackgroundAsset?.file_url) {
+        return baseText;
+      }
+
+      const instruction = getBackgroundPromptInstruction(backgroundMode);
+      const relativePrompt = getFieldValue('tpl_character_background_relative_prompt');
+      const lines = [
+        baseText,
+        `背景設定: ${backgroundMode === 'reference' ? '背景あり（参照）' : '背景あり（相対）'}`,
+        `背景画像URL: ${selectedBackgroundAsset.file_url}`,
+        `背景指示: ${instruction}`
+      ];
+      if (backgroundMode === 'relative' && relativePrompt) {
+        lines.push(`相対モード追加プロンプト: ${relativePrompt}`);
+      }
+      return lines.filter(Boolean).join('\n');
     }
 
     function getGeneratedAssetType(mode = currentGeneratedMode) {
@@ -918,6 +1036,10 @@
       };
       const expressionTransformPreset = getExpressionTransformPresetSettings(fields.tpl_character_expression_transform);
       const artStyleInstruction = getArtStyleInstruction(fields.tpl_character_art_style);
+      const backgroundMode = getBackgroundMode();
+      const backgroundInstruction = getBackgroundPromptInstruction(backgroundMode);
+      const backgroundRelativePrompt = getFieldValue('tpl_character_background_relative_prompt');
+      const characterFreeText = buildCharacterFreeTextWithBackground(fields.tpl_character_free_text);
 
       const payload = {
         template_type: 'character',
@@ -928,9 +1050,10 @@
           '表情': expressionTransformPreset?.fields?.['表情'] || fields.tpl_character_expression || '自然な表情',
           '感情': 'calm and readable emotional tone',
           'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし',
+          ...(backgroundInstruction ? { '背景設定': backgroundInstruction } : {}),
           ...(expressionTransformPreset?.fields || {})
         },
-        tpl_character_free_text: fields.tpl_character_free_text,
+        tpl_character_free_text: characterFreeText,
         tpl_character_expression: expressionTransformPreset?.expressionText || fields.tpl_character_expression,
         tpl_character_view: fields.tpl_character_view,
         tpl_character_age: fields.tpl_character_age,
@@ -944,6 +1067,16 @@
 
       if (selectedReferenceAsset?.file_url) {
         payload.reference_image_url = selectedReferenceAsset.file_url;
+      }
+
+      if (backgroundMode !== 'none' && selectedBackgroundAsset?.file_url) {
+        payload.background_mode = backgroundMode;
+        payload.background_image_url = selectedBackgroundAsset.file_url;
+        payload.background_asset_id = selectedBackgroundAsset.id || null;
+        payload.background_instruction = backgroundInstruction;
+        if (backgroundMode === 'relative') {
+          payload.background_relative_prompt = backgroundRelativePrompt;
+        }
       }
 
       return payload;
@@ -1018,6 +1151,10 @@
     async function handleGenerate() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (currentMode === 'character' && getBackgroundMode() !== 'none' && !selectedBackgroundAsset?.file_url) {
+        showMessage('背景ありを使う場合は、背景画像を選択してください。', 'error');
         return;
       }
 
