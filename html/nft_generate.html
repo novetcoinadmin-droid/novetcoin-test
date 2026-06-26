@@ -149,6 +149,20 @@
     .muted { color: #777; font-size: 12px; line-height: 1.6; }
     .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
     .small { font-size: 12px; }
+    .np-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 12px;
+      border: 1px solid #e5d7f5;
+      border-radius: 999px;
+      background: #f7f3ff;
+      color: var(--main-purple);
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+      box-shadow: 0 2px 8px rgba(106,13,173,0.08);
+    }
     .reference-card {
       border: 1px solid #eee;
       border-radius: 8px;
@@ -263,7 +277,7 @@
     <section class="panel">
       <div class="status-row">
         <h2 style="margin:0;">生成画像</h2>
-        <div id="npBadge" class="small">NP: --</div>
+        <div id="npBadge" class="np-badge">NP: --</div>
       </div>
       <div id="messageBox" class="message"></div>
       <div id="previewArea" class="preview-area">
@@ -837,6 +851,15 @@
       return styleMap[style] || '';
     }
 
+    function getArtStyleInstruction(style = getFieldValue('tpl_character_art_style')) {
+      const instructions = {
+        'ラノベ風': 'ラノベ風。必ずモノクロ固定。白黒、グレースケールのみで描く。カラー化しない。',
+        '漫画風': '漫画風。スクリーントーンを多めに使う。使用色は最大4色までに制限する。',
+        'アニメ風': '現代アニメ風。現在のTVアニメや配信アニメのような、鮮明な線、整った影、クリアな彩色で描く。'
+      };
+      return instructions[style] || '';
+    }
+
     function getGeneratedAssetType(mode = currentGeneratedMode) {
       if (mode === 'scenery') return 'scene';
       if (mode === 'other') return 'other';
@@ -894,11 +917,12 @@
         tpl_character_expression_transform: getFieldValue('tpl_character_expression_transform')
       };
       const expressionTransformPreset = getExpressionTransformPresetSettings(fields.tpl_character_expression_transform);
+      const artStyleInstruction = getArtStyleInstruction(fields.tpl_character_art_style);
 
       const payload = {
         template_type: 'character',
         editable_fields_japanese: {
-          '画風': fields.tpl_character_art_style || 'clean all-ages illustrated style',
+          '画風': artStyleInstruction || fields.tpl_character_art_style || 'clean all-ages illustrated style',
           '質感': 'soft hand-drawn illustration texture',
           '色調': 'balanced light and shadow',
           '表情': expressionTransformPreset?.fields?.['表情'] || fields.tpl_character_expression || '自然な表情',
@@ -913,7 +937,7 @@
         tpl_character_pose: fields.tpl_character_pose,
         tpl_character_outfit: fields.tpl_character_outfit,
         tpl_character_lighting: fields.tpl_character_lighting,
-        tpl_character_art_style: fields.tpl_character_art_style,
+        tpl_character_art_style: artStyleInstruction || fields.tpl_character_art_style,
         tpl_character_mode_conversion: fields.tpl_character_mode_conversion,
         tpl_character_expression_transform: expressionTransformPreset?.label || ''
       };
@@ -929,6 +953,8 @@
       const freeText = getFieldValue('tpl_character_free_text');
       const hasReference = Boolean(selectedReferenceAsset?.file_url);
       const renderStyle = getRenderStyleValue() || 'manga';
+      const artStyleInstruction = getArtStyleInstruction();
+      const detailText = freeText || (hasReference ? '参照画像の風景要素を活かす' : '自然な風景');
 
       return {
         scene_settings: {
@@ -937,7 +963,7 @@
           scale: '中景',
           place: '',
           world: '',
-          detail: freeText || (hasReference ? '参照画像の風景要素を活かす' : '自然な風景'),
+          detail: artStyleInstruction ? `${detailText}\n画風指定: ${artStyleInstruction}` : detailText,
           light: '',
           tone: '',
           person: '人物なし',
@@ -948,6 +974,7 @@
         reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
         generation_mode: hasReference ? 'reference' : 'free',
         render_style: renderStyle,
+        style_instruction: artStyleInstruction,
         debug_prompt_only: false
       };
     }
@@ -956,15 +983,18 @@
       const freeText = getFieldValue('tpl_character_free_text');
       const hasReference = Boolean(selectedReferenceAsset?.file_url);
       const renderStyle = getRenderStyleValue() || 'manga';
+      const artStyleInstruction = getArtStyleInstruction();
+      const otherText = freeText || (hasReference ? '参照画像の素材をもとにしたその他素材' : 'その他素材');
 
       return {
         template_type: 'other',
-        other_text: freeText || (hasReference ? '参照画像の素材をもとにしたその他素材' : 'その他素材'),
+        other_text: artStyleInstruction ? `${otherText}\n画風指定: ${artStyleInstruction}` : otherText,
         reference_enabled: hasReference,
         reference_image_url: hasReference ? selectedReferenceAsset.file_url : null,
         reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
         generation_mode: hasReference ? 'reference' : 'free',
         render_style: renderStyle,
+        style_instruction: artStyleInstruction,
         debug_prompt_only: false
       };
     }
