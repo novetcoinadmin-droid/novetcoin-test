@@ -365,23 +365,23 @@
           <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_mode_conversion', '')">指定なし</button>
           <button class="choice-btn" type="button" data-value="SDキャラをリアルな漫画風キャラに変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'SDキャラをリアルな漫画風キャラに変換')">SD → リアル漫画風</button>
           <button class="choice-btn" type="button" data-value="リアルな漫画キャラを２等身のSDキャラに変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'リアルな漫画キャラを２等身のSDキャラに変換')">リアル漫画 → ２等身SD</button>
-          <button class="choice-btn" type="button" data-value="表情変換" onclick="setChoiceValue('tpl_character_mode_conversion', '表情変換')">表情変換</button>
         </div>
         <p class="muted">キャラ画像の参照時に使います。キャラモード専用です。</p>
-        <div id="expressionTransformPanel" class="expression-transform-panel">
-          <label>表情変換の要素</label>
-          <input type="hidden" id="tpl_character_expression_transform" value="">
-          <div class="choice-grid" data-choice-group="tpl_character_expression_transform">
-            <button class="choice-btn active" type="button" data-value="" onclick="setExpressionTransformPreset('')">指定なし</button>
-            <button class="choice-btn" type="button" data-value="joy" onclick="setExpressionTransformPreset('joy')">歓喜</button>
-            <button class="choice-btn" type="button" data-value="anger" onclick="setExpressionTransformPreset('anger')">怒り</button>
-            <button class="choice-btn" type="button" data-value="despair" onclick="setExpressionTransformPreset('despair')">絶望</button>
-            <button class="choice-btn" type="button" data-value="laugh" onclick="setExpressionTransformPreset('laugh')">大笑い</button>
-            <button class="choice-btn" type="button" data-value="closed_eyes" onclick="setExpressionTransformPreset('closed_eyes')">瞳を閉じる</button>
-            <button class="choice-btn" type="button" data-value="open_mouth" onclick="setExpressionTransformPreset('open_mouth')">口を大きく開ける</button>
-          </div>
-          <p id="expressionTransformStatus" class="muted">表情変換の要素は未選択です。</p>
+      </div>
+
+      <div class="control-group character-only">
+        <label>表情変換</label>
+        <input type="hidden" id="tpl_character_expression_transform" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_expression_transform">
+          <button class="choice-btn active" type="button" data-value="" onclick="setExpressionTransformPreset('')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="joy" onclick="setExpressionTransformPreset('joy')">歓喜</button>
+          <button class="choice-btn" type="button" data-value="anger" onclick="setExpressionTransformPreset('anger')">怒り</button>
+          <button class="choice-btn" type="button" data-value="despair" onclick="setExpressionTransformPreset('despair')">絶望</button>
+          <button class="choice-btn" type="button" data-value="laugh" onclick="setExpressionTransformPreset('laugh')">大笑い</button>
+          <button class="choice-btn" type="button" data-value="closed_eyes" onclick="setExpressionTransformPreset('closed_eyes')">瞳を閉じる</button>
+          <button class="choice-btn" type="button" data-value="open_mouth" onclick="setExpressionTransformPreset('open_mouth')">口を大きく開ける</button>
         </div>
+        <p id="expressionTransformStatus" class="muted">表情変換の要素は未選択です。</p>
       </div>
 
       <div class="control-group character-only">
@@ -633,9 +633,6 @@
         btn.classList.toggle('active', btn.getAttribute('data-value') === value);
       });
 
-      if (inputId === 'tpl_character_mode_conversion') {
-        updateExpressionTransformPanel();
-      }
     }
 
     function setBackgroundMode(mode) {
@@ -653,18 +650,6 @@
       const promptArea = document.getElementById('backgroundRelativePromptArea');
       if (controls) controls.classList.toggle('hidden', mode === 'none');
       if (promptArea) promptArea.classList.toggle('hidden', mode !== 'relative');
-    }
-
-    function updateExpressionTransformPanel() {
-      const modeValue = getFieldValue('tpl_character_mode_conversion');
-      const panel = document.getElementById('expressionTransformPanel');
-      if (!panel) return;
-
-      const isExpressionTransform = modeValue === '表情変換';
-      panel.classList.toggle('visible', isExpressionTransform);
-      if (!isExpressionTransform) {
-        setExpressionTransformPreset('');
-      }
     }
 
     function getExpressionTransformPresetSettings(presetKey) {
