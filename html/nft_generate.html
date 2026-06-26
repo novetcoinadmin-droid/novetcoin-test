@@ -132,15 +132,73 @@
       border-radius: 8px;
       margin-top: 8px;
     }
-    .reference-list { display: grid; gap: 8px; margin-top: 10px; }
+    .reference-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0,0,0,0.45);
+    }
+    .reference-modal.open { display: flex; }
+    .reference-modal-panel {
+      width: min(960px, 100%);
+      max-height: min(780px, 90vh);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .reference-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .reference-modal-title { font-weight: 700; }
+    .reference-modal-close {
+      width: auto;
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      color: #555;
+    }
+    .reference-modal-body {
+      overflow: auto;
+      padding: 16px;
+    }
+    .reference-modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
     .reference-item {
       border: 1px solid #eee;
       border-radius: 8px;
       padding: 8px;
       cursor: pointer;
       background: #fff;
+      text-align: left;
+      width: 100%;
     }
     .reference-item.active { border-color: var(--main-purple); background: #faf4ff; }
+    .reference-item img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #f5f5f5;
+      display: block;
+      margin-bottom: 8px;
+    }
     .reference-item-title {
       font-size: 12px;
       font-weight: 700;
@@ -186,7 +244,7 @@
 
     <aside class="panel">
       <div class="control-group">
-        <button class="btn btn-secondary" type="button" onclick="location.href='/html/my-site/nft_mint.html'">NFTスタジオに戻る</button>
+        <button class="btn btn-secondary" type="button" onclick="location.href='/my-site/nft_mint.html'">NFTスタジオに戻る</button>
       </div>
 
       <div class="control-group">
@@ -284,7 +342,6 @@
           <option value="other">その他</option>
         </select>
         <div id="referenceSelectionArea"></div>
-        <div id="referenceAssetList" class="reference-list"></div>
       </div>
 
       <div class="control-group">
@@ -295,6 +352,19 @@
         <button id="saveBtn" class="btn btn-secondary" type="button" onclick="handleSaveGeneratedImage()" disabled>生成画像をイラスト保管庫に保存</button>
       </div>
     </aside>
+  </div>
+
+  <div id="referenceAssetModal" class="reference-modal" aria-hidden="true">
+    <div class="reference-modal-panel" role="dialog" aria-modal="true" aria-labelledby="referenceModalTitle">
+      <div class="reference-modal-header">
+        <div id="referenceModalTitle" class="reference-modal-title">基準化画像を選択</div>
+        <button class="reference-modal-close" type="button" onclick="closeReferenceModal()">閉じる</button>
+      </div>
+      <div class="reference-modal-body">
+        <div id="referenceModalStatus" class="muted"></div>
+        <div id="referenceModalGrid" class="reference-modal-grid"></div>
+      </div>
+    </div>
   </div>
 
   <script src="../portal/auth-check.js"></script>
@@ -327,7 +397,6 @@
 
       currentUser = session.user;
       await loadNpBalance();
-      await loadReferenceAssets('');
       renderReferenceSelection();
       updateModeUI();
     }
@@ -390,63 +459,127 @@
       document.getElementById('npBadge').textContent = `NP: ${Math.floor(currentNpBalance).toLocaleString()}`;
     }
 
-    async function loadReferenceAssets(category = currentReferenceCategory) {
-      currentReferenceCategory = category || '';
-      if (!currentUser) return;
-      if (!currentReferenceCategory) {
-        referenceAssets = [];
-        renderReferenceAssetList();
-        return;
-      }
-
+    function getReferenceCategoryTypes(category) {
       const categoryFilters = {
         character: ['character', 'illustration'],
         scenery: ['scenery', 'background', 'landscape'],
         other: ['other', 'material', 'object', 'effect']
       };
-      const allowedTypes = categoryFilters[currentReferenceCategory] || [];
-      const { data, error } = await window.supabaseClient
-        .from('user_assets')
-        .select('id,file_url,file_name,asset_type,asset_source,created_at')
-        .eq('user_id', currentUser.id)
-        .in('asset_type', allowedTypes)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      return categoryFilters[category] || [];
+    }
 
-      if (error) {
-        showMessage('参照画像一覧の取得に失敗しました。保管庫のRLS設定を確認してください。', 'error');
+    function getReferenceCategoryLabel(category) {
+      const labels = {
+        character: 'キャラクター',
+        scenery: '風景',
+        other: 'その他'
+      };
+      return labels[category] || '基準化画像';
+    }
+
+    async function loadReferenceAssets(category = currentReferenceCategory) {
+      currentReferenceCategory = category || '';
+      if (!currentUser) return;
+      if (!currentReferenceCategory) {
+        referenceAssets = [];
+        renderReferenceModalGrid();
         return;
       }
 
-      referenceAssets = data || [];
-      renderReferenceAssetList();
+      const allowedTypes = getReferenceCategoryTypes(currentReferenceCategory);
+      const pageSize = 1000;
+      let from = 0;
+      let allAssets = [];
+
+      while (true) {
+        const { data, error } = await window.supabaseClient
+          .from('user_assets')
+          .select('id,file_url,file_name,asset_type,asset_source,created_at')
+          .eq('user_id', currentUser.id)
+          .in('asset_type', allowedTypes)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          showMessage('参照画像一覧の取得に失敗しました。保管庫のRLS設定を確認してください。', 'error');
+          throw error;
+        }
+
+        const page = data || [];
+        allAssets = allAssets.concat(page);
+        if (page.length < pageSize) break;
+        from += pageSize;
+      }
+
+      referenceAssets = allAssets;
+      renderReferenceModalGrid();
     }
 
-    function handleReferenceCategoryChange(category) {
-      loadReferenceAssets(category);
+    async function handleReferenceCategoryChange(category) {
+      if (!category) {
+        currentReferenceCategory = '';
+        referenceAssets = [];
+        closeReferenceModal();
+        return;
+      }
+
+      openReferenceModal(category, true);
+      try {
+        await loadReferenceAssets(category);
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('取得に失敗しました。');
+      }
     }
 
-    function renderReferenceAssetList() {
-      const list = document.getElementById('referenceAssetList');
-      if (!list) return;
+    function openReferenceModal(category, loading = false) {
+      const modal = document.getElementById('referenceAssetModal');
+      const title = document.getElementById('referenceModalTitle');
+      const status = document.getElementById('referenceModalStatus');
+      const grid = document.getElementById('referenceModalGrid');
+      if (!modal || !title || !status || !grid) return;
 
-      if (!currentReferenceCategory) {
-        list.innerHTML = '<div class="muted">カテゴリを選択すると、保管庫画像を選べます。</div>';
+      title.textContent = `${getReferenceCategoryLabel(category)}の基準化画像を選択`;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      if (loading) {
+        status.textContent = '保管庫画像を読み込んでいます...';
+        grid.innerHTML = '';
+      }
+    }
+
+    function closeReferenceModal() {
+      const modal = document.getElementById('referenceAssetModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderReferenceModalGrid(errorText = '') {
+      const status = document.getElementById('referenceModalStatus');
+      const grid = document.getElementById('referenceModalGrid');
+      if (!status || !grid) return;
+
+      if (errorText) {
+        status.textContent = errorText;
+        grid.innerHTML = '';
         return;
       }
 
       if (!referenceAssets.length) {
-        list.innerHTML = '<div class="muted">このカテゴリの保管庫画像はまだありません。</div>';
+        status.textContent = 'このカテゴリの保管庫画像はまだありません。';
+        grid.innerHTML = '';
         return;
       }
 
-      list.innerHTML = referenceAssets.map((asset) => {
-        const payload = encodeURIComponent(JSON.stringify(asset));
+      status.textContent = `${referenceAssets.length}件の画像を表示しています。`;
+      grid.innerHTML = referenceAssets.map((asset, index) => {
         return `
-          <div class="reference-item ${selectedReferenceAsset?.id === asset.id ? 'active' : ''}" onclick="selectReferenceAssetFromEncoded('${payload}')">
+          <button class="reference-item ${selectedReferenceAsset?.id === asset.id ? 'active' : ''}" type="button" onclick="selectReferenceAssetByIndex(${index})">
+            <img src="${escapeAttr(asset.file_url || '')}" alt="${escapeAttr(asset.file_name || '参照画像')}" loading="lazy" />
             <div class="reference-item-title">${escapeHtml(asset.file_name || '無題')}</div>
             <div class="muted" style="margin-top:4px;">${escapeHtml(asset.asset_type || 'illustration')}</div>
-          </div>
+          </button>
         `;
       }).join('');
     }
@@ -469,17 +602,17 @@
       `;
     }
 
-    function selectReferenceAssetFromEncoded(encodedAsset) {
-      selectedReferenceAsset = JSON.parse(decodeURIComponent(encodedAsset));
+    function selectReferenceAssetByIndex(index) {
+      selectedReferenceAsset = referenceAssets[index] || null;
       renderReferenceSelection();
-      renderReferenceAssetList();
+      closeReferenceModal();
       showMessage('参照画像を選択しました。');
     }
 
     function clearReferenceSelection() {
       selectedReferenceAsset = null;
       renderReferenceSelection();
-      renderReferenceAssetList();
+      renderReferenceModalGrid();
       showMessage('参照画像を解除しました。');
     }
 
