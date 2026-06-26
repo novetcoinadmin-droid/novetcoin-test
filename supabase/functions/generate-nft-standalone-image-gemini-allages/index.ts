@@ -35,6 +35,61 @@ function pushIf(lines: string[], label: string, value: unknown) {
   if (v) lines.push(`${label}: ${v}`);
 }
 
+function getCharacterModeConversionInstructions(mode: string) {
+  if (!mode) {
+    return {
+      composition: "",
+      lines: [] as string[],
+      finalGoal: "",
+    };
+  }
+
+  if (
+    mode.includes("２等身") || mode.includes("2等身") ||
+    mode.includes("SDキャラに変換")
+  ) {
+    return {
+      composition:
+        "full-body composition, one complete two-head-tall super-deformed chibi character, the whole body visible from head to feet",
+      lines: [
+        "Character mode conversion: transform the reference character into a two-head-tall SD chibi character.",
+        "Strict body proportion: exactly two-head-tall character design; the head and the body should be almost the same size.",
+        "Use a very large head, tiny torso, short arms, short legs, and a cute compact silhouette.",
+        "Show the entire body from head to feet. Do not make a face close-up, bust-up, or upper-body-only image.",
+        "Preserve the reference character identity: hairstyle, bangs, hair color, eye color, outfit, color palette, accessories, and overall personality.",
+        "Change only the body proportion and visual mode into a game-style SD character.",
+        "Avoid realistic human anatomy, long limbs, tall proportions, fashion-model proportions, or adult body proportions.",
+      ],
+      finalGoal:
+        "Create a clearly recognizable two-head-tall SD version of the same character, like a cute game icon or mini character.",
+    };
+  }
+
+  if (mode.includes("リアルな漫画風") || mode.includes("リアル漫画")) {
+    return {
+      composition:
+        "full-body composition, one complete normal manga-style character, the whole body visible from head to feet",
+      lines: [
+        "Character mode conversion: transform the reference SD/chibi character into a normal full-body manga character.",
+        "Strict body proportion: remove SD/chibi proportions and redraw as a natural 6-to-7-heads-tall manga character.",
+        "Use a smaller head, natural torso, longer arms, longer legs, and balanced full-body anatomy.",
+        "Show the entire body from head to feet. Do not make a face close-up, bust-up, or upper-body-only image.",
+        "Preserve the reference character identity: hairstyle, bangs, hair color, eye color, outfit, color palette, accessories, and overall personality.",
+        "Change only the body proportion and visual mode into a normal manga/light-novel character.",
+        "Avoid two-head-tall, three-head-tall, chibi, mascot, toy-like, or mini-character proportions.",
+      ],
+      finalGoal:
+        "Create a full-body normal manga version of the same character, clearly transformed from SD/chibi into a regular illustrated character.",
+    };
+  }
+
+  return {
+    composition: "",
+    lines: [`Character mode conversion: ${mode}`],
+    finalGoal: "",
+  };
+}
+
 async function fetchImageAsBase64(imageUrl: string) {
   let url: URL;
   try {
@@ -96,12 +151,22 @@ function buildPrompt(payload: Record<string, any>, hasReferenceImage: boolean) {
     pickString(payload.outfit);
   const userLighting = pickString(payload.tpl_character_lighting) ||
     pickString(payload.lighting);
+  const userArtStyle = pickString(payload.tpl_character_art_style) ||
+    pickString(payload.art_style);
+  const userModeConversion = pickString(payload.tpl_character_mode_conversion) ||
+    pickString(payload.character_mode_conversion);
+  const userExpressionTransform =
+    pickString(payload.tpl_character_expression_transform) ||
+    pickString(payload.character_expression_transform);
+  const modeConversion = getCharacterModeConversionInstructions(
+    userModeConversion,
+  );
 
   const preserveLines: string[] = [];
   pushIf(
     preserveLines,
     "Illustration style",
-    pickEditable(editable, ["画風", "逕ｻ鬚ｨ"]),
+    userArtStyle || pickEditable(editable, ["画風", "逕ｻ鬚ｨ"]),
   );
   pushIf(
     preserveLines,
@@ -115,11 +180,22 @@ function buildPrompt(payload: Record<string, any>, hasReferenceImage: boolean) {
   );
 
   const changeLines: string[] = [];
+  for (const line of modeConversion.lines) {
+    changeLines.push(line);
+  }
   pushIf(
     changeLines,
     "Target expression",
     userExpression || pickEditable(editable, ["表情", "陦ｨ諠・"]),
   );
+  pushIf(changeLines, "Expression transform preset", userExpressionTransform);
+  pushIf(changeLines, "Emotion detail", pickEditable(editable, ["感情"]));
+  pushIf(changeLines, "Eyebrow detail", pickEditable(editable, ["眉毛"]));
+  pushIf(changeLines, "Eye shape detail", pickEditable(editable, ["瞳の形"]));
+  pushIf(changeLines, "Mouth and lip detail", pickEditable(editable, ["唇の形"]));
+  pushIf(changeLines, "Overall facial impression", pickEditable(editable, [
+    "全体印象",
+  ]));
   pushIf(changeLines, "Target view", userView);
   pushIf(changeLines, "Target age impression", userAge);
   pushIf(changeLines, "Target pose", userPose);
@@ -144,7 +220,7 @@ Important rules:
 - Avoid text, signatures, logos, watermarks, and UI elements in the image.
 
 Composition:
-- ${userView || "bust-up or upper body composition"}
+- ${modeConversion.composition || userView || "bust-up or upper body composition"}
 - one character
 - clean readable composition
 
@@ -164,9 +240,10 @@ ${
 
 Final goal:
 ${
-    hasReferenceImage
+    modeConversion.finalGoal ||
+    (hasReferenceImage
       ? "Create a result that clearly resembles the same character as the reference image while following the requested changes."
-      : "Create a coherent original character illustration that follows the requested text details."
+      : "Create a coherent original character illustration that follows the requested text details.")
   }
 `.trim();
 }
