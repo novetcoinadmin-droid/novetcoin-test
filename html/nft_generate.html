@@ -343,18 +343,6 @@
       </div>
 
       <div class="control-group">
-        <label for="tpl_character_expression">表情</label>
-        <select id="tpl_character_expression">
-          <option value="">指定なし</option>
-          <option value="微笑み">微笑み</option>
-          <option value="悲しげ">悲しげ</option>
-          <option value="真面目">真面目</option>
-          <option value="怒り">怒り</option>
-          <option value="決意">決意</option>
-        </select>
-      </div>
-
-      <div class="control-group">
         <label for="tpl_character_view">見え方</label>
         <select id="tpl_character_view">
           <option value="">指定なし</option>
@@ -817,7 +805,7 @@
     }
 
     function getFieldValue(id) {
-      return document.getElementById(id).value.trim();
+      return document.getElementById(id)?.value.trim() || '';
     }
 
     function buildStandalonePayload() {
