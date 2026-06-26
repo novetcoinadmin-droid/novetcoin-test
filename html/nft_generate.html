@@ -333,6 +333,26 @@
       </div>
 
       <div class="control-group">
+        <label for="tpl_character_art_style">画風</label>
+        <select id="tpl_character_art_style">
+          <option value="">指定なし</option>
+          <option value="ラノベ風">ラノベ風</option>
+          <option value="漫画風">漫画風</option>
+          <option value="アニメ風">アニメ風</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="tpl_character_mode_conversion">キャラモード変換</label>
+        <select id="tpl_character_mode_conversion">
+          <option value="">指定なし</option>
+          <option value="SDキャラをリアルな漫画風キャラに変換">SDキャラ → リアルな漫画風</option>
+          <option value="リアルな漫画キャラを2等身のSDキャラに変換">リアルな漫画キャラ → 2等身SD</option>
+        </select>
+        <p class="muted">キャラ画像の参照時に使います。キャラモード専用です。</p>
+      </div>
+
+      <div class="control-group">
         <label>参照画像</label>
         <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
         <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
@@ -641,17 +661,20 @@
         tpl_character_age: getFieldValue('tpl_character_age'),
         tpl_character_pose: getFieldValue('tpl_character_pose'),
         tpl_character_outfit: getFieldValue('tpl_character_outfit'),
-        tpl_character_lighting: getFieldValue('tpl_character_lighting')
+        tpl_character_lighting: getFieldValue('tpl_character_lighting'),
+        tpl_character_art_style: getFieldValue('tpl_character_art_style'),
+        tpl_character_mode_conversion: getFieldValue('tpl_character_mode_conversion')
       };
 
       const payload = {
         template_type: 'character',
         editable_fields_japanese: {
-          '画風': 'clean all-ages illustrated style',
+          '画風': fields.tpl_character_art_style || 'clean all-ages illustrated style',
           '質感': 'soft hand-drawn illustration texture',
           '色調': 'balanced light and shadow',
           '表情': fields.tpl_character_expression || '自然な表情',
-          '感情': 'calm and readable emotional tone'
+          '感情': 'calm and readable emotional tone',
+          'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし'
         },
         tpl_character_free_text: fields.tpl_character_free_text,
         tpl_character_expression: fields.tpl_character_expression,
@@ -659,7 +682,9 @@
         tpl_character_age: fields.tpl_character_age,
         tpl_character_pose: fields.tpl_character_pose,
         tpl_character_outfit: fields.tpl_character_outfit,
-        tpl_character_lighting: fields.tpl_character_lighting
+        tpl_character_lighting: fields.tpl_character_lighting,
+        tpl_character_art_style: fields.tpl_character_art_style,
+        tpl_character_mode_conversion: fields.tpl_character_mode_conversion
       };
 
       if (selectedReferenceAsset?.file_url) {
