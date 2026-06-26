@@ -130,7 +130,11 @@ async function fetchImageAsBase64(imageUrl: string) {
   };
 }
 
-function buildPrompt(payload: Record<string, any>, hasReferenceImage: boolean) {
+function buildPrompt(
+  payload: Record<string, any>,
+  hasReferenceImage: boolean,
+  hasBackgroundImage: boolean,
+) {
   const editable = payload.editable_fields_japanese ||
     payload.reference_features?.editable_fields_japanese ||
     {};
@@ -158,6 +162,9 @@ function buildPrompt(payload: Record<string, any>, hasReferenceImage: boolean) {
   const userExpressionTransform =
     pickString(payload.tpl_character_expression_transform) ||
     pickString(payload.character_expression_transform);
+  const backgroundMode = pickString(payload.background_mode);
+  const backgroundInstruction = pickString(payload.background_instruction);
+  const backgroundRelativePrompt = pickString(payload.background_relative_prompt);
   const modeConversion = getCharacterModeConversionInstructions(
     userModeConversion,
   );
@@ -202,6 +209,30 @@ function buildPrompt(payload: Record<string, any>, hasReferenceImage: boolean) {
   pushIf(changeLines, "Target outfit", userOutfit);
   pushIf(changeLines, "Target atmosphere and lighting", userLighting);
   pushIf(changeLines, "Additional user direction", userFreeText);
+
+  if (hasBackgroundImage && backgroundMode === "reference") {
+    changeLines.push(
+      "Background mode: reference. Use the provided background image as the fixed background/composition reference.",
+    );
+    changeLines.push(
+      "Keep the selected background image's composition, location, perspective, atmosphere, lighting, and mood as strongly as possible.",
+    );
+    changeLines.push(
+      "Naturally place the character inside that background scene. Do not replace the background with a different location.",
+    );
+  }
+
+  if (hasBackgroundImage && backgroundMode === "relative") {
+    changeLines.push(
+      "Background mode: relative. Use the provided background image only as an atmosphere and worldbuilding reference.",
+    );
+    changeLines.push(
+      "Preserve the image's mood, color feeling, world setting, time of day, and air, but do not lock the exact composition.",
+    );
+  }
+
+  pushIf(changeLines, "Background instruction", backgroundInstruction);
+  pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
     ? "Use the provided image as the primary visual reference. Preserve the same character identity as much as possible."
@@ -254,6 +285,9 @@ async function callGeminiImageModel(params: {
   prompt: string;
   referenceImageBase64: string;
   referenceImageMimeType: string;
+  backgroundImageBase64: string;
+  backgroundImageMimeType: string;
+  backgroundMode: string;
 }) {
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
@@ -263,9 +297,26 @@ async function callGeminiImageModel(params: {
 
   if (params.referenceImageBase64) {
     parts.push({
+      text:
+        "Character reference image. Use this for character identity, not as the background.",
+    });
+    parts.push({
       inlineData: {
         mimeType: params.referenceImageMimeType || "image/png",
         data: params.referenceImageBase64,
+      },
+    });
+  }
+
+  if (params.backgroundImageBase64) {
+    const backgroundLabel = params.backgroundMode === "reference"
+      ? "Background reference image. Use this as the fixed background/composition reference."
+      : "Background atmosphere image. Use this for mood, color, world setting, and air.";
+    parts.push({ text: backgroundLabel });
+    parts.push({
+      inlineData: {
+        mimeType: params.backgroundImageMimeType || "image/png",
+        data: params.backgroundImageBase64,
       },
     });
   }
@@ -353,6 +404,13 @@ Deno.serve(async (req) => {
     const referenceImageUrl = pickString(
       payload.reference_image_url || payload.referenceImageUrl,
     );
+    let backgroundImageBase64 = pickString(payload.background_image_base64);
+    let backgroundImageMimeType =
+      pickString(payload.background_image_mime_type) || "image/png";
+    const backgroundImageUrl = pickString(
+      payload.background_image_url || payload.backgroundImageUrl,
+    );
+    const backgroundMode = pickString(payload.background_mode);
 
     if (!referenceImageBase64 && referenceImageUrl) {
       const fetched = await fetchImageAsBase64(referenceImageUrl);
@@ -360,14 +418,24 @@ Deno.serve(async (req) => {
       referenceImageMimeType = fetched.mimeType;
     }
 
+    if (!backgroundImageBase64 && backgroundImageUrl) {
+      const fetched = await fetchImageAsBase64(backgroundImageUrl);
+      backgroundImageBase64 = fetched.base64;
+      backgroundImageMimeType = fetched.mimeType;
+    }
+
     const hasReferenceImage = Boolean(referenceImageBase64);
-    const prompt = buildPrompt(payload, hasReferenceImage);
+    const hasBackgroundImage = Boolean(backgroundImageBase64);
+    const prompt = buildPrompt(payload, hasReferenceImage, hasBackgroundImage);
     const result = await callGeminiImageModel({
       apiKey: GEMINI_API_KEY,
       model: GEMINI_IMAGE_MODEL,
       prompt,
       referenceImageBase64,
       referenceImageMimeType,
+      backgroundImageBase64,
+      backgroundImageMimeType,
+      backgroundMode,
     });
     const dataUrl = `data:${result.mimeType};base64,${result.imageBase64}`;
 
@@ -377,6 +445,8 @@ Deno.serve(async (req) => {
       model: GEMINI_IMAGE_MODEL,
       prompt,
       hasReferenceImage,
+      hasBackgroundImage,
+      backgroundMode,
       imageBase64: result.imageBase64,
       mimeType: result.mimeType,
       dataUrl,
