@@ -74,9 +74,12 @@ function getCharacterModeConversionInstructions(mode: string) {
         "full-body vertical MMORPG character key visual, one complete 8-heads-tall anime-realistic fantasy hero, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: transform the reference SD/chibi character into a tall, elegant, full-body MMORPG hero character.",
+        "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
         "Strict body proportion: remove SD/chibi proportions and redraw as an 8-heads-tall heroic fantasy character with long legs, balanced anatomy, and a sharp readable silhouette.",
+        "The final image must be unmistakably non-chibi: normal/tall head size, adult heroic torso, long arms, long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
         "Use high-end Japanese fantasy MMORPG character concept art quality: premium gacha character illustration, official game promotional standing artwork, polished anime-realistic rendering, not a photorealistic real person.",
         "Preserve the reference character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
+        "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, premium fabric or armor materials, polished metal ornaments, and rich texture.",
         "Use a refined face and confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
@@ -239,7 +242,7 @@ function buildPrompt(
   pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
-    ? "Use the provided image as the primary visual reference. Preserve the same character identity as much as possible."
+    ? "Use the provided image as a character identity reference only. Extract recognizable character features, but do not copy the reference image's body proportions, pose, camera angle, composition, or background unless explicitly requested."
     : "No reference image is provided. Create a new original character from the text instructions.";
 
   return `
@@ -302,7 +305,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Character reference image. Use this for character identity, not as the background.",
+        "Character reference image. Use this only to identify the character's design motifs. Do not trace or preserve the original pose, background, camera angle, chibi proportions, oversized head, short limbs, or mascot silhouette.",
     });
     parts.push({
       inlineData: {
