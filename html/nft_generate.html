@@ -186,7 +186,7 @@
 
     <aside class="panel">
       <div class="control-group">
-        <button class="btn btn-secondary" type="button" onclick="location.href='nft_mint.html'">NFTスタジオに戻る</button>
+        <button class="btn btn-secondary" type="button" onclick="location.href='/html/my-site/nft_mint.html'">NFTスタジオに戻る</button>
       </div>
 
       <div class="control-group">
@@ -276,8 +276,13 @@
 
       <div class="control-group">
         <label>参照画像</label>
-        <p class="muted">任意です。選択すると、その画像を参照してキャラ生成します。</p>
-        <button type="button" class="btn btn-secondary" onclick="loadReferenceAssets()">保管庫から再読み込み</button>
+        <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
+        <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
+          <option value="">基準化画像を選ぶ▼</option>
+          <option value="character">キャラクター</option>
+          <option value="scenery">風景</option>
+          <option value="other">その他</option>
+        </select>
         <div id="referenceSelectionArea"></div>
         <div id="referenceAssetList" class="reference-list"></div>
       </div>
@@ -304,6 +309,7 @@
     let currentGeneratedMimeType = '';
     let selectedReferenceAsset = null;
     let referenceAssets = [];
+    let currentReferenceCategory = '';
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -321,7 +327,7 @@
 
       currentUser = session.user;
       await loadNpBalance();
-      await loadReferenceAssets();
+      await loadReferenceAssets('');
       renderReferenceSelection();
       updateModeUI();
     }
@@ -384,13 +390,26 @@
       document.getElementById('npBadge').textContent = `NP: ${Math.floor(currentNpBalance).toLocaleString()}`;
     }
 
-    async function loadReferenceAssets() {
+    async function loadReferenceAssets(category = currentReferenceCategory) {
+      currentReferenceCategory = category || '';
       if (!currentUser) return;
+      if (!currentReferenceCategory) {
+        referenceAssets = [];
+        renderReferenceAssetList();
+        return;
+      }
+
+      const categoryFilters = {
+        character: ['character', 'illustration'],
+        scenery: ['scenery', 'background', 'landscape'],
+        other: ['other', 'material', 'object', 'effect']
+      };
+      const allowedTypes = categoryFilters[currentReferenceCategory] || [];
       const { data, error } = await window.supabaseClient
         .from('user_assets')
         .select('id,file_url,file_name,asset_type,asset_source,created_at')
         .eq('user_id', currentUser.id)
-        .in('asset_type', ['illustration', 'character'])
+        .in('asset_type', allowedTypes)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -403,12 +422,21 @@
       renderReferenceAssetList();
     }
 
+    function handleReferenceCategoryChange(category) {
+      loadReferenceAssets(category);
+    }
+
     function renderReferenceAssetList() {
       const list = document.getElementById('referenceAssetList');
       if (!list) return;
 
+      if (!currentReferenceCategory) {
+        list.innerHTML = '<div class="muted">カテゴリを選択すると、保管庫画像を選べます。</div>';
+        return;
+      }
+
       if (!referenceAssets.length) {
-        list.innerHTML = '<div class="muted">参照に使える保管庫画像がまだありません。</div>';
+        list.innerHTML = '<div class="muted">このカテゴリの保管庫画像はまだありません。</div>';
         return;
       }
 
