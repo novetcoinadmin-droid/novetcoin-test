@@ -270,6 +270,7 @@
   </div>
   <div style="display: flex; gap: 30px; align-items: center;">
     <a href="nft_mint.html" class="nav-link">作成トップ</a>
+    <a href="/html/nft_generate.html" class="nav-link">生成</a>
     <a href="market.html" class="nav-link">マーケット</a>
     <a href="library.html" class="nav-link">ライブラリ</a>
     <a href="assets.html" class="nav-link nav-active">イラスト保管庫</a>
@@ -360,7 +361,7 @@
         onclick="switchAssetTab('scenePresets')"
         style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
     >
-        生成設定
+        風景設定
     </button>
 </div>
 
@@ -393,7 +394,7 @@
 
         <div id="scenePresetPanel" style="display:none;">
             <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
-                生成設定を読み込み中...
+                風景設定を読み込み中...
             </p>
         </div>
     </div>
@@ -1000,40 +1001,6 @@ async function fetchOtherImageAssets() {
     }
 }
 
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-function getPresetTypeLabel(templateType) {
-    const normalized = String(templateType || "").toLowerCase();
-    if (normalized === "character") return "キャラ生成設定";
-    if (normalized === "other") return "その他素材生成設定";
-    return "風景生成設定";
-}
-
-function buildPresetSummary(settings = {}) {
-    const sceneSettings = settings.scene_settings || settings;
-    const parts = [
-        settings.free_text,
-        settings.other_text,
-        settings.art_style,
-        sceneSettings.place,
-        sceneSettings.world,
-        sceneSettings.light,
-        sceneSettings.mood,
-        settings.character?.mode_conversion,
-        settings.background?.mode && settings.background.mode !== "none" ? `背景: ${settings.background.mode}` : ""
-    ].filter(Boolean);
-
-    const summary = parts.join(" / ") || "詳細設定あり";
-    return escapeHtml(summary.length > 140 ? `${summary.slice(0, 140)}...` : summary);
-}
-
 async function fetchScenePresets() {
     const panel = document.getElementById("scenePresetPanel");
 
@@ -1044,16 +1011,16 @@ async function fetchScenePresets() {
         .order("updated_at", { ascending: false });
 
     if (error) {
-        console.error("生成設定読み込みエラー:", error);
-        panel.innerHTML = `<p>生成設定の読み込みでエラーが発生しました</p>`;
+        console.error("風景設定読み込みエラー:", error);
+        panel.innerHTML = `<p>風景設定の読み込みでエラーが発生しました</p>`;
         return;
     }
 
     if (!presets || presets.length === 0) {
         panel.innerHTML = `
             <p style="color:#999; font-size:13px; text-align:center; padding:40px 0;">
-                まだ保存済みの生成設定はありません。<br>
-                NFT生成ページ、または nft_prepare.html のテンプレートから保存できます。
+                まだ保存済みの風景設定はありません。<br>
+                nft_prepare.html の風景テンプレートから保存できます。
             </p>
         `;
         return;
@@ -1063,28 +1030,28 @@ async function fetchScenePresets() {
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px;">
             ${presets.map(preset => {
                 const settings = preset.scene_settings || {};
-                const typeLabel = getPresetTypeLabel(preset.template_type || settings.mode);
-                const summary = buildPresetSummary(settings);
+                const summary = [
+                    settings.place,
+                    settings.world,
+                    settings.light,
+                    settings.mood
+                ].filter(Boolean).join(" / ") || "詳細設定あり";
 
                 return `
                     <div style="background:#fff; border:1px solid #eee; border-radius:8px; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                         <input
                             type="text"
                             id="scene_name_${preset.id}"
-                            value="${escapeHtml(preset.preset_name || "無題の生成設定")}"
+                            value="${preset.preset_name || "無題の風景設定"}"
                             style="width:100%; padding:8px; font-size:13px; border:1px solid #ccc; border-radius:4px; margin-bottom:8px;"
                         >
-
-                        <div style="font-size:12px; font-weight:bold; color:#6a0dad; margin-bottom:6px;">
-                            ${typeLabel}
-                        </div>
 
                         <div style="font-size:12px; color:#666; line-height:1.6; margin-bottom:8px;">
                             ${summary}
                         </div>
 
                         <div style="font-size:11px; color:${preset.reference_enabled ? "#2ecc71" : "#999"}; margin-bottom:10px;">
-                            参照画像：${preset.reference_enabled ? "あり" : "なし"}
+                            基準化画像：${preset.reference_enabled ? "あり" : "なし"}
                         </div>
 
                         <div style="display:flex; gap:6px;">
@@ -1125,16 +1092,16 @@ async function updateScenePresetName(id) {
         .eq("user_id", currentUser.id);
 
     if (error) {
-        alert("生成設定名の保存に失敗しました。");
+        alert("風景設定名の保存に失敗しました。");
         return;
     }
 
-    alert("生成設定名を保存しました。");
+    alert("風景設定名を保存しました。");
     await fetchScenePresets();
 }
 
 async function deleteScenePreset(id) {
-    if (!confirm("この生成設定を削除しますか？")) return;
+    if (!confirm("この風景設定を削除しますか？")) return;
 
     const { error } = await window.supabaseClient
         .from("scene_presets")
@@ -1143,11 +1110,11 @@ async function deleteScenePreset(id) {
         .eq("user_id", currentUser.id);
 
     if (error) {
-        alert("生成設定の削除に失敗しました。");
+        alert("風景設定の削除に失敗しました。");
         return;
     }
 
-    alert("生成設定を削除しました。");
+    alert("風景設定を削除しました。");
     await fetchScenePresets();
 }
 
