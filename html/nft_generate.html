@@ -124,6 +124,15 @@
       color: #fff;
       box-shadow: 0 4px 12px rgba(106,13,173,0.18);
     }
+    .expression-transform-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #e5d7f5;
+      border-radius: 8px;
+      background: #fbf8ff;
+    }
+    .expression-transform-panel.visible { display: block; }
     .btn {
       width: 100%;
       min-height: 40px;
@@ -297,8 +306,23 @@
           <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_mode_conversion', '')">指定なし</button>
           <button class="choice-btn" type="button" data-value="SDキャラをリアルな漫画風キャラに変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'SDキャラをリアルな漫画風キャラに変換')">SD → リアル漫画風</button>
           <button class="choice-btn" type="button" data-value="リアルな漫画キャラを２等身のSDキャラに変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'リアルな漫画キャラを２等身のSDキャラに変換')">リアル漫画 → ２等身SD</button>
+          <button class="choice-btn" type="button" data-value="表情変換" onclick="setChoiceValue('tpl_character_mode_conversion', '表情変換')">表情変換</button>
         </div>
         <p class="muted">キャラ画像の参照時に使います。キャラモード専用です。</p>
+        <div id="expressionTransformPanel" class="expression-transform-panel">
+          <label>表情変換の要素</label>
+          <input type="hidden" id="tpl_character_expression_transform" value="">
+          <div class="choice-grid" data-choice-group="tpl_character_expression_transform">
+            <button class="choice-btn active" type="button" data-value="" onclick="setExpressionTransformPreset('')">指定なし</button>
+            <button class="choice-btn" type="button" data-value="joy" onclick="setExpressionTransformPreset('joy')">歓喜</button>
+            <button class="choice-btn" type="button" data-value="anger" onclick="setExpressionTransformPreset('anger')">怒り</button>
+            <button class="choice-btn" type="button" data-value="despair" onclick="setExpressionTransformPreset('despair')">絶望</button>
+            <button class="choice-btn" type="button" data-value="laugh" onclick="setExpressionTransformPreset('laugh')">大笑い</button>
+            <button class="choice-btn" type="button" data-value="closed_eyes" onclick="setExpressionTransformPreset('closed_eyes')">瞳を閉じる</button>
+            <button class="choice-btn" type="button" data-value="open_mouth" onclick="setExpressionTransformPreset('open_mouth')">口を大きく開ける</button>
+          </div>
+          <p id="expressionTransformStatus" class="muted">表情変換の要素は未選択です。</p>
+        </div>
       </div>
 
       <div class="control-group">
@@ -490,6 +514,115 @@
       document.querySelectorAll(`[data-choice-group="${inputId}"] .choice-btn`).forEach((btn) => {
         btn.classList.toggle('active', btn.getAttribute('data-value') === value);
       });
+
+      if (inputId === 'tpl_character_mode_conversion') {
+        updateExpressionTransformPanel();
+      }
+    }
+
+    function updateExpressionTransformPanel() {
+      const modeValue = getFieldValue('tpl_character_mode_conversion');
+      const panel = document.getElementById('expressionTransformPanel');
+      if (!panel) return;
+
+      const isExpressionTransform = modeValue === '表情変換';
+      panel.classList.toggle('visible', isExpressionTransform);
+      if (!isExpressionTransform) {
+        setExpressionTransformPreset('');
+      }
+    }
+
+    function getExpressionTransformPresetSettings(presetKey) {
+      const presets = {
+        joy: {
+          label: '歓喜',
+          expressionText: '歓喜の表情。目を大きく開き、眉を高く上げ、頬を明るくし、口角を大きく上げた強い笑顔。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '歓喜の表情、大きく目を開いた強い笑顔',
+            '感情': '強い喜び、高揚感、明るい幸福感',
+            '眉毛': '高く上がった眉、柔らかく開いた眉',
+            '瞳の形': '大きく開いた明るい目、輝きのある視線',
+            '唇の形': '口角が大きく上がった笑顔',
+            '全体印象': '同じ人物のまま、明るく歓喜している'
+          }
+        },
+        anger: {
+          label: '怒り',
+          expressionText: '怒りの表情。眉を強く寄せ、目つきを鋭くし、口元を強く引き締めた激しい怒り。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '怒りの表情、鋭い目つき、強く引き締めた口元',
+            '感情': '激しい怒り、緊張感、強い敵意',
+            '眉毛': '深く寄せた眉、鋭く吊り上がった眉',
+            '瞳の形': '細く鋭い目、強い睨み',
+            '唇の形': '強く閉じた口、引き締まった唇',
+            '全体印象': '同じ人物のまま、怒りで緊張している'
+          }
+        },
+        despair: {
+          label: '絶望',
+          expressionText: '絶望の表情。目から涙がこぼれ、眉は下がり、口元は小さく震える。深い悲しみと喪失感を大きく表現する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '絶望の表情、涙を浮かべた悲痛な顔',
+            '感情': '深い絶望、喪失感、悲しみ',
+            '眉毛': '下がった眉、苦しそうに寄った眉',
+            '瞳の形': '涙で潤んだ目、力の抜けた視線',
+            '唇の形': '小さく震える口元、弱く開いた唇',
+            '全体印象': '同じ人物のまま、深く絶望している'
+          }
+        },
+        laugh: {
+          label: '大笑い',
+          expressionText: '大笑いの表情。目を細め、口を大きく開け、歯が見えるほど楽しそうに笑う。顔全体を大きく崩して自然に笑わせる。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '大笑いの表情、口を大きく開けた自然な笑顔',
+            '感情': '楽しい、愉快、開放的な喜び',
+            '眉毛': '笑いで柔らかく上がった眉',
+            '瞳の形': '笑って細くなった目、楽しそうな目元',
+            '唇の形': '大きく開いた笑い口、歯が見える笑顔',
+            '全体印象': '同じ人物のまま、自然に大笑いしている'
+          }
+        },
+        closed_eyes: {
+          label: '瞳を閉じる',
+          expressionText: '瞳を閉じた表情。まぶたを自然に閉じ、眉と口元で感情が伝わるようにする。顔の輪郭、髪型、髪色、同一人物感は維持する。',
+          fields: {
+            '表情': '瞳を閉じた表情',
+            '瞳の形': '自然に閉じた目、柔らかなまぶた',
+            '眉毛': '感情に合わせて自然に動いた眉',
+            '唇の形': '表情に合う自然な口元',
+            '全体印象': '同じ人物のまま、目を閉じた印象に変える'
+          }
+        },
+        open_mouth: {
+          label: '口を大きく開ける',
+          expressionText: '口を大きく開けた表情。驚き、叫び、大笑いなどに使えるよう、口を大きく開き、頬と顎の動きを自然に強調する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '口を大きく開けた表情',
+            '感情': '強く外に出た感情',
+            '唇の形': '大きく開いた口、自然に動いた顎と頬',
+            '瞳の形': '感情に合わせた目元',
+            '全体印象': '同じ人物のまま、口の開きだけを大きく変える'
+          }
+        }
+      };
+      return presets[presetKey] || null;
+    }
+
+    function setExpressionTransformPreset(presetKey) {
+      const input = document.getElementById('tpl_character_expression_transform');
+      const status = document.getElementById('expressionTransformStatus');
+      if (input) input.value = presetKey;
+
+      document.querySelectorAll('[data-choice-group="tpl_character_expression_transform"] .choice-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === presetKey);
+      });
+
+      const preset = getExpressionTransformPresetSettings(presetKey);
+      if (status) {
+        status.textContent = preset
+          ? `${preset.label}を指定しました。同一性は維持しつつ、表情だけ大きめに変化させます。`
+          : '表情変換の要素は未選択です。';
+      }
     }
 
     async function loadNpBalance() {
@@ -697,8 +830,10 @@
         tpl_character_outfit: getFieldValue('tpl_character_outfit'),
         tpl_character_lighting: getFieldValue('tpl_character_lighting'),
         tpl_character_art_style: getFieldValue('tpl_character_art_style'),
-        tpl_character_mode_conversion: getFieldValue('tpl_character_mode_conversion')
+        tpl_character_mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+        tpl_character_expression_transform: getFieldValue('tpl_character_expression_transform')
       };
+      const expressionTransformPreset = getExpressionTransformPresetSettings(fields.tpl_character_expression_transform);
 
       const payload = {
         template_type: 'character',
@@ -706,19 +841,21 @@
           '画風': fields.tpl_character_art_style || 'clean all-ages illustrated style',
           '質感': 'soft hand-drawn illustration texture',
           '色調': 'balanced light and shadow',
-          '表情': fields.tpl_character_expression || '自然な表情',
+          '表情': expressionTransformPreset?.fields?.['表情'] || fields.tpl_character_expression || '自然な表情',
           '感情': 'calm and readable emotional tone',
-          'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし'
+          'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし',
+          ...(expressionTransformPreset?.fields || {})
         },
         tpl_character_free_text: fields.tpl_character_free_text,
-        tpl_character_expression: fields.tpl_character_expression,
+        tpl_character_expression: expressionTransformPreset?.expressionText || fields.tpl_character_expression,
         tpl_character_view: fields.tpl_character_view,
         tpl_character_age: fields.tpl_character_age,
         tpl_character_pose: fields.tpl_character_pose,
         tpl_character_outfit: fields.tpl_character_outfit,
         tpl_character_lighting: fields.tpl_character_lighting,
         tpl_character_art_style: fields.tpl_character_art_style,
-        tpl_character_mode_conversion: fields.tpl_character_mode_conversion
+        tpl_character_mode_conversion: fields.tpl_character_mode_conversion,
+        tpl_character_expression_transform: expressionTransformPreset?.label || ''
       };
 
       if (selectedReferenceAsset?.file_url) {
