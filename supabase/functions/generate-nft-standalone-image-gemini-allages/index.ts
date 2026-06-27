@@ -71,12 +71,14 @@ function getCharacterModeConversionInstructions(mode: string) {
   ) {
     return {
       composition:
-        "full-body vertical MMORPG character key visual, one complete 8-heads-tall anime-realistic fantasy hero, the whole body visible from head to feet",
+        "full-body vertical MMORPG character key visual, one complete very tall 10-heads-tall anime-realistic fantasy hero, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: transform the reference SD/chibi character into a tall, elegant, full-body MMORPG hero character.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
-        "Strict body proportion: remove SD/chibi proportions and redraw as an 8-heads-tall heroic fantasy character with long legs, balanced anatomy, and a sharp readable silhouette.",
-        "The final image must be unmistakably non-chibi: normal/tall head size, adult heroic torso, long arms, long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
+        "Strict body proportion: remove SD/chibi proportions and redraw as a 10-heads-tall heroic fantasy character with a very tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
+        "Make the redesigned character noticeably tall and long-legged, with fashion-model-like vertical proportions while still looking like a polished anime-fantasy MMORPG hero.",
+        "Prioritize leg length and overall height: small-to-normal head size, elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
+        "The final image must be unmistakably non-chibi: normal/tall head size, adult heroic torso, long arms, very long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
         "Use high-end Japanese isekai anime fantasy character concept art quality: premium gacha character illustration, official game promotional standing artwork, polished anime-style rendering, not a photorealistic real person and not heavy 3D/CG armor rendering.",
         "For this SD-to-8-heads conversion mode, fix the age impression at around 20 years old regardless of the original SD character's childlike proportions.",
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
@@ -85,7 +87,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
-        "Avoid two-head-tall, three-head-tall, chibi, mascot, toy-like, mini-character proportions, childish body, oversized head, tiny limbs, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
+        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
         "Create a full-body MMORPG-quality anime-realistic hero version of the same SD/chibi character, like an official high-rarity fantasy RPG character key visual.",
