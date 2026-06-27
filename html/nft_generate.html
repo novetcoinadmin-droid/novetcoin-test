@@ -85,6 +85,26 @@
       background: #fff;
     }
     textarea { min-height: 96px; resize: vertical; }
+    .prompt-debug {
+      border: 1px solid #e5d7ff;
+      border-radius: 8px;
+      background: #fbf8ff;
+      padding: 10px;
+    }
+    .prompt-debug.hidden { display: none; }
+    .prompt-debug summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--main-purple);
+    }
+    .prompt-debug textarea {
+      margin-top: 8px;
+      min-height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+    }
     .mode-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
     .mode-btn {
       flex: 1;
@@ -575,6 +595,13 @@
       <div class="control-group">
         <button id="saveBtn" class="btn btn-secondary" type="button" onclick="handleSaveGeneratedImage()" disabled>生成画像をイラスト保管庫に保存</button>
       </div>
+      <div class="control-group">
+        <details id="promptDebugPanel" class="prompt-debug hidden">
+          <summary>送信プロンプト確認</summary>
+          <textarea id="promptDebugText" readonly placeholder="生成後に、実際にFunctionからGeminiへ送信されたプロンプトが表示されます。"></textarea>
+          <button class="btn btn-secondary" type="button" onclick="copyLastPromptDebug()">プロンプトをコピー</button>
+        </details>
+      </div>
     </aside>
   </div>
 
@@ -618,6 +645,7 @@
     let referenceAssets = [];
     let currentReferenceCategory = '';
     let currentAssetPickerTarget = 'reference';
+    let currentLastPromptDebug = '';
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -714,6 +742,39 @@
       }
       box.className = `message ${type}`;
       box.textContent = text;
+    }
+
+    function renderPromptDebug(data, payload = null) {
+      const panel = document.getElementById('promptDebugPanel');
+      const textarea = document.getElementById('promptDebugText');
+      if (!panel || !textarea) return;
+
+      const prompt = data?.prompt || '';
+      const modelText = data?.modelText ? `\n\n--- modelText ---\n${data.modelText}` : '';
+      const payloadText = payload ? `\n\n--- request payload ---\n${JSON.stringify(payload, null, 2)}` : '';
+      currentLastPromptDebug = prompt
+        ? `${prompt}${modelText}${payloadText}`
+        : payloadText.trim();
+
+      textarea.value = currentLastPromptDebug;
+      panel.classList.toggle('hidden', !currentLastPromptDebug);
+      if (currentLastPromptDebug) panel.open = true;
+    }
+
+    async function copyLastPromptDebug() {
+      if (!currentLastPromptDebug) {
+        showMessage('コピーできるプロンプトがありません。', 'error');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(currentLastPromptDebug);
+        showMessage('送信プロンプトをコピーしました。');
+      } catch (err) {
+        const textarea = document.getElementById('promptDebugText');
+        if (textarea) textarea.select();
+        showMessage('コピーに失敗しました。テキスト欄を選択しました。', 'error');
+      }
     }
 
     function showProcessingOverlay(title, text = '完了までこのままお待ちください。') {
@@ -1452,6 +1513,7 @@
       currentGeneratedDataUrl = '';
       currentGeneratedMimeType = '';
       currentGeneratedMode = currentMode;
+      renderPromptDebug(null);
       showMessage('');
       showProcessingOverlay('生成中...', '画像を生成しています。完了まで他の操作はできません。');
 
@@ -1473,7 +1535,9 @@
 
         const payload = buildPayloadForCurrentMode();
         const functionName = getFunctionNameForCurrentMode();
+        console.log('generation request payload', payload);
         const { data, error } = await window.supabaseClient.functions.invoke(functionName, { body: payload });
+        console.log('generation function response', data);
 
         if (error) {
           throw new Error(error.message || '生成Functionの呼び出しに失敗しました。');
@@ -1482,6 +1546,7 @@
           throw new Error(data?.error || '画像生成に失敗しました。');
         }
 
+        renderPromptDebug(data, payload);
         const generatedImage = extractGeneratedImageSource(data);
         if (!generatedImage?.source) {
           throw new Error('生成画像が返されませんでした。');
