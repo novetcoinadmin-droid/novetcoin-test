@@ -105,6 +105,9 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Make the expression sharp, calm, confident, and intense rather than cute, innocent, cheerful, or playful.",
         "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
         "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, composition, lighting, finished-image layout, short body, oversized head, stubby limbs, or toy-like silhouette.",
+        "Preserve the extracted equipment silhouette and motif placement strongly.",
+        "Do not replace the source equipment with generic angel armor, generic paladin armor, or generic holy knight armor.",
+        "Keep the source character's distinctive shield shape, sword silhouette, blue-and-gold crest patterns, cape layout, wing ornaments, armor panel arrangement, shoulder armor outline, chest emblem placement, waist cloth shape, and repeated motif rhythm.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
@@ -422,13 +425,16 @@ Important:
 - Do not describe the original chibi body proportion as something to preserve.
 - Do not instruct the next model to copy the image, pose, camera angle, composition, or background.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
+- Describe the equipment silhouette in detail, not only its category.
+- Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, shield outline and emblem placement, sword blade silhouette, hilt shape, wing ornament placement, and repeated blue/gold patterns.
+- Avoid generic angel knight, generic paladin, or generic holy knight redesign. Preserve the source character's unique equipment layout and motif arrangement.
 
 Return concise English bullet points for:
 - hair style, bangs, hair color
 - eye color and eye impression
 - face identity motifs, excluding cuteness and childlike tone
-- outfit motifs, armor/clothing parts, color palette
-- accessories, head ornaments, wings, cape, shield, weapon, symbolic items
+- outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
+- accessories, head ornaments, wings, cape, shield outline, shield emblem placement, weapon blade silhouette, hilt shape, symbolic items
 - personality impression to preserve as a serious/cool redesign
 `.trim();
 
