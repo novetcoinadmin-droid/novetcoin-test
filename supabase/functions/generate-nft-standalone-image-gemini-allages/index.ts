@@ -80,8 +80,9 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Remove cute, childish, mascot-like, soft, round, playful, cheerful, innocent, and comedic impressions from the SD character.",
         "Convert the character's mood into a serious, cool, dramatic, heroic real 2D manga/anime character.",
         "Prioritize coolness, dignity, intensity, and stylish heroic presence over cuteness.",
-        "If a reference image is provided as a style sample or comparison image, use it only for art style, finish quality, mood, and tall-character proportion inspiration. Do not copy UI elements, text, buttons, dates, icons, screenshot framing, or background clutter from it.",
-        "If the reference image contains both an SD character and a taller 2D character sample, use the SD character for identity and use the taller 2D sample only as the target art-style and height-proportion image.",
+        "Use any provided reference image only to extract the source SD character's identity and design motifs. Do not use the reference image as a style sample, finished-image sample, composition sample, pose sample, or target image.",
+        "If the reference image contains a taller 2D character sample, ignore that taller sample completely; do not copy its face, pose, outfit, background, composition, lighting, proportions, or overall layout.",
+        "Create a new original transformation from the SD character instead of recreating, tracing, or imitating any finished sample image.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
         "Strict body proportion: remove SD/chibi proportions and redraw as a 12-to-14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
         "Make the redesigned character noticeably tall and long-legged, with high-fashion runway-model vertical proportions while still looking like a polished real 2D manga fantasy character.",
@@ -97,11 +98,11 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
         "Make the expression sharp, calm, confident, and intense rather than cute, innocent, cheerful, or playful.",
         "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
-        "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, short body, oversized head, stubby limbs, or toy-like silhouette.",
+        "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, composition, lighting, finished-image layout, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
-        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, copying screenshot UI, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
+        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, copying the reference image, recreating a finished sample, copying screenshot UI, copying pose, copying background, copying composition, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
         "Create a full-body real 2D manga/anime fantasy version of the same SD/chibi character with a very tall 12-to-14-heads-tall body and exceptionally long legs, like an official high-rarity fantasy RPG character key visual.",
@@ -260,7 +261,7 @@ function buildPrompt(
   pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
-    ? "Use the provided reference image according to the mode-specific instructions below. For SD-to-tall real 2D manga conversion, treat it as a style and finished-image reference when it is a sample/comparison image; use the SD character only for identity and design motifs."
+    ? "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise. For SD-to-tall real 2D manga conversion, do not use it as a style sample, finished-image sample, pose sample, composition sample, or target image."
     : "No reference image is provided. Create a new original character from the text instructions.";
 
   return `
@@ -323,7 +324,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Reference image. Follow the prompt's mode-specific instructions for how to use it. If this is an SD-to-tall real 2D manga conversion sample/comparison image, use it as an art-style, finish-quality, mood, and tall-proportion reference only; do not copy screenshot UI, text, buttons, dates, icons, framing, chibi proportions, or background clutter.",
+        "Reference image. Use it only to identify the source character's recognizable design motifs. Do not copy or recreate the reference image, and do not use it as a finished-image sample, style sample, pose sample, composition sample, target image, screenshot layout, background, UI, text, buttons, dates, or icons.",
     });
     parts.push({
       inlineData: {
