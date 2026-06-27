@@ -67,7 +67,8 @@ function getCharacterModeConversionInstructions(mode: string) {
 
   if (
     mode.includes("リアルな漫画風") || mode.includes("リアル漫画") ||
-    mode.includes("MMORPG") || mode.includes("8頭身")
+    mode.includes("MMORPG") || mode.includes("8頭身") ||
+    mode.includes("2Dリアル") || mode.includes("２Dリアル")
   ) {
     return {
       composition:
