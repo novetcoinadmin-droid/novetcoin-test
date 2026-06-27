@@ -71,30 +71,33 @@ function getCharacterModeConversionInstructions(mode: string) {
   ) {
     return {
       composition:
-        "full-body vertical MMORPG character key visual, one complete very tall 10-heads-tall anime-realistic fantasy hero, the whole body visible from head to feet",
+        "full-body vertical real 2D manga character key visual, one complete very tall 12-to-14-heads-tall anime-realistic fantasy character, the whole body visible from head to feet",
       lines: [
-        "Character mode conversion: transform the reference SD/chibi character into a tall, elegant, full-body MMORPG hero character.",
+        "Character mode conversion: transform the source SD/chibi character into a tall, elegant, full-body real 2D manga character.",
+        "Use the SD/chibi character as the source for identity and design motifs: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
+        "If a reference image is provided as a style sample or comparison image, use it only for art style, finish quality, mood, and tall-character proportion inspiration. Do not copy UI elements, text, buttons, dates, icons, screenshot framing, or background clutter from it.",
+        "If the reference image contains both an SD character and a taller 2D character sample, use the SD character for identity and use the taller 2D sample only as the target art-style and height-proportion image.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
-        "Strict body proportion: remove SD/chibi proportions and redraw as a 10-heads-tall heroic fantasy character with a very tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
-        "Make the redesigned character noticeably tall and long-legged, with fashion-model-like vertical proportions while still looking like a polished anime-fantasy MMORPG hero.",
-        "Prioritize leg length and overall height: small-to-normal head size, elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
-        "Use a small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating a tall 10-heads-tall silhouette.",
+        "Strict body proportion: remove SD/chibi proportions and redraw as a 12-to-14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
+        "Make the redesigned character noticeably tall and long-legged, with high-fashion runway-model vertical proportions while still looking like a polished real 2D manga fantasy character.",
+        "Prioritize leg length and overall height: the legs should occupy more than half of the full body height, with an elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
+        "Use a very small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating a 12-to-14-heads-tall silhouette.",
         "Use a smaller, refined anime face and a small head relative to the full body, while keeping the face attractive and recognizable.",
         "Make the character feel tall at first glance through a small refined face, long neck, high waistline, elongated torso, and very long legs.",
         "Use a slightly low camera angle and vertical full-body framing with enough space above the head and below the feet to emphasize height.",
         "The final image must be unmistakably non-chibi: small-to-normal head size, adult heroic torso, long arms, very long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
-        "Use high-end Japanese isekai anime fantasy character concept art quality: premium gacha character illustration, official game promotional standing artwork, polished anime-style rendering, not a photorealistic real person and not heavy 3D/CG armor rendering.",
-        "For this SD-to-8-heads conversion mode, fix the age impression at around 20 years old regardless of the original SD character's childlike proportions.",
+        "Use high-end Japanese real 2D manga/anime fantasy character art quality: premium gacha character illustration, official game promotional standing artwork, polished illustrated rendering, not a photorealistic real person and not heavy 3D/CG armor rendering.",
+        "For this SD-to-tall real 2D manga conversion mode, fix the age impression at around 20 years old regardless of the original SD character's childlike proportions.",
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
-        "Preserve the reference character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
+        "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
         "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
-        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
+        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, copying screenshot UI, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
-        "Create a full-body MMORPG-quality anime-realistic hero version of the same SD/chibi character, like an official high-rarity fantasy RPG character key visual.",
+        "Create a full-body real 2D manga/anime fantasy version of the same SD/chibi character with a very tall 12-to-14-heads-tall body and exceptionally long legs, like an official high-rarity fantasy RPG character key visual.",
     };
   }
 
@@ -250,7 +253,7 @@ function buildPrompt(
   pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
-    ? "Use the provided image as a character identity reference only. Extract recognizable character features, but do not copy the reference image's body proportions, pose, camera angle, composition, or background unless explicitly requested."
+    ? "Use the provided reference image according to the mode-specific instructions below. For SD-to-tall real 2D manga conversion, treat it as a style and finished-image reference when it is a sample/comparison image; use the SD character only for identity and design motifs."
     : "No reference image is provided. Create a new original character from the text instructions.";
 
   return `
@@ -313,7 +316,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Character reference image. Use this only to identify the character's design motifs. Do not trace or preserve the original pose, background, camera angle, chibi proportions, oversized head, short limbs, or mascot silhouette.",
+        "Reference image. Follow the prompt's mode-specific instructions for how to use it. If this is an SD-to-tall real 2D manga conversion sample/comparison image, use it as an art-style, finish-quality, mood, and tall-proportion reference only; do not copy screenshot UI, text, buttons, dates, icons, framing, chibi proportions, or background clutter.",
     });
     parts.push({
       inlineData: {
