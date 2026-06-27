@@ -35,6 +35,16 @@ function pushIf(lines: string[], label: string, value: unknown) {
   if (v) lines.push(`${label}: ${v}`);
 }
 
+function isSdToReal2DConversionMode(mode: string) {
+  return Boolean(
+    mode && (
+      mode.includes("リアルな漫画風") || mode.includes("リアル漫画") ||
+      mode.includes("MMORPG") || mode.includes("8頭身") ||
+      mode.includes("2Dリアル") || mode.includes("２Dリアル")
+    ),
+  );
+}
+
 function getCharacterModeConversionInstructions(mode: string) {
   if (!mode) {
     return {
@@ -65,11 +75,7 @@ function getCharacterModeConversionInstructions(mode: string) {
     };
   }
 
-  if (
-    mode.includes("リアルな漫画風") || mode.includes("リアル漫画") ||
-    mode.includes("MMORPG") || mode.includes("8頭身") ||
-    mode.includes("2Dリアル") || mode.includes("２Dリアル")
-  ) {
+  if (isSdToReal2DConversionMode(mode)) {
     return {
       composition:
         "full-body vertical real 2D manga character key visual, one complete very tall 12-to-14-heads-tall anime-realistic fantasy character, the whole body visible from head to feet",
@@ -191,11 +197,19 @@ function buildPrompt(
   const backgroundMode = pickString(payload.background_mode);
   const backgroundInstruction = pickString(payload.background_instruction);
   const backgroundRelativePrompt = pickString(payload.background_relative_prompt);
+  const sourceCharacterFeaturesText = pickString(
+    payload.source_character_features_text,
+  );
   const modeConversion = getCharacterModeConversionInstructions(
     userModeConversion,
   );
 
   const preserveLines: string[] = [];
+  pushIf(
+    preserveLines,
+    "Extracted source SD character features to preserve",
+    sourceCharacterFeaturesText,
+  );
   pushIf(
     preserveLines,
     "Illustration style",
@@ -392,6 +406,80 @@ async function callGeminiImageModel(params: {
   };
 }
 
+async function extractSourceCharacterFeatures(params: {
+  apiKey: string;
+  model: string;
+  referenceImageBase64: string;
+  referenceImageMimeType: string;
+}) {
+  const endpoint =
+    `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
+  const extractionPrompt = `
+Analyze the provided SD/chibi character image and extract only reusable character design information for a later text-to-image generation.
+
+Important:
+- Do not describe the background, screenshot UI, borders, text, buttons, dates, icons, or layout.
+- Do not describe the original chibi body proportion as something to preserve.
+- Do not instruct the next model to copy the image, pose, camera angle, composition, or background.
+- Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
+
+Return concise English bullet points for:
+- hair style, bangs, hair color
+- eye color and eye impression
+- face identity motifs, excluding cuteness and childlike tone
+- outfit motifs, armor/clothing parts, color palette
+- accessories, head ornaments, wings, cape, shield, weapon, symbolic items
+- personality impression to preserve as a serious/cool redesign
+`.trim();
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Source SD/chibi character image for feature extraction only. Extract design motifs as text; do not generate or copy an image.",
+            },
+            {
+              inlineData: {
+                mimeType: params.referenceImageMimeType || "image/png",
+                data: params.referenceImageBase64,
+              },
+            },
+            { text: extractionPrompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["TEXT"],
+      },
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Gemini feature extraction error: ${JSON.stringify(data)}`);
+  }
+
+  const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+  const text = candidates
+    .flatMap((candidate: any) => candidate?.content?.parts ?? [])
+    .filter((part: any) => typeof part?.text === "string" && part.text.trim())
+    .map((part: any) => part.text.trim())
+    .join("\n")
+    .trim();
+
+  if (!text) {
+    throw new Error("Gemini feature extraction returned no text.");
+  }
+
+  return text;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -450,6 +538,24 @@ Deno.serve(async (req) => {
       backgroundImageMimeType = fetched.mimeType;
     }
 
+    const userModeConversion = pickString(payload.tpl_character_mode_conversion) ||
+      pickString(payload.character_mode_conversion);
+    const useTextOnlySourceFeatures =
+      isSdToReal2DConversionMode(userModeConversion) && Boolean(referenceImageBase64);
+    let sourceCharacterFeaturesText = "";
+
+    if (useTextOnlySourceFeatures) {
+      sourceCharacterFeaturesText = await extractSourceCharacterFeatures({
+        apiKey: GEMINI_API_KEY,
+        model: GEMINI_IMAGE_MODEL,
+        referenceImageBase64,
+        referenceImageMimeType,
+      });
+      payload.source_character_features_text = sourceCharacterFeaturesText;
+      referenceImageBase64 = "";
+      referenceImageMimeType = "image/png";
+    }
+
     const hasReferenceImage = Boolean(referenceImageBase64);
     const hasBackgroundImage = Boolean(backgroundImageBase64);
     const prompt = buildPrompt(payload, hasReferenceImage, hasBackgroundImage);
@@ -473,6 +579,8 @@ Deno.serve(async (req) => {
       hasReferenceImage,
       hasBackgroundImage,
       backgroundMode,
+      sourceFeatureExtractionUsed: useTextOnlySourceFeatures,
+      sourceCharacterFeaturesText,
       imageBase64: result.imageBase64,
       mimeType: result.mimeType,
       dataUrl,
