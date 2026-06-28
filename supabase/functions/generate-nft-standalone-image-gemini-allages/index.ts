@@ -81,7 +81,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "full-body vertical real 2D manga character key visual, one complete very tall 12-to-14-heads-tall anime-realistic fantasy character, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: transform the source SD/chibi character into a tall, elegant, full-body real 2D manga character.",
-        "Use the SD/chibi character as the source for identity and design motifs: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
+        "Use the SD/chibi character as the source for identity and design motifs: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, hand-held equipment shapes, and overall personality.",
         "Preserve only the source SD character's design motifs, not its cute emotional tone.",
         "Remove cute, childish, mascot-like, soft, round, playful, cheerful, innocent, and comedic impressions from the SD character.",
         "Convert the character's mood into a serious, cool, dramatic, heroic real 2D manga/anime character.",
@@ -90,6 +90,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "If the reference image contains a taller 2D character sample, ignore that taller sample completely; do not copy its face, pose, outfit, background, composition, lighting, proportions, or overall layout.",
         "Create a new original transformation from the SD character instead of recreating, tracing, or imitating any finished sample image, while keeping the source character's pose logic and character-only composition recognizable.",
         "The original transformation applies to body proportions, maturity, pose energy, rendering quality, and detail density; it must not invent a new equipment design when source equipment is visible.",
+        "The character should look like a meticulous, scaled-up, full-size anime key-art version of the specific source character. All visible source character elements should be present and correct unless they are screenshot UI or background.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
         "Strict body proportion: remove SD/chibi proportions and redraw as a 12-to-14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
         "Make the redesigned character noticeably tall and long-legged, with high-fashion runway-model vertical proportions while still looking like a polished real 2D manga fantasy character.",
@@ -104,22 +105,24 @@ function getCharacterModeConversionInstructions(mode: string) {
         "For this SD-to-tall real 2D manga conversion mode, fix the age impression at around 20 years old regardless of the original SD character's childlike proportions.",
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
         "Make the expression sharp, calm, confident, and intense rather than cute, innocent, cheerful, or playful.",
-        "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
-        "Preserve identity, design motifs, character-only pose, facing direction, weapon/shield placement, and the source character's readable silhouette arrangement; do not preserve the screenshot UI, background, lighting, short body, oversized head, stubby limbs, or toy-like silhouette.",
-        "When converting the SD pose into tall real 2D anatomy, keep the same overall stance, torso direction, head direction, arm positions, hand-held item positions, weapon angle, shield placement, cape flow, and vertical character framing as much as possible.",
+        "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, right-hand equipment shape, left-hand equipment shape, and overall personality.",
+        "Preserve identity, design motifs, character-only pose, facing direction, right-hand and left-hand equipment placement, and the source character's readable silhouette arrangement; do not preserve the screenshot UI, background, lighting, short body, oversized head, stubby limbs, or toy-like silhouette.",
+        "When converting the SD pose into tall real 2D anatomy, keep the same overall stance, torso direction, head direction, arm positions, hand-held item positions, each equipment item's angle and placement, cape flow, and vertical character framing as much as possible.",
         "Preserve the extracted equipment silhouette and motif placement strongly.",
-        "Treat visible source equipment as locked design assets: keep the armor panel shapes, weapon silhouette, shield outline, crest placement, trim colors, motif positions, and left/right hand equipment assignment as faithful as possible to the reference.",
+        "Treat visible source equipment as locked design assets: keep armor panel shapes, each hand-held equipment silhouette and outline, crest or emblem placement, trim colors, motif positions, and left/right hand equipment assignment as faithful as possible to the reference.",
+        "Preserve specific patterns and markings from the source character, including filigree, trim shapes, repeated decorative motifs, emblem geometry, cape edge designs, armor panel markings, and color-blocking.",
         "Preserve right-hand equipment and left-hand equipment separately and faithfully. Keep which item belongs to the right hand and which item belongs to the left hand unless the source image is genuinely ambiguous.",
-        "For each hand-held item, preserve the distinctive category, silhouette, size relationship, outline, blade or shield shape, hilt or handle design, guard shape, ornament placement, emblem position, color palette, material impression, and repeated motifs from the source SD character.",
-        "Do not swap the left-hand and right-hand equipment, merge them into one item, remove one item, replace them with generic weapons, or simplify the hand equipment into vague fantasy props.",
+        "For each hand-held item, preserve the distinctive category, silhouette, size relationship, outline, item-specific shape, grip/handle/attachment design, ornament placement, emblem position if present, color palette, material impression, and repeated motifs from the source SD character.",
+        "Do not swap the left-hand and right-hand equipment, merge them into one item, remove one item, replace them with generic hand-held items, or simplify the hand equipment into vague fantasy props.",
         "When adapting SD hand-held equipment into real 2D proportions, upscale and refine the original designs while keeping them immediately recognizable as the same right-hand and left-hand equipment.",
-        "The equipment should look like a polished full-size upgrade of the source equipment, not newly invented original armor, a new weapon, or a new shield.",
+        "The equipment should look like a polished full-size upgrade of the source equipment, not newly invented original armor or newly invented hand-held items.",
         "If high-rarity fantasy styling conflicts with source equipment fidelity, prioritize the source-specific equipment shapes, motif placement, and color layout.",
         "Do not replace the source equipment with generic angel armor, generic paladin armor, or generic holy knight armor.",
-        "Keep the source character's distinctive shield shape, sword silhouette, blue-and-gold crest patterns, cape layout, wing ornaments, armor panel arrangement, shoulder armor outline, chest emblem placement, waist cloth shape, and repeated motif rhythm.",
+        "Keep the source character's distinctive right-hand equipment shape, left-hand equipment shape, equipment size relationships, crest or emblem patterns, cape layout, wing ornaments, armor panel arrangement, shoulder armor outline, chest emblem placement, waist cloth shape, and repeated motif rhythm.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
+        "Increase detail density and polish while preserving the source design; do not simplify the costume into a cleaner but less recognizable outfit.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
-        "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped weapon.",
+        "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped hand-held equipment.",
         "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, losing the source character pose and equipment arrangement, copying screenshot UI, copying screenshot background, copying unrelated layout elements, recreating a finished sample, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
@@ -455,14 +458,16 @@ Important:
 - Do not describe the background, screenshot UI, borders, text, buttons, dates, icons, or layout.
 - Do not describe the original chibi body proportion as something to preserve.
 - Do not instruct the next model to copy the screenshot, UI, background, lighting, or unrelated layout elements.
-- Extract the character-only pose and composition: facing direction, head direction, torso angle, stance, arm positions, hand positions, weapon angle, shield placement, cape flow, ornament placement, and how the character is framed in the image.
+- Extract the character-only pose and composition: facing direction, head direction, torso angle, stance, arm positions, hand positions, each hand-held equipment item's angle and placement, cape flow, ornament placement, and how the character is framed in the image.
 - Describe the pose in transferable terms so it can be adapted from SD/chibi anatomy into a tall real 2D manga body without changing the character's recognizable stance.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
 - Describe the equipment silhouette in detail, not only its category.
 - Identify right-hand equipment and left-hand equipment separately whenever visible. If the image is mirrored or ambiguous, state the uncertainty instead of guessing.
-- For each hand-held item, capture the category, silhouette, outline, size relationship, blade/shield shape, hilt/handle/guard design, emblem placement, ornament placement, colors, materials, and repeated motifs.
-- Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, shield outline and emblem placement, sword blade silhouette, hilt shape, wing ornament placement, and repeated blue/gold patterns.
+- For each hand-held item, capture the category, silhouette, outline, size relationship, item-specific shape, grip/handle/attachment design, emblem placement if present, ornament placement, colors, materials, and repeated motifs.
+- Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment attachment/grip shape, wing ornament placement, and repeated color/pattern motifs.
 - Describe visible equipment geometry literally enough that a later model can preserve it as a locked design asset instead of inventing original equipment.
+- Capture source-specific decorative details literally: filigree, trim shape, color-blocking, cape edge patterns, armor panel markings, emblem geometry, ornament positions, and repeated motif rhythm.
+- Mark any major visible source-character elements that must remain present in the final full-size redesign.
 - Avoid generic angel knight, generic paladin, or generic holy knight redesign. Preserve the source character's unique equipment layout and motif arrangement.
 
 Return concise English bullet points for:
@@ -470,10 +475,10 @@ Return concise English bullet points for:
 - eye color and eye impression
 - face identity motifs, excluding cuteness and childlike tone
 - outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
-- character-only pose, facing direction, weapon/shield placement, cape flow, and vertical framing
+- character-only pose, facing direction, right-hand and left-hand equipment placement, cape flow, and vertical framing
 - right-hand equipment design, if visible
 - left-hand equipment design, if visible
-- accessories, head ornaments, wings, cape, shield outline, shield emblem placement, weapon blade silhouette, hilt shape, symbolic items
+- accessories, head ornaments, wings, cape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment grip or attachment shape, symbolic items
 - personality impression to preserve as a serious/cool redesign
 `.trim();
 
@@ -597,8 +602,6 @@ Deno.serve(async (req) => {
         referenceImageMimeType,
       });
       payload.source_character_features_text = sourceCharacterFeaturesText;
-      referenceImageBase64 = "";
-      referenceImageMimeType = "image/png";
     }
 
     const hasReferenceImage = Boolean(referenceImageBase64);
