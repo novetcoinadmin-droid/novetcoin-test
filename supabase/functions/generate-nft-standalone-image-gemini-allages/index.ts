@@ -452,7 +452,9 @@ async function extractSourceCharacterFeatures(params: {
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
   const extractionPrompt = `
-Analyze the provided SD/chibi character image and extract only reusable character design information for a later text-to-image generation.
+Analyze the provided SD/chibi character image and extract reusable character design information for a later text-to-image generation.
+
+This is pass 1: make a detailed source-character observation record. Accuracy is more important than brevity.
 
 Important:
 - Do not describe the background, screenshot UI, borders, text, buttons, dates, icons, or layout.
@@ -461,19 +463,21 @@ Important:
 - Extract the character-only pose and composition: facing direction, head direction, torso angle, stance, arm positions, hand positions, each hand-held equipment item's angle and placement, cape flow, ornament placement, and how the character is framed in the image.
 - Describe the pose in transferable terms so it can be adapted from SD/chibi anatomy into a tall real 2D manga body without changing the character's recognizable stance.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
+- For face accessories, identify the exact category and coverage: eyepatch, monocle, visor, mask, blindfold, face paint, circlet, forehead ornament, mouth-covering collar, scarf, or other. State which eye/side is covered, which eye remains visible, and whether the mouth/nose/forehead are covered. Do not generalize a one-eye accessory into a full eye mask or blindfold.
 - Describe the equipment silhouette in detail, not only its category.
 - Identify right-hand equipment and left-hand equipment separately whenever visible. If the image is mirrored or ambiguous, state the uncertainty instead of guessing.
 - For each hand-held item, capture the category, silhouette, outline, size relationship, item-specific shape, grip/handle/attachment design, emblem placement if present, ornament placement, colors, materials, and repeated motifs.
+- For each hand-held item, state whether it is large or small relative to the character, where it sits in the frame, what parts are occluded by the body/clothes/UI, and which details are still visible. Do not replace a partially hidden item with a more common fantasy item.
 - Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment attachment/grip shape, wing ornament placement, and repeated color/pattern motifs.
 - Describe visible equipment geometry literally enough that a later model can preserve it as a locked design asset instead of inventing original equipment.
 - Capture source-specific decorative details literally: filigree, trim shape, color-blocking, cape edge patterns, armor panel markings, emblem geometry, ornament positions, and repeated motif rhythm.
 - Mark any major visible source-character elements that must remain present in the final full-size redesign.
 - Avoid generic angel knight, generic paladin, or generic holy knight redesign. Preserve the source character's unique equipment layout and motif arrangement.
 
-Return concise English bullet points for:
+Return detailed English bullet points for:
 - hair style, bangs, hair color
 - eye color and eye impression
-- face identity motifs, excluding cuteness and childlike tone
+- face identity motifs, face accessories, exact eye/face coverage, and what must not be turned into a different face accessory
 - outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
 - character-only pose, facing direction, right-hand and left-hand equipment placement, cape flow, and vertical framing
 - right-hand equipment design, if visible
@@ -525,6 +529,92 @@ Return concise English bullet points for:
 
   if (!text) {
     throw new Error("Gemini feature extraction returned no text.");
+  }
+
+  return text;
+}
+
+async function verifySourceCharacterFeaturesForReal2D(params: {
+  apiKey: string;
+  model: string;
+  referenceImageBase64: string;
+  referenceImageMimeType: string;
+  rawFeaturesText: string;
+}) {
+  const endpoint =
+    `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
+  const verificationPrompt = `
+You are preparing the final source-preservation brief for converting an SD/chibi game character into a tall, serious, real 2D manga/anime character.
+
+This is pass 2: verify the raw observation notes against the image, correct over-generalizations, and rewrite them as a preservation brief for the image-generation model.
+
+Critical checks:
+- Keep right-hand equipment and left-hand equipment separate. Do not change either item's category, silhouette, size relationship, position, angle, visible details, or partial occlusion.
+- If a hand-held item is partially hidden, preserve the visible part and explicitly say not to replace it with a cleaner or more common fantasy item.
+- Verify face accessories carefully. Distinguish one-eye accessories from full masks or blindfolds. Preserve which eye/side is covered, which eye remains visible, and whether the mouth, nose, forehead, or cheeks are actually covered.
+- If the source has an eyepatch, monocle, one-eye visor, or asymmetric face ornament, do not convert it into a full eye mask, blindfold, or symmetrical face covering.
+- If a high collar, scarf, cape, hair, or shoulder part hides the mouth or lower face, describe that as clothing/hair occlusion, not as a face mask unless a face mask is clearly visible.
+- Preserve source-specific decorations: trim shapes, color blocking, repeated motifs, emblem geometry, cape edge designs, armor panel markings, ornaments, and motif rhythm.
+- Preserve character-only pose, facing direction, hand positions, equipment placement, cape flow, and vertical framing while ignoring screenshot UI and background.
+- Do not invent missing details. If uncertain, state the uncertainty and preserve only the visible evidence.
+
+Raw observation notes:
+${params.rawFeaturesText}
+
+Return a detailed but usable English preservation brief with these headings:
+- Verified identity and face
+- Verified face accessories and coverage
+- Verified outfit, armor, cape, and motifs
+- Verified right-hand equipment
+- Verified left-hand equipment
+- Verified pose and character-only composition
+- Must-preserve checklist
+- Must-not-change warnings
+`.trim();
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Verify this source character against the image and produce a preservation brief for SD-to-real 2D conversion.",
+            },
+            {
+              inlineData: {
+                mimeType: params.referenceImageMimeType || "image/png",
+                data: params.referenceImageBase64,
+              },
+            },
+            { text: verificationPrompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["TEXT"],
+      },
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Gemini feature verification error: ${JSON.stringify(data)}`);
+  }
+
+  const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+  const text = candidates
+    .flatMap((candidate: any) => candidate?.content?.parts ?? [])
+    .filter((part: any) => typeof part?.text === "string" && part.text.trim())
+    .map((part: any) => part.text.trim())
+    .join("\n")
+    .trim();
+
+  if (!text) {
+    throw new Error("Gemini feature verification returned no text.");
   }
 
   return text;
@@ -593,13 +683,21 @@ Deno.serve(async (req) => {
     const useTextOnlySourceFeatures =
       isSdToReal2DConversionMode(userModeConversion) && Boolean(referenceImageBase64);
     let sourceCharacterFeaturesText = "";
+    let rawSourceCharacterFeaturesText = "";
 
     if (useTextOnlySourceFeatures) {
-      sourceCharacterFeaturesText = await extractSourceCharacterFeatures({
+      rawSourceCharacterFeaturesText = await extractSourceCharacterFeatures({
         apiKey: GEMINI_API_KEY,
         model: GEMINI_IMAGE_MODEL,
         referenceImageBase64,
         referenceImageMimeType,
+      });
+      sourceCharacterFeaturesText = await verifySourceCharacterFeaturesForReal2D({
+        apiKey: GEMINI_API_KEY,
+        model: GEMINI_IMAGE_MODEL,
+        referenceImageBase64,
+        referenceImageMimeType,
+        rawFeaturesText: rawSourceCharacterFeaturesText,
       });
       payload.source_character_features_text = sourceCharacterFeaturesText;
     }
@@ -629,6 +727,7 @@ Deno.serve(async (req) => {
       backgroundMode,
       sourceFeatureExtractionUsed: useTextOnlySourceFeatures,
       sourceCharacterFeaturesText,
+      rawSourceCharacterFeaturesText,
       imageBase64: result.imageBase64,
       mimeType: result.mimeType,
       dataUrl,
