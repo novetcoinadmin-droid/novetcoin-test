@@ -107,6 +107,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
         "Make the expression sharp, calm, confident, and intense rather than cute, innocent, cheerful, or playful.",
         "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, right-hand equipment shape, left-hand equipment shape, and overall personality.",
+        "Follow the verified target parameter sheet when source character features are provided. Treat LOCKED parameters as non-negotiable, apply TRANSFORMED parameters only as specified, and do not re-interpret them into a more generic fantasy design.",
         "Preserve identity, design motifs, character-only pose, facing direction, right-hand and left-hand equipment placement, and the source character's readable silhouette arrangement; do not preserve the screenshot UI, background, lighting, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "When converting the SD pose into tall real 2D anatomy, keep the same overall stance, torso direction, head direction, arm positions, hand-held item positions, each equipment item's angle and placement, cape flow, and vertical character framing as much as possible.",
         "Preserve the extracted equipment silhouette and motif placement strongly.",
@@ -457,7 +458,7 @@ async function extractSourceCharacterFeatures(params: {
   const extractionPrompt = `
 Analyze the provided SD/chibi character image and extract reusable character design information for a later text-to-image generation.
 
-This is pass 1: make a detailed source-character observation record. Accuracy is more important than brevity.
+This is pass 1: make a detailed, parameterized source-character observation record. Accuracy and explicit fields are more important than brevity.
 
 Important:
 - Do not describe the background, screenshot UI, borders, text, buttons, dates, icons, or layout.
@@ -480,17 +481,48 @@ Important:
 - Mark any major visible source-character elements that must remain present in the final full-size redesign.
 - Avoid generic angel knight, generic paladin, or generic holy knight redesign. Preserve the source character's unique equipment layout and motif arrangement.
 
-Return detailed English bullet points for:
-- hair style, bangs, hair color
-- eye color and eye impression
-- face identity motifs, face accessories, exact eye/face coverage, mature-face conversion notes, and what must not be turned into a different face accessory
-- outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
-- character-only pose, facing direction, right-hand and left-hand equipment placement, cape flow, and vertical framing
-- right-hand equipment design, if visible
-- left-hand equipment design, if visible
-- extra geometry breakdown for any dominant or complex hand-held equipment
-- accessories, head ornaments, wings, cape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment grip or attachment shape, symbolic items
-- personality impression to preserve as a serious/cool redesign
+Return a parameterized English source record. Use this format for every relevant field:
+- parameter_name:
+  source_value: literal visual observation from the image
+  preserve_lock: what must stay recognizable after conversion
+  transform_allowed: what may change only because SD/chibi anatomy becomes tall real 2D anatomy
+  transform_forbidden: specific wrong conversions to avoid
+  confidence: high / medium / low
+
+Required parameter groups:
+- identity.hair
+- identity.eyes_and_gaze
+- identity.face_shape_to_transform
+- face_accessory.category_and_side
+- face_accessory.coverage_map
+- face_accessory.must_not_become
+- outfit.upper_body
+- outfit.lower_body
+- outfit.cape_or_back_cloth
+- outfit.color_blocking
+- outfit.trim_and_pattern_motifs
+- pose.character_only_stance
+- pose.facing_and_head_direction
+- pose.hand_positions
+- right_hand_equipment.category
+- right_hand_equipment.frame_position
+- right_hand_equipment.size_relationship
+- right_hand_equipment.outer_silhouette
+- right_hand_equipment.inner_contour_and_negative_space
+- right_hand_equipment.tip_base_grip_connection
+- right_hand_equipment.colors_materials_patterns
+- right_hand_equipment.must_not_become
+- left_hand_equipment.category
+- left_hand_equipment.frame_position
+- left_hand_equipment.size_relationship
+- left_hand_equipment.outer_silhouette
+- left_hand_equipment.inner_contour_and_negative_space
+- left_hand_equipment.grip_attachment_or_emblem
+- left_hand_equipment.colors_materials_patterns
+- left_hand_equipment.must_not_become
+- accessories.head_ornaments
+- accessories.symbolic_items
+- final_presence_checklist
 `.trim();
 
   const response = await fetch(endpoint, {
@@ -551,9 +583,15 @@ async function verifySourceCharacterFeaturesForReal2D(params: {
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
   const verificationPrompt = `
-You are preparing the final source-preservation brief for converting an SD/chibi game character into a tall, serious, real 2D manga/anime character.
+You are preparing the final parameter sheet for converting an SD/chibi game character into a tall, serious, real 2D manga/anime character.
 
-This is pass 2: verify the raw observation notes against the image, correct over-generalizations, and rewrite them as a preservation brief for the image-generation model.
+This is pass 2: verify the source parameters against the image, correct over-generalizations, then convert the source parameters into target real-2D parameters for the image-generation model.
+
+Think in this order:
+1. Check the source image again.
+2. Correct any wrong source parameter, especially face accessory category/coverage and right/left hand equipment.
+3. For each parameter, decide whether it is LOCKED, TRANSFORMED, or REMOVED.
+4. Rewrite the result as final target parameters, not as loose prose.
 
 Critical checks:
 - Keep right-hand equipment and left-hand equipment separate. Do not change either item's category, silhouette, size relationship, position, angle, visible details, or partial occlusion.
@@ -568,20 +606,42 @@ Critical checks:
 - Preserve character-only pose, facing direction, hand positions, equipment placement, cape flow, and vertical framing while ignoring screenshot UI and background.
 - Do not invent missing details. If uncertain, state the uncertainty and preserve only the visible evidence.
 
-Raw observation notes:
+Raw source parameters:
 ${params.rawFeaturesText}
 
-Return a detailed but usable English preservation brief with these headings:
-- Verified identity and face
-- Verified face accessories and coverage
-- Verified outfit, armor, cape, and motifs
-- Verified right-hand equipment
-- Verified left-hand equipment
-- Verified complex equipment geometry breakdown
-- Verified pose and character-only composition
-- Mature face and proportion conversion notes
-- Must-preserve checklist
-- Must-not-change warnings
+Return the final target parameter sheet in English. Use this format for every important item:
+- parameter_name:
+  source_verified: corrected source observation
+  conversion_decision: LOCKED / TRANSFORMED / REMOVED
+  target_real_2d_value: how it should appear in the tall real 2D character
+  preservation_priority: critical / high / medium / low
+  negative_prompt_fragment: specific wrong result to avoid
+
+Required target parameter groups:
+- target.identity.hair
+- target.identity.eyes_gaze_and_expression
+- target.identity.mature_face_proportions
+- target.face_accessory.category_side_and_coverage
+- target.face_accessory.negative_conversions
+- target.body_proportions
+- target.outfit.upper_body
+- target.outfit.lower_body
+- target.outfit.cape_or_back_cloth
+- target.outfit.trim_color_and_motif_layout
+- target.pose.stance_facing_hands
+- target.right_hand_equipment.category_and_assignment
+- target.right_hand_equipment.silhouette_geometry
+- target.right_hand_equipment.scale_position_angle
+- target.right_hand_equipment.detail_layout_and_materials
+- target.right_hand_equipment.negative_conversions
+- target.left_hand_equipment.category_and_assignment
+- target.left_hand_equipment.silhouette_geometry
+- target.left_hand_equipment.scale_position_angle
+- target.left_hand_equipment.detail_layout_and_materials
+- target.left_hand_equipment.negative_conversions
+- target.accessories.head_ornaments_and_symbolic_items
+- target.must_preserve_checklist
+- target.must_not_change_checklist
 `.trim();
 
   const response = await fetch(endpoint, {
