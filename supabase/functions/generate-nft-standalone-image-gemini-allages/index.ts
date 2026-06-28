@@ -86,7 +86,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Remove cute, childish, mascot-like, soft, round, playful, cheerful, innocent, and comedic impressions from the SD character.",
         "Convert the character's mood into a serious, cool, dramatic, heroic real 2D manga/anime character.",
         "Prioritize coolness, dignity, intensity, and stylish heroic presence over cuteness.",
-        "Use any provided reference image to extract the source SD character's identity, design motifs, character-only pose, equipment placement, facing direction, and character framing. Do not use screenshot UI, background, lighting, or unrelated layout elements as the target.",
+        "Use any provided reference image as a relative source-character reference: read it directly for identity, motifs, face accessories, hand-held equipment, pose logic, and layout relationships, but do not use it as a fixed image/composition/background copy target.",
         "If the reference image contains a taller 2D character sample, ignore that taller sample completely; do not copy its face, pose, outfit, background, composition, lighting, proportions, or overall layout.",
         "Create a new original transformation from the SD character instead of recreating, tracing, or imitating any finished sample image, while keeping the source character's pose logic and character-only composition recognizable.",
         "The original transformation applies to body proportions, maturity, pose energy, rendering quality, and detail density; it must not invent a new equipment design when source equipment is visible.",
@@ -107,7 +107,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Make the redesigned character an attractive Japanese isekai anime-style bishounen or beautiful woman. The face must be refined, beautiful, cool, and appealing rather than cute-childlike.",
         "Make the expression sharp, calm, confident, and intense rather than cute, innocent, cheerful, or playful.",
         "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, right-hand equipment shape, left-hand equipment shape, and overall personality.",
-        "Follow the verified target parameter sheet when source character features are provided. Treat LOCKED parameters as non-negotiable, apply TRANSFORMED parameters only as specified, and do not re-interpret them into a more generic fantasy design.",
+        "Follow the verified target parameter sheet when source character features are provided. Treat LOCKED parameters as non-negotiable, apply TRANSFORMED parameters only as specified, and do not re-interpret them into a more generic fantasy design. If the reference image contradicts a generated parameter sheet label, prefer the directly visible reference image category and coverage.",
         "Preserve identity, design motifs, character-only pose, facing direction, right-hand and left-hand equipment placement, and the source character's readable silhouette arrangement; do not preserve the screenshot UI, background, lighting, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "When converting the SD pose into tall real 2D anatomy, keep the same overall stance, torso direction, head direction, arm positions, hand-held item positions, each equipment item's angle and placement, cape flow, and vertical character framing as much as possible.",
         "Preserve the extracted equipment silhouette and motif placement strongly.",
@@ -379,7 +379,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Reference image. Use it only to identify the source character's recognizable design motifs. Do not copy or recreate the reference image, and do not use it as a finished-image sample, style sample, pose sample, composition sample, target image, screenshot layout, background, UI, text, buttons, dates, or icons.",
+        "Relative source-character reference image. Use this image as relative visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. Do not use it as a fixed image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
     });
     parts.push({
       inlineData: {
@@ -468,9 +468,11 @@ Important:
 - Describe the pose in transferable terms so it can be adapted from SD/chibi anatomy into a tall real 2D manga body without changing the character's recognizable stance.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
 - Separate face identity from SD/chibi face proportions. Record hair, bangs, eye color, gaze direction, face accessory placement, and expression motifs, but mark large head size, large eye scale, round cheeks, cute proportions, and childish softness as things that must not be preserved in the tall redesign.
-- For face accessories, identify the exact category and coverage: eyepatch, monocle, visor, mask, blindfold, face paint, circlet, forehead ornament, mouth-covering collar, scarf, or other. State which eye/side is covered, which eye remains visible, and whether the mouth/nose/forehead are covered. Do not generalize a one-eye accessory into a full eye mask or blindfold.
+- For face accessories, identify the exact category and coverage: eyepatch, single-eye visor, monocle, face paint, circlet, forehead ornament, mouth-covering collar, scarf, full mask, blindfold, or other. If only one eye is covered and the other eye is visible, classify it as an eyepatch or single-eye accessory first, not as a mask. Use "mask" only when a broad face covering spans both eyes or large symmetric face areas. State which eye/side is covered, which eye remains visible, and whether the mouth/nose/forehead/cheeks are covered.
+- Split adjacent face elements into separate parameters: one-eye covering, forehead ornament/circlet, hair overlap, high collar/scarf mouth occlusion, and cheek/nose visibility. Do not merge these into one decorative mask.
 - Describe the equipment silhouette in detail, not only its category.
 - Identify right-hand equipment and left-hand equipment separately whenever visible. If the image is mirrored or ambiguous, state the uncertainty instead of guessing.
+- For hand-held equipment, do not over-trust a generic category label. The category may be uncertain; the locked part is the visible geometry, silhouette, hand assignment, size ratio, and placement.
 - For each hand-held item, capture the category, silhouette, outline, size relationship, item-specific shape, grip/handle/attachment design, emblem placement if present, ornament placement, colors, materials, and repeated motifs.
 - For each complex hand-held item, break down the geometry into parts: tip shape, outer edge contour, inner edge contour, cutouts or negative spaces, base/neck shape, connector to the grip/shaft, widest point, narrowest point, asymmetry, color borders, and any dangling or secondary parts.
 - If one hand-held item is visually dominant, cropped, very large, or close to the camera, describe it with extra detail and say it must remain the same recognizable item after scaling up.
@@ -505,6 +507,7 @@ Required parameter groups:
 - pose.facing_and_head_direction
 - pose.hand_positions
 - right_hand_equipment.category
+- right_hand_equipment.category_confidence_and_alternatives
 - right_hand_equipment.frame_position
 - right_hand_equipment.size_relationship
 - right_hand_equipment.outer_silhouette
@@ -513,6 +516,7 @@ Required parameter groups:
 - right_hand_equipment.colors_materials_patterns
 - right_hand_equipment.must_not_become
 - left_hand_equipment.category
+- left_hand_equipment.category_confidence_and_alternatives
 - left_hand_equipment.frame_position
 - left_hand_equipment.size_relationship
 - left_hand_equipment.outer_silhouette
@@ -595,12 +599,14 @@ Think in this order:
 
 Critical checks:
 - Keep right-hand equipment and left-hand equipment separate. Do not change either item's category, silhouette, size relationship, position, angle, visible details, or partial occlusion.
+- If an equipment category label is uncertain or conflicts with the visible geometry, keep the geometry locked and lower the category confidence instead of forcing a common item category.
 - For each hand-held item, verify the geometry part by part: tip, outer contour, inner contour, negative spaces, base/neck, connector to grip/shaft, widest point, narrowest point, asymmetry, color borders, and secondary dangling or attached parts.
 - If the right-hand equipment is dominant, cropped, or close to the camera, give it a high-priority preservation warning and describe the exact silhouette that must not be simplified.
 - If a hand-held item is partially hidden, preserve the visible part and explicitly say not to replace it with a cleaner or more common fantasy item.
-- Verify face accessories carefully. Distinguish one-eye accessories from full masks or blindfolds. Preserve which eye/side is covered, which eye remains visible, and whether the mouth, nose, forehead, or cheeks are actually covered.
-- If the source has an eyepatch, monocle, one-eye visor, or asymmetric face ornament, do not convert it into a full eye mask, blindfold, or symmetrical face covering.
+- Verify face accessories carefully. Distinguish one-eye accessories from full masks or blindfolds. If only one eye is covered and the other eye is visible, the target category should be eyepatch / single-eye accessory / one-eye visor, not full mask. Preserve which eye/side is covered, which eye remains visible, and whether the mouth, nose, forehead, or cheeks are actually covered.
+- If the source has an eyepatch, monocle, one-eye visor, or asymmetric face ornament, do not put "eyepatch" or "one-eye accessory" into the negative prompt. The negative prompt should forbid full eye mask, blindfold, symmetrical mask, covering both eyes, covering the visible eye, or covering the mouth/cheeks when those are uncovered.
 - If a high collar, scarf, cape, hair, or shoulder part hides the mouth or lower face, describe that as clothing/hair occlusion, not as a face mask unless a face mask is clearly visible.
+- Separate forehead ornament/circlet from the eye-covering accessory. Do not merge forehead gold ornaments, hair, and one-eye covering into a single ornate mask parameter.
 - Verify mature-face conversion separately from identity preservation. Preserve hairstyle, bangs, eye color, gaze, face accessories, and expression motifs, but explicitly warn not to preserve large SD head size, oversized eyes, round cheeks, cute face scale, or childish softness.
 - Preserve source-specific decorations: trim shapes, color blocking, repeated motifs, emblem geometry, cape edge designs, armor panel markings, ornaments, and motif rhythm.
 - Preserve character-only pose, facing direction, hand positions, equipment placement, cape flow, and vertical framing while ignoring screenshot UI and background.
@@ -623,6 +629,7 @@ Required target parameter groups:
 - target.identity.mature_face_proportions
 - target.face_accessory.category_side_and_coverage
 - target.face_accessory.negative_conversions
+- target.face_accessory.separate_adjacent_elements
 - target.body_proportions
 - target.outfit.upper_body
 - target.outfit.lower_body
@@ -630,11 +637,13 @@ Required target parameter groups:
 - target.outfit.trim_color_and_motif_layout
 - target.pose.stance_facing_hands
 - target.right_hand_equipment.category_and_assignment
+- target.right_hand_equipment.category_confidence_and_alternatives
 - target.right_hand_equipment.silhouette_geometry
 - target.right_hand_equipment.scale_position_angle
 - target.right_hand_equipment.detail_layout_and_materials
 - target.right_hand_equipment.negative_conversions
 - target.left_hand_equipment.category_and_assignment
+- target.left_hand_equipment.category_confidence_and_alternatives
 - target.left_hand_equipment.silhouette_geometry
 - target.left_hand_equipment.scale_position_angle
 - target.left_hand_equipment.detail_layout_and_materials
