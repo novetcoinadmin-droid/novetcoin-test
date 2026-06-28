@@ -97,6 +97,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Prioritize leg length and overall height: the legs should occupy more than half of the full body height, with an elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
         "Use a very small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating a 12-to-14-heads-tall silhouette.",
         "Use a smaller, refined anime face and a small head relative to the full body, while keeping the face attractive and recognizable.",
+        "Preserve face identity details but do not preserve the SD character's large head, large eyes, round cheeks, cute facial proportions, or childlike face scale.",
         "Make the character feel tall at first glance through a small refined face, long neck, high waistline, elongated torso, and very long legs.",
         "Use a slightly low camera angle and vertical full-body framing with enough space above the head and below the feet to emphasize height.",
         "The final image must be unmistakably non-chibi: small-to-normal head size, adult heroic torso, long arms, very long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
@@ -113,6 +114,8 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Preserve specific patterns and markings from the source character, including filigree, trim shapes, repeated decorative motifs, emblem geometry, cape edge designs, armor panel markings, and color-blocking.",
         "Preserve right-hand equipment and left-hand equipment separately and faithfully. Keep which item belongs to the right hand and which item belongs to the left hand unless the source image is genuinely ambiguous.",
         "For each hand-held item, preserve the distinctive category, silhouette, size relationship, outline, item-specific shape, grip/handle/attachment design, ornament placement, emblem position if present, color palette, material impression, and repeated motifs from the source SD character.",
+        "For complex hand-held equipment, preserve the tip shape, outer contour, inner cutouts or negative spaces, base/neck shape, widest and narrowest points, asymmetry, color borders, and how the item connects to the grip or shaft.",
+        "Right-hand equipment fidelity is especially important when the item is large, cropped, close to the camera, or visually dominant in the source image.",
         "Do not swap the left-hand and right-hand equipment, merge them into one item, remove one item, replace them with generic hand-held items, or simplify the hand equipment into vague fantasy props.",
         "When adapting SD hand-held equipment into real 2D proportions, upscale and refine the original designs while keeping them immediately recognizable as the same right-hand and left-hand equipment.",
         "The equipment should look like a polished full-size upgrade of the source equipment, not newly invented original armor or newly invented hand-held items.",
@@ -463,10 +466,13 @@ Important:
 - Extract the character-only pose and composition: facing direction, head direction, torso angle, stance, arm positions, hand positions, each hand-held equipment item's angle and placement, cape flow, ornament placement, and how the character is framed in the image.
 - Describe the pose in transferable terms so it can be adapted from SD/chibi anatomy into a tall real 2D manga body without changing the character's recognizable stance.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
+- Separate face identity from SD/chibi face proportions. Record hair, bangs, eye color, gaze direction, face accessory placement, and expression motifs, but mark large head size, large eye scale, round cheeks, cute proportions, and childish softness as things that must not be preserved in the tall redesign.
 - For face accessories, identify the exact category and coverage: eyepatch, monocle, visor, mask, blindfold, face paint, circlet, forehead ornament, mouth-covering collar, scarf, or other. State which eye/side is covered, which eye remains visible, and whether the mouth/nose/forehead are covered. Do not generalize a one-eye accessory into a full eye mask or blindfold.
 - Describe the equipment silhouette in detail, not only its category.
 - Identify right-hand equipment and left-hand equipment separately whenever visible. If the image is mirrored or ambiguous, state the uncertainty instead of guessing.
 - For each hand-held item, capture the category, silhouette, outline, size relationship, item-specific shape, grip/handle/attachment design, emblem placement if present, ornament placement, colors, materials, and repeated motifs.
+- For each complex hand-held item, break down the geometry into parts: tip shape, outer edge contour, inner edge contour, cutouts or negative spaces, base/neck shape, connector to the grip/shaft, widest point, narrowest point, asymmetry, color borders, and any dangling or secondary parts.
+- If one hand-held item is visually dominant, cropped, very large, or close to the camera, describe it with extra detail and say it must remain the same recognizable item after scaling up.
 - For each hand-held item, state whether it is large or small relative to the character, where it sits in the frame, what parts are occluded by the body/clothes/UI, and which details are still visible. Do not replace a partially hidden item with a more common fantasy item.
 - Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment attachment/grip shape, wing ornament placement, and repeated color/pattern motifs.
 - Describe visible equipment geometry literally enough that a later model can preserve it as a locked design asset instead of inventing original equipment.
@@ -477,11 +483,12 @@ Important:
 Return detailed English bullet points for:
 - hair style, bangs, hair color
 - eye color and eye impression
-- face identity motifs, face accessories, exact eye/face coverage, and what must not be turned into a different face accessory
+- face identity motifs, face accessories, exact eye/face coverage, mature-face conversion notes, and what must not be turned into a different face accessory
 - outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
 - character-only pose, facing direction, right-hand and left-hand equipment placement, cape flow, and vertical framing
 - right-hand equipment design, if visible
 - left-hand equipment design, if visible
+- extra geometry breakdown for any dominant or complex hand-held equipment
 - accessories, head ornaments, wings, cape, right-hand equipment outline, left-hand equipment outline, equipment emblem placement if present, equipment grip or attachment shape, symbolic items
 - personality impression to preserve as a serious/cool redesign
 `.trim();
@@ -550,10 +557,13 @@ This is pass 2: verify the raw observation notes against the image, correct over
 
 Critical checks:
 - Keep right-hand equipment and left-hand equipment separate. Do not change either item's category, silhouette, size relationship, position, angle, visible details, or partial occlusion.
+- For each hand-held item, verify the geometry part by part: tip, outer contour, inner contour, negative spaces, base/neck, connector to grip/shaft, widest point, narrowest point, asymmetry, color borders, and secondary dangling or attached parts.
+- If the right-hand equipment is dominant, cropped, or close to the camera, give it a high-priority preservation warning and describe the exact silhouette that must not be simplified.
 - If a hand-held item is partially hidden, preserve the visible part and explicitly say not to replace it with a cleaner or more common fantasy item.
 - Verify face accessories carefully. Distinguish one-eye accessories from full masks or blindfolds. Preserve which eye/side is covered, which eye remains visible, and whether the mouth, nose, forehead, or cheeks are actually covered.
 - If the source has an eyepatch, monocle, one-eye visor, or asymmetric face ornament, do not convert it into a full eye mask, blindfold, or symmetrical face covering.
 - If a high collar, scarf, cape, hair, or shoulder part hides the mouth or lower face, describe that as clothing/hair occlusion, not as a face mask unless a face mask is clearly visible.
+- Verify mature-face conversion separately from identity preservation. Preserve hairstyle, bangs, eye color, gaze, face accessories, and expression motifs, but explicitly warn not to preserve large SD head size, oversized eyes, round cheeks, cute face scale, or childish softness.
 - Preserve source-specific decorations: trim shapes, color blocking, repeated motifs, emblem geometry, cape edge designs, armor panel markings, ornaments, and motif rhythm.
 - Preserve character-only pose, facing direction, hand positions, equipment placement, cape flow, and vertical framing while ignoring screenshot UI and background.
 - Do not invent missing details. If uncertain, state the uncertainty and preserve only the visible evidence.
@@ -567,7 +577,9 @@ Return a detailed but usable English preservation brief with these headings:
 - Verified outfit, armor, cape, and motifs
 - Verified right-hand equipment
 - Verified left-hand equipment
+- Verified complex equipment geometry breakdown
 - Verified pose and character-only composition
+- Mature face and proportion conversion notes
 - Must-preserve checklist
 - Must-not-change warnings
 `.trim();
