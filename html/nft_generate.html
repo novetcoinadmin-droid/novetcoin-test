@@ -473,6 +473,18 @@
         <p class="muted">キャラ画像の参照時に使います。キャラモード専用です。</p>
       </div>
 
+      <div id="sdToRealGenderGroup" class="control-group character-only hidden">
+        <label>SD→リアル2Dの性別</label>
+        <input type="hidden" id="tpl_character_sd_to_real_gender" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_sd_to_real_gender">
+          <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="男性" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '男性')">男性</button>
+          <button class="choice-btn" type="button" data-value="女性" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '女性')">女性</button>
+          <button class="choice-btn" type="button" data-value="その他" onclick="setChoiceValue('tpl_character_sd_to_real_gender', 'その他')">その他</button>
+        </div>
+        <p class="muted">SDキャラから2Dリアルキャラへ変換する時だけ使います。</p>
+      </div>
+
       <div class="control-group character-only">
         <label>表情変換</label>
         <input type="hidden" id="tpl_character_expression_transform" value="">
@@ -827,6 +839,20 @@
         if (freeTextLabel) freeTextLabel.textContent = '作成したい内容';
         if (freeText) freeText.placeholder = '例: 青い宝石が埋め込まれた銀の杖、神秘的な光、冒険者向け。';
       }
+      updateSdToRealGenderUI();
+    }
+
+    function isSdToReal2DConversionSelected() {
+      return getFieldValue('tpl_character_mode_conversion') === 'SDキャラから2Dリアルキャラへ変換';
+    }
+
+    function updateSdToRealGenderUI() {
+      const group = document.getElementById('sdToRealGenderGroup');
+      const visible = currentMode === 'character' && isSdToReal2DConversionSelected();
+      if (group) group.classList.toggle('hidden', !visible);
+      if (!visible && getFieldValue('tpl_character_sd_to_real_gender')) {
+        setChoiceValue('tpl_character_sd_to_real_gender', '');
+      }
     }
 
     function setMode(mode) {
@@ -844,6 +870,9 @@
         btn.classList.toggle('active', btn.getAttribute('data-value') === value);
       });
 
+      if (inputId === 'tpl_character_mode_conversion') {
+        updateSdToRealGenderUI();
+      }
     }
 
     function setBackgroundMode(mode) {
@@ -1305,6 +1334,7 @@
             outfit: getFieldValue('tpl_character_outfit'),
             lighting: getFieldValue('tpl_character_lighting'),
             mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+            sd_to_real_gender: isSdToReal2DConversionSelected() ? getFieldValue('tpl_character_sd_to_real_gender') : '',
             expression_transform: getFieldValue('tpl_character_expression_transform')
           },
           background: {
@@ -1379,6 +1409,7 @@
         tpl_character_lighting: getFieldValue('tpl_character_lighting'),
         tpl_character_art_style: getFieldValue('tpl_character_art_style'),
         tpl_character_mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+        tpl_character_sd_to_real_gender: isSdToReal2DConversionSelected() ? getFieldValue('tpl_character_sd_to_real_gender') : '',
         tpl_character_expression_transform: getFieldValue('tpl_character_expression_transform')
       };
       const expressionTransformPreset = getExpressionTransformPresetSettings(fields.tpl_character_expression_transform);
@@ -1397,6 +1428,7 @@
           '表情': expressionTransformPreset?.fields?.['表情'] || fields.tpl_character_expression || '自然な表情',
           '感情': 'calm and readable emotional tone',
           'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし',
+          ...(fields.tpl_character_sd_to_real_gender ? { 'SD→リアル2Dの性別': fields.tpl_character_sd_to_real_gender } : {}),
           ...(backgroundInstruction ? { '背景設定': backgroundInstruction } : {}),
           ...(expressionTransformPreset?.fields || {})
         },
@@ -1409,6 +1441,7 @@
         tpl_character_lighting: fields.tpl_character_lighting,
         tpl_character_art_style: artStyleInstruction || fields.tpl_character_art_style,
         tpl_character_mode_conversion: fields.tpl_character_mode_conversion,
+        tpl_character_sd_to_real_gender: fields.tpl_character_sd_to_real_gender,
         tpl_character_expression_transform: expressionTransformPreset?.label || ''
       };
 

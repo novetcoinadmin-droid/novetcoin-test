@@ -106,6 +106,10 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Preserve the source SD character identity aggressively: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, weapon shape, and overall personality.",
         "Preserve identity and design motifs only; do not preserve the reference pose, camera angle, background, composition, lighting, finished-image layout, short body, oversized head, stubby limbs, or toy-like silhouette.",
         "Preserve the extracted equipment silhouette and motif placement strongly.",
+        "Preserve right-hand equipment and left-hand equipment separately and faithfully. Keep which item belongs to the right hand and which item belongs to the left hand unless the source image is genuinely ambiguous.",
+        "For each hand-held item, preserve the distinctive category, silhouette, size relationship, outline, blade or shield shape, hilt or handle design, guard shape, ornament placement, emblem position, color palette, material impression, and repeated motifs from the source SD character.",
+        "Do not swap the left-hand and right-hand equipment, merge them into one item, remove one item, replace them with generic weapons, or simplify the hand equipment into vague fantasy props.",
+        "When adapting SD hand-held equipment into real 2D proportions, upscale and refine the original designs while keeping them immediately recognizable as the same right-hand and left-hand equipment.",
         "Do not replace the source equipment with generic angel armor, generic paladin armor, or generic holy knight armor.",
         "Keep the source character's distinctive shield shape, sword silhouette, blue-and-gold crest patterns, cape layout, wing ornaments, armor panel arrangement, shoulder armor outline, chest emblem placement, waist cloth shape, and repeated motif rhythm.",
         "Upgrade the costume into detailed layered fantasy game attire while keeping the original design motifs recognizable: ornate trims, elegant cloth, light armor accents, polished ornaments, and clean anime illustration texture.",
@@ -194,6 +198,9 @@ function buildPrompt(
     pickString(payload.art_style);
   const userModeConversion = pickString(payload.tpl_character_mode_conversion) ||
     pickString(payload.character_mode_conversion);
+  const userSdToRealGender = pickString(payload.tpl_character_sd_to_real_gender) ||
+    pickString(payload.sd_to_real_gender) ||
+    pickString(payload.character_gender);
   const userExpressionTransform =
     pickString(payload.tpl_character_expression_transform) ||
     pickString(payload.character_expression_transform);
@@ -206,6 +213,7 @@ function buildPrompt(
   const modeConversion = getCharacterModeConversionInstructions(
     userModeConversion,
   );
+  const isSdToReal2D = isSdToReal2DConversionMode(userModeConversion);
 
   const preserveLines: string[] = [];
   pushIf(
@@ -232,6 +240,24 @@ function buildPrompt(
   const changeLines: string[] = [];
   for (const line of modeConversion.lines) {
     changeLines.push(line);
+  }
+  if (isSdToReal2D && userSdToRealGender === "男性") {
+    changeLines.push(
+      "Target gender for this SD-to-real 2D conversion: male. Redesign the character as a clearly male, attractive Japanese isekai anime-style bishounen or heroic young man.",
+    );
+    changeLines.push(
+      "Do not feminize the character. Avoid a female body, feminine bust, feminine hips, dress-like feminine redesign, or a beautiful-woman face unless explicitly requested elsewhere.",
+    );
+  }
+  if (isSdToReal2D && userSdToRealGender === "女性") {
+    changeLines.push(
+      "Target gender for this SD-to-real 2D conversion: female. Redesign the character as a clearly female, attractive Japanese isekai anime-style beautiful woman.",
+    );
+  }
+  if (isSdToReal2D && userSdToRealGender === "その他") {
+    changeLines.push(
+      "Target gender for this SD-to-real 2D conversion: other / androgynous. Keep the character stylish and appealing without forcing a clearly male or clearly female redesign.",
+    );
   }
   pushIf(
     changeLines,
@@ -426,6 +452,8 @@ Important:
 - Do not instruct the next model to copy the image, pose, camera angle, composition, or background.
 - Focus on identity and design motifs that should survive a redesign into a serious tall real 2D manga/anime character.
 - Describe the equipment silhouette in detail, not only its category.
+- Identify right-hand equipment and left-hand equipment separately whenever visible. If the image is mirrored or ambiguous, state the uncertainty instead of guessing.
+- For each hand-held item, capture the category, silhouette, outline, size relationship, blade/shield shape, hilt/handle/guard design, emblem placement, ornament placement, colors, materials, and repeated motifs.
 - Capture distinctive shapes: shoulder armor outline, chest armor emblem, waist cloth shape, cape shape, shield outline and emblem placement, sword blade silhouette, hilt shape, wing ornament placement, and repeated blue/gold patterns.
 - Avoid generic angel knight, generic paladin, or generic holy knight redesign. Preserve the source character's unique equipment layout and motif arrangement.
 
@@ -434,6 +462,8 @@ Return concise English bullet points for:
 - eye color and eye impression
 - face identity motifs, excluding cuteness and childlike tone
 - outfit motifs, armor/clothing parts, equipment silhouette, motif placement, color palette
+- right-hand equipment design, if visible
+- left-hand equipment design, if visible
 - accessories, head ornaments, wings, cape, shield outline, shield emblem placement, weapon blade silhouette, hilt shape, symbolic items
 - personality impression to preserve as a serious/cool redesign
 `.trim();
