@@ -135,7 +135,7 @@ function buildReal2dParameters(
     target_gender: targetGender || "unspecified",
     body_proportion: {
       target:
-        "14-heads-tall direction, small head, long neck, high waist, very long legs",
+        "exactly 14-heads-tall real 2D character proportion, very small head, long neck, high waist, extremely long legs",
       do_not_preserve:
         "SD round body, short limbs, oversized head, mascot-like proportions",
       preserve:

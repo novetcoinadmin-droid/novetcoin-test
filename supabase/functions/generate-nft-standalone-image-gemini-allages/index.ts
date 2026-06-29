@@ -141,7 +141,7 @@ function getCharacterModeConversionInstructions(mode: string) {
   if (isSdToReal2DConversionMode(mode)) {
     return {
       composition:
-        "full-body vertical real 2D manga character key visual, one complete very tall 12-to-14-heads-tall anime-realistic fantasy character, the whole body visible from head to feet",
+        "full-body vertical real 2D manga character key visual, one complete extremely tall exactly 14-heads-tall anime-realistic fantasy character, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: transform the source SD/chibi character into a tall, elegant, full-body real 2D manga character.",
         "Use the SD/chibi character as the source for identity and design motifs: hairstyle, bangs, hair color, eye color, outfit motifs, color palette, accessories, symbolic items, hand-held equipment shapes, and overall personality.",
@@ -155,10 +155,10 @@ function getCharacterModeConversionInstructions(mode: string) {
         "The original transformation applies to body proportions, maturity, pose energy, rendering quality, and detail density; it must not invent a new equipment design when source equipment is visible.",
         "The character should look like a meticulous, scaled-up, full-size anime key-art version of the specific source character. All visible source character elements should be present and correct unless they are screenshot UI or background.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
-        "Strict body proportion: remove SD/chibi proportions and redraw as a 12-to-14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
+        "Strict body proportion: remove SD/chibi proportions and redraw as an exactly 14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
         "Make the redesigned character noticeably tall and long-legged, with high-fashion runway-model vertical proportions while still looking like a polished real 2D manga fantasy character.",
         "Prioritize leg length and overall height: the legs should occupy more than half of the full body height, with an elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
-        "Use a very small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating a 12-to-14-heads-tall silhouette.",
+        "Use a very small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating an exactly 14-heads-tall silhouette.",
         "Use a smaller, refined anime face and a small head relative to the full body, while keeping the face attractive and recognizable.",
         "Preserve face identity details but do not preserve the SD character's large head, large eyes, round cheeks, cute facial proportions, or childlike face scale.",
         "Make the character feel tall at first glance through a small refined face, long neck, high waistline, elongated torso, and very long legs.",
@@ -193,7 +193,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, losing the source character pose and equipment arrangement, copying screenshot UI, copying screenshot background, copying unrelated layout elements, recreating a finished sample, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
-        "Create a full-body real 2D manga/anime fantasy version of the same SD/chibi character with a very tall 12-to-14-heads-tall body and exceptionally long legs, like an official high-rarity fantasy RPG character key visual.",
+        "Create a full-body real 2D manga/anime fantasy version of the same SD/chibi character with an exactly 14-heads-tall body and exceptionally long legs, like an official high-rarity fantasy RPG character key visual.",
     };
   }
 

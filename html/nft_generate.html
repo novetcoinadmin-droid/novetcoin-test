@@ -245,6 +245,22 @@
       font-size: 12px;
       color: #333;
     }
+    .sd-param-card summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      color: #333;
+      list-style: revert;
+    }
+    .sd-param-card summary span {
+      color: #777;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+    .sd-param-card details > div {
+      margin-top: 10px;
+    }
     .sd-param-card textarea {
       min-height: 58px;
       font-size: 12px;
@@ -606,7 +622,7 @@
         </div>
       </div>
 
-      <div class="control-group">
+      <div id="referenceControlGroup" class="control-group">
         <label>参照画像</label>
         <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
         <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
@@ -937,9 +953,11 @@
     function updateSdToRealGenderUI() {
       const group = document.getElementById('sdToRealGenderGroup');
       const extractionGroup = document.getElementById('sdToRealExtractionGroup');
+      const referenceControlGroup = document.getElementById('referenceControlGroup');
       const visible = currentMode === 'character' && isSdToReal2DConversionSelected();
       if (group) group.classList.toggle('hidden', !visible);
       if (extractionGroup) extractionGroup.classList.toggle('hidden', !visible);
+      if (referenceControlGroup) referenceControlGroup.classList.toggle('hidden', visible);
       if (!visible && getFieldValue('tpl_character_sd_to_real_gender')) {
         setChoiceValue('tpl_character_sd_to_real_gender', '');
       }
@@ -1007,6 +1025,12 @@
         confirmed: '確認済み'
       };
       return labels[status] || '未作成';
+    }
+
+    function getSdExtractionStatusLabelForSection(confirmation, confidence) {
+      const status = confirmation || '未確認';
+      const conf = confidence || 'unknown';
+      return `${status} / ${conf}`;
     }
 
     function stringifyParamValue(value) {
@@ -1101,8 +1125,16 @@
             <div style="font-weight:700;">参照画像</div>
             <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
             <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
+            <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を変更</button>
+            <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">参照画像を解除</button>
           </div>
-        ` : '';
+        ` : `
+          <div class="reference-card">
+            <div style="font-weight:700;">参照画像未確定</div>
+            <div class="muted">SD→リアル2D変換では、先にSDキャラの参照画像を選択してください。</div>
+            <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を選択</button>
+          </div>
+        `;
       }
       if (paramsArea) {
         paramsArea.innerHTML = sdExtractionState.extractedParameters ? renderSdExtractionParameters() : '';
@@ -1126,39 +1158,43 @@
         const antiMistakeNote = param.anti_misread_note || param.anti_mistake_note || '';
         return `
           <div class="sd-param-card">
-            <h4>${escapeHtml(label)}</h4>
-            ${showJapaneseCheck ? `
-              <label for="sd_ai_ja_${key}">日本語確認</label>
-              <textarea id="sd_ai_ja_${key}" readonly>${escapeHtml(stringifyParamValue(japaneseValue || aiValue))}</textarea>
-            ` : ''}
-            <label for="sd_ai_${key}">AI推定値</label>
-            <textarea id="sd_ai_${key}" readonly>${escapeHtml(stringifyParamValue(aiValue))}</textarea>
-            <label for="sd_user_${key}" style="margin-top:8px;">ユーザー修正値</label>
-            <textarea id="sd_user_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(stringifyParamValue(userValue))}</textarea>
-            <div class="sd-param-meta">
+            <details>
+              <summary>${escapeHtml(label)}<span>${escapeHtml(getSdExtractionStatusLabelForSection(confirmation, confidence))}</span></summary>
               <div>
-                <label for="sd_conf_${key}">確信度</label>
-                <select id="sd_conf_${key}" onchange="markSdSectionEdited('${key}')">
-                  ${['high', 'medium', 'low', 'unknown'].map((v) => `<option value="${v}" ${v === confidence ? 'selected' : ''}>${v}</option>`).join('')}
-                </select>
+                ${showJapaneseCheck ? `
+                  <label for="sd_ai_ja_${key}">日本語確認</label>
+                  <textarea id="sd_ai_ja_${key}" readonly>${escapeHtml(stringifyParamValue(japaneseValue || aiValue))}</textarea>
+                ` : ''}
+                <label for="sd_ai_${key}">AI推定値</label>
+                <textarea id="sd_ai_${key}" readonly>${escapeHtml(stringifyParamValue(aiValue))}</textarea>
+                <label for="sd_user_${key}" style="margin-top:8px;">ユーザー修正値</label>
+                <textarea id="sd_user_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(stringifyParamValue(userValue))}</textarea>
+                <div class="sd-param-meta">
+                  <div>
+                    <label for="sd_conf_${key}">確信度</label>
+                    <select id="sd_conf_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['high', 'medium', 'low', 'unknown'].map((v) => `<option value="${v}" ${v === confidence ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label for="sd_status_${key}">確認状態</label>
+                    <select id="sd_status_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['未確認', 'OK', '修正あり', '不明'].map((v) => `<option value="${v}" ${v === confirmation ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label for="sd_handling_${key}">生成時の扱い</label>
+                    <select id="sd_handling_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['LOCK', 'KEEP', 'TRANSFORM', 'IGNORE'].map((v) => `<option value="${v}" ${v === generationHandling ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+                <label for="sd_occ_${key}" style="margin-top:8px;">見切れ・隠れメモ</label>
+                <textarea id="sd_occ_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(occlusionNote)}</textarea>
+                <label for="sd_anti_${key}" style="margin-top:8px;">誤変換防止メモ</label>
+                <textarea id="sd_anti_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(antiMistakeNote)}</textarea>
               </div>
-              <div>
-                <label for="sd_status_${key}">確認状態</label>
-                <select id="sd_status_${key}" onchange="markSdSectionEdited('${key}')">
-                  ${['未確認', 'OK', '修正あり', '不明'].map((v) => `<option value="${v}" ${v === confirmation ? 'selected' : ''}>${v}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label for="sd_handling_${key}">生成時の扱い</label>
-                <select id="sd_handling_${key}" onchange="markSdSectionEdited('${key}')">
-                  ${['LOCK', 'KEEP', 'TRANSFORM', 'IGNORE'].map((v) => `<option value="${v}" ${v === generationHandling ? 'selected' : ''}>${v}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <label for="sd_occ_${key}" style="margin-top:8px;">見切れ・隠れメモ</label>
-            <textarea id="sd_occ_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(occlusionNote)}</textarea>
-            <label for="sd_anti_${key}" style="margin-top:8px;">誤変換防止メモ</label>
-            <textarea id="sd_anti_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(antiMistakeNote)}</textarea>
+            </details>
           </div>
         `;
       }).join('');
@@ -1215,7 +1251,7 @@
         conversion_goal: 'Transform the confirmed SD/chibi source character into a tall real 2D manga/anime fantasy character without changing identity.',
         target_gender: getFieldValue('tpl_character_sd_to_real_gender') || '未指定',
         body_proportion: {
-          target: '14-heads-tall direction, small head, long neck, high waist, very long legs',
+          target: 'exactly 14-heads-tall real 2D character proportion, very small head, long neck, high waist, extremely long legs',
           do_not_preserve: 'SD round body, short limbs, oversized head, mascot-like proportions',
           preserve: 'pose meaning, hand assignment, equipment placement, silhouette logic'
         },
@@ -1314,6 +1350,17 @@
       } finally {
         hideProcessingOverlay();
         renderSdExtractionPanel();
+      }
+    }
+
+    async function handleSdReferenceSelectClick() {
+      currentAssetPickerTarget = 'reference';
+      openReferenceModal('character', true, 'reference');
+      try {
+        await loadReferenceAssets('character');
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('参照画像一覧の取得に失敗しました。');
       }
     }
 
