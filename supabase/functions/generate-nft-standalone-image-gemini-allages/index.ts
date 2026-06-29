@@ -156,14 +156,16 @@ function getCharacterModeConversionInstructions(mode: string) {
         "The character should look like a meticulous, scaled-up, full-size anime key-art version of the specific source character. All visible source character elements should be present and correct unless they are screenshot UI or background.",
         "This is a major redesign, not an image cleanup. Do not trace, upscale, or lightly repaint the reference image.",
         "Strict body proportion: remove SD/chibi proportions and redraw as an exactly 14-heads-tall character with an extremely tall body, exceptionally long legs, balanced anatomy, and a sharp readable silhouette.",
+        "Non-negotiable proportion lock: the full body height must measure about 14 head-heights. The head should be about 1/14 of the full body height, visibly smaller than normal anime proportions.",
         "Make the redesigned character noticeably tall and long-legged, with high-fashion runway-model vertical proportions while still looking like a polished real 2D manga fantasy character.",
-        "Prioritize leg length and overall height: the legs should occupy more than half of the full body height, with an elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
+        "Prioritize leg length and overall height: the legs should occupy roughly 62 to 68 percent of the full body height, with an elevated waistline, long thighs, long lower legs, and a graceful tall stance.",
         "Use a very small head-to-body ratio: the head and face must be visibly smaller than typical anime proportions, creating an exactly 14-heads-tall silhouette.",
+        "Use fashion-illustration croquis proportions rather than normal character-sheet proportions: tiny refined head, long neck, narrow upper torso, high waist, elongated arms, and extremely long legs.",
         "Use a smaller, refined anime face and a small head relative to the full body, while keeping the face attractive and recognizable.",
         "Preserve face identity details but do not preserve the SD character's large head, large eyes, round cheeks, cute facial proportions, or childlike face scale.",
         "Make the character feel tall at first glance through a small refined face, long neck, high waistline, elongated torso, and very long legs.",
         "Use a slightly low camera angle and vertical full-body framing with enough space above the head and below the feet to emphasize height.",
-        "The final image must be unmistakably non-chibi: small-to-normal head size, adult heroic torso, long arms, very long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
+        "The final image must be unmistakably non-chibi and unmistakably not normal 7-to-10-head anime proportion: tiny head, adult heroic torso, long arms, very long legs, realistic anime-fantasy anatomy, and no mascot-like body.",
         "Use serious Japanese light-novel cover illustration quality: high-end real 2D manga/anime fantasy art, premium gacha character illustration, dramatic atmosphere, strong contrast, refined shadows, cool gaze, cinematic fantasy presence, and polished illustrated rendering.",
         "Even if another art style is selected, prioritize a serious light-novel-cover-like cool finish for this conversion mode.",
         "For this SD-to-tall real 2D manga conversion mode, fix the age impression at around 20 years old regardless of the original SD character's childlike proportions.",
@@ -190,7 +192,7 @@ function getCharacterModeConversionInstructions(mode: string) {
         "Increase detail density and polish while preserving the source design; do not simplify the costume into a cleaner but less recognizable outfit.",
         "Use a beautiful Japanese isekai anime-style face with refined attractive features and a confident cool expression. Make the character look stylish, heroic, and high-rarity, while still clearly being the same character.",
         "Show the entire body from head to feet. Do not make a face close-up, bust-up, upper-body-only image, or cropped hand-held equipment.",
-        "Avoid two-head-tall, three-head-tall, eight-heads-tall average height, ten-heads-tall average height, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, losing the source character pose and equipment arrangement, copying screenshot UI, copying screenshot background, copying unrelated layout elements, recreating a finished sample, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
+        "Avoid two-head-tall, three-head-tall, seven-heads-tall, eight-heads-tall, nine-heads-tall, ten-heads-tall, average anime height, normal character-sheet proportions, chibi, mascot, toy-like, mini-character proportions, childish body, cute face, baby face, round cheeks, innocent eyes, soft smile, playful pose, mascot charm, childlike charm, chibi cuteness, large face, large head, normal-sized anime head, short neck, low waistline, oversized head, tiny limbs, short legs, squat silhouette, simple costume, low detail, weak silhouette, generic fantasy outfit, losing the original design, losing the source character pose and equipment arrangement, copying screenshot UI, copying screenshot background, copying unrelated layout elements, recreating a finished sample, bulky realistic armor, heavy CG render, gritty realism, or western photoreal fantasy.",
       ],
       finalGoal:
         "Create a full-body real 2D manga/anime fantasy version of the same SD/chibi character with an exactly 14-heads-tall body and exceptionally long legs, like an official high-rarity fantasy RPG character key visual.",
@@ -667,6 +669,8 @@ Think in this order:
 4. Rewrite the result as final target parameters, not as loose prose.
 
 Critical checks:
+- Body proportion is non-negotiable: target.body_proportions must specify an exactly 14-heads-tall full-body real 2D character, with the head about 1/14 of total height, very small refined head, long neck, high waist, elongated arms, and legs occupying roughly 62 to 68 percent of full body height.
+- Do not allow normal 7-to-10-head anime proportions, average character-sheet proportions, large anime head, low waistline, or short legs in the target parameter sheet.
 - Keep right-hand equipment and left-hand equipment separate. Do not change either item's category, silhouette, size relationship, position, angle, visible details, or partial occlusion.
 - If an equipment category label is uncertain or conflicts with the visible geometry, keep the geometry locked and lower the category confidence instead of forcing a common item category.
 - For each hand-held item, verify the geometry part by part: tip, outer contour, inner contour, negative spaces, base/neck, connector to grip/shaft, widest point, narrowest point, asymmetry, color borders, and secondary dangling or attached parts.

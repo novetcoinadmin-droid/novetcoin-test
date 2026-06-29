@@ -135,9 +135,9 @@ function buildReal2dParameters(
     target_gender: targetGender || "unspecified",
     body_proportion: {
       target:
-        "exactly 14-heads-tall real 2D character proportion, very small head, long neck, high waist, extremely long legs",
+        "exactly 14-heads-tall real 2D character proportion, head about 1/14 of full body height, very small refined head, long neck, high waist, elongated arms, legs occupying roughly 62 to 68 percent of full body height, extremely long legs",
       do_not_preserve:
-        "SD round body, short limbs, oversized head, mascot-like proportions",
+        "SD round body, short limbs, oversized head, mascot-like proportions, normal 7-to-10-head anime proportions, average character-sheet proportions, large anime head, low waistline, short legs",
       preserve:
         "pose meaning, hand assignment, equipment placement, silhouette logic",
     },
