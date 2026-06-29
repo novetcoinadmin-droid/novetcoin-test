@@ -1116,6 +1116,8 @@
       const cards = SD_EXTRACTION_SECTIONS.map(([key, label]) => {
         const param = getSectionParam(key);
         const aiValue = param.ai_estimate ?? param.ai_value ?? param.value ?? param;
+        const japaneseValue = param.ai_estimate_japanese || '';
+        const showJapaneseCheck = key === 'right_hand_weapon' || key === 'left_hand_equipment';
         const userValue = param.user_override ?? param.user_value ?? '';
         const confidence = param.confidence || 'unknown';
         const confirmation = param.user_confirmation_status || '未確認';
@@ -1125,6 +1127,10 @@
         return `
           <div class="sd-param-card">
             <h4>${escapeHtml(label)}</h4>
+            ${showJapaneseCheck ? `
+              <label for="sd_ai_ja_${key}">日本語確認</label>
+              <textarea id="sd_ai_ja_${key}" readonly>${escapeHtml(stringifyParamValue(japaneseValue || aiValue))}</textarea>
+            ` : ''}
             <label for="sd_ai_${key}">AI推定値</label>
             <textarea id="sd_ai_${key}" readonly>${escapeHtml(stringifyParamValue(aiValue))}</textarea>
             <label for="sd_user_${key}" style="margin-top:8px;">ユーザー修正値</label>
@@ -1191,6 +1197,7 @@
         const antiEl = document.getElementById(`sd_anti_${key}`);
         confirmed[key] = {
           ai_estimate: aiValue,
+          ai_estimate_japanese: param.ai_estimate_japanese || '',
           confidence: confidenceEl?.value || param.confidence || 'unknown',
           user_confirmation_status: confirmationEl?.value || '未確認',
           user_override: userValue,

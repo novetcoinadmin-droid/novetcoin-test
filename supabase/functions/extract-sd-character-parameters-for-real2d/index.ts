@@ -82,6 +82,7 @@ async function fetchGeminiWithRetry(
 function blankExtractionField(generationHandling = "KEEP") {
   return {
     ai_estimate: "",
+    ai_estimate_japanese: "",
     confidence: "unknown",
     user_confirmation_status: "未確認",
     user_override: "",
@@ -193,6 +194,7 @@ Mode conversion selected by user: ${modeConversion || "SD to real 2D"}
 
 Common field rules for every extraction category:
 - ai_estimate: what you visually infer from the image.
+- ai_estimate_japanese: a natural Japanese summary for the user. This is especially important for right_hand_weapon and left_hand_equipment.
 - confidence: high, medium, low, or unknown.
 - user_confirmation_status: always "未確認" in this extraction response.
 - user_override: always empty string.
@@ -213,6 +215,7 @@ Return this exact JSON shape:
   "sd_extracted_parameters": {
     "face": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -222,6 +225,7 @@ Return this exact JSON shape:
     },
     "hair": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -231,6 +235,7 @@ Return this exact JSON shape:
     },
     "accessories": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -240,6 +245,7 @@ Return this exact JSON shape:
     },
     "upper_body_equipment": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -249,6 +255,7 @@ Return this exact JSON shape:
     },
     "lower_body_equipment": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -258,6 +265,7 @@ Return this exact JSON shape:
     },
     "back_equipment": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -267,6 +275,7 @@ Return this exact JSON shape:
     },
     "shoulder_equipment": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -276,6 +285,7 @@ Return this exact JSON shape:
     },
     "right_hand_weapon": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -285,6 +295,7 @@ Return this exact JSON shape:
     },
     "left_hand_equipment": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -294,6 +305,7 @@ Return this exact JSON shape:
     },
     "pose": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -303,6 +315,7 @@ Return this exact JSON shape:
     },
     "colors_and_motifs": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -312,6 +325,7 @@ Return this exact JSON shape:
     },
     "background_and_ui_exclusion": {
       "ai_estimate": "",
+      "ai_estimate_japanese": "",
       "confidence": "unknown",
       "user_confirmation_status": "未確認",
       "user_override": "",
@@ -336,6 +350,12 @@ Category detail checklist:
 - pose: body direction, face direction, right arm, left arm, right weapon placement, left equipment placement, legs, cape/hair flow, screen composition.
 - colors_and_motifs: main colors, sub colors, accent colors, repeated motifs, emblem positions, ornament atmosphere.
 - background_and_ui_exclusion: background use, UI elements, UI exclusion targets, character screen position.
+
+For right_hand_weapon.ai_estimate_japanese and left_hand_equipment.ai_estimate_japanese:
+- Write a short, user-facing Japanese sentence.
+- Include the inferred category, the hand assignment, visible shape, angle, screen position, color, and whether it is cropped or uncertain.
+- If ambiguous, explicitly write "ユーザー確認が必要".
+- Example: "右手には長柄武器を持っているように見えます。先端は槍にも大鎌にも見えるため、ユーザー確認が必要です。"
 `.trim();
 }
 
