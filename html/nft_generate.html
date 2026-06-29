@@ -198,6 +198,73 @@
       margin-top: 8px;
     }
     .hidden { display: none !important; }
+    .sd-extract-panel {
+      border: 1px solid #e5d7f5;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbf8ff;
+    }
+    .sd-extract-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .sd-extract-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--main-purple);
+    }
+    .sd-extract-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #e5d7f5;
+      color: #5b2d7e;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .sd-param-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .sd-param-card {
+      border: 1px solid #ece3f8;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+    .sd-param-card h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: #333;
+    }
+    .sd-param-card textarea {
+      min-height: 58px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .sd-param-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .sd-param-meta label {
+      margin-bottom: 4px;
+    }
+    .sd-json-editor {
+      min-height: 180px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
     .reference-modal {
       position: fixed;
       inset: 0;
@@ -485,6 +552,24 @@
         <p class="muted">SDキャラから2Dリアルキャラへ変換する時だけ使います。</p>
       </div>
 
+      <div id="sdToRealExtractionGroup" class="control-group character-only hidden">
+        <div class="sd-extract-panel">
+          <div class="sd-extract-header">
+            <div class="sd-extract-title">SD→リアル2D 抽出・確認</div>
+            <div id="sdExtractionStatusBadge" class="sd-extract-status">未抽出</div>
+          </div>
+          <p id="sdExtractionHelpText" class="muted" style="margin:0 0 10px;">
+            SD→リアル2D変換では、参照画像から顔・髪・装備・左右の持ち物・ポーズを抽出してから生成します。
+          </p>
+          <button id="sdExtractBtn" class="btn btn-secondary" type="button" onclick="handleSdToRealExtraction()">抽出する</button>
+          <button id="sdReextractBtn" class="btn btn-secondary hidden" type="button" style="margin-top:8px;" onclick="handleSdToRealExtraction()">再抽出する</button>
+          <div id="sdExtractionError" class="message error" style="margin-top:10px;"></div>
+          <div id="sdExtractionReferenceArea"></div>
+          <div id="sdExtractionParametersArea"></div>
+          <div id="real2dParametersArea"></div>
+        </div>
+      </div>
+
       <div class="control-group character-only">
         <label>表情変換</label>
         <input type="hidden" id="tpl_character_expression_transform" value="">
@@ -642,6 +727,7 @@
   <script>
     const GENERATION_COST_NP = 10;
     const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
+    const SD_TO_REAL_EXTRACT_FUNCTION_NAME = 'extract-sd-character-parameters-for-real2d';
     const SCENE_GEMINI_FUNCTION_NAME = 'generate-nft-scene-image-gemini-allages';
     const SCENE_LEONARDO_FUNCTION_NAME = 'generate-nft-scene-image-leonardo';
     const OTHER_LEONARDO_FUNCTION_NAME = 'generate-nft-other-image-leonardo';
@@ -658,6 +744,8 @@
     let currentReferenceCategory = '';
     let currentAssetPickerTarget = 'reference';
     let currentLastPromptDebug = '';
+    let sdExtractionState = createInitialSdExtractionState();
+    let real2dParameterState = createInitialReal2dParameterState();
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -848,10 +936,418 @@
 
     function updateSdToRealGenderUI() {
       const group = document.getElementById('sdToRealGenderGroup');
+      const extractionGroup = document.getElementById('sdToRealExtractionGroup');
       const visible = currentMode === 'character' && isSdToReal2DConversionSelected();
       if (group) group.classList.toggle('hidden', !visible);
+      if (extractionGroup) extractionGroup.classList.toggle('hidden', !visible);
       if (!visible && getFieldValue('tpl_character_sd_to_real_gender')) {
         setChoiceValue('tpl_character_sd_to_real_gender', '');
+      }
+      renderSdExtractionPanel();
+    }
+
+    function createInitialSdExtractionState() {
+      return {
+        status: 'idle',
+        referenceAsset: null,
+        targetGender: '',
+        extractedParameters: null,
+        userConfirmedParameters: null,
+        confirmedAt: null,
+        error: '',
+        model: '',
+        extractionPrompt: '',
+        modelText: '',
+        warnings: []
+      };
+    }
+
+    function createInitialReal2dParameterState() {
+      return {
+        status: 'idle',
+        generatedFromSdExtraction: null,
+        parameters: null,
+        userEditedParameters: '',
+        confirmedAt: null
+      };
+    }
+
+    const SD_EXTRACTION_SECTIONS = [
+      ['face', '顔'],
+      ['hair', '髪'],
+      ['accessories', 'アクセサリ'],
+      ['upper_body_equipment', '装備上'],
+      ['lower_body_equipment', '装備下'],
+      ['back_equipment', '背中装備'],
+      ['shoulder_equipment', '肩装備'],
+      ['right_hand_weapon', '右手武器'],
+      ['left_hand_equipment', '左手装備'],
+      ['pose', 'ポーズ'],
+      ['colors_and_motifs', '色・モチーフ'],
+      ['background_and_ui_exclusion', '背景・UI除外']
+    ];
+
+    function getSdExtractionStatusLabel(status = sdExtractionState.status) {
+      const labels = {
+        idle: '未抽出',
+        extracting: '抽出中',
+        extracted: '抽出完了',
+        edited: '修正あり',
+        confirmed: '確認済み',
+        error: 'エラー'
+      };
+      return labels[status] || '未抽出';
+    }
+
+    function getReal2dStatusLabel(status = real2dParameterState.status) {
+      const labels = {
+        idle: '未作成',
+        generated: '作成済み',
+        edited: '修正あり',
+        confirmed: '確認済み'
+      };
+      return labels[status] || '未作成';
+    }
+
+    function stringifyParamValue(value) {
+      if (value == null) return '';
+      if (typeof value === 'string') return value;
+      return JSON.stringify(value, null, 2);
+    }
+
+    function parseMaybeJsonText(text) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return '';
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return trimmed;
+      }
+    }
+
+    function getSectionParam(sectionKey) {
+      const params = sdExtractionState.extractedParameters || {};
+      return params[sectionKey] || {};
+    }
+
+    function getSectionUserValue(sectionKey) {
+      const el = document.getElementById(`sd_user_${sectionKey}`);
+      return parseMaybeJsonText(el?.value || '');
+    }
+
+    function markSdSectionEdited(sectionKey) {
+      if (sdExtractionState.status === 'extracted' || sdExtractionState.status === 'confirmed') {
+        sdExtractionState.status = 'edited';
+      }
+      const statusEl = document.getElementById(`sd_status_${sectionKey}`);
+      if (statusEl && statusEl.value === '未確認') statusEl.value = '修正あり';
+      real2dParameterState = createInitialReal2dParameterState();
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+      const real2dArea = document.getElementById('real2dParametersArea');
+      if (real2dArea) real2dArea.innerHTML = '';
+    }
+
+    function markReal2dParametersEdited() {
+      if (real2dParameterState.status === 'generated' || real2dParameterState.status === 'confirmed') {
+        real2dParameterState.status = 'edited';
+      }
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+    }
+
+    function resetSdExtractionForReferenceChange() {
+      sdExtractionState = createInitialSdExtractionState();
+      real2dParameterState = createInitialReal2dParameterState();
+      renderSdExtractionPanel();
+    }
+
+    function renderSdExtractionPanel() {
+      const group = document.getElementById('sdToRealExtractionGroup');
+      if (!group || group.classList.contains('hidden')) return;
+
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      const helpText = document.getElementById('sdExtractionHelpText');
+      const extractBtn = document.getElementById('sdExtractBtn');
+      const reextractBtn = document.getElementById('sdReextractBtn');
+      const errorBox = document.getElementById('sdExtractionError');
+      const referenceArea = document.getElementById('sdExtractionReferenceArea');
+      const paramsArea = document.getElementById('sdExtractionParametersArea');
+      const real2dArea = document.getElementById('real2dParametersArea');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const isExtracting = sdExtractionState.status === 'extracting';
+
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+      if (helpText) {
+        helpText.textContent = hasReference
+          ? '抽出ボタンで、Geminiの抽出モードを使ってSDキャラ情報をJSON化します。画像生成とNP消費は行いません。'
+          : 'SD→リアル2D変換では参照画像を選択してください。参照画像がない状態では抽出できません。';
+      }
+      if (extractBtn) {
+        extractBtn.disabled = !hasReference || isExtracting;
+        extractBtn.textContent = isExtracting ? '抽出中...' : '抽出する';
+      }
+      if (reextractBtn) {
+        reextractBtn.classList.toggle('hidden', !sdExtractionState.extractedParameters);
+        reextractBtn.disabled = !hasReference || isExtracting;
+      }
+      if (errorBox) {
+        errorBox.textContent = sdExtractionState.error || '';
+        errorBox.style.display = sdExtractionState.error ? 'block' : 'none';
+      }
+      if (referenceArea) {
+        referenceArea.innerHTML = hasReference ? `
+          <div class="reference-card">
+            <div style="font-weight:700;">参照画像</div>
+            <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
+            <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
+          </div>
+        ` : '';
+      }
+      if (paramsArea) {
+        paramsArea.innerHTML = sdExtractionState.extractedParameters ? renderSdExtractionParameters() : '';
+      }
+      if (real2dArea) {
+        real2dArea.innerHTML = real2dParameterState.parameters ? renderReal2dParameters() : '';
+      }
+    }
+
+    function renderSdExtractionParameters() {
+      const cards = SD_EXTRACTION_SECTIONS.map(([key, label]) => {
+        const param = getSectionParam(key);
+        const aiValue = param.ai_estimate ?? param.ai_value ?? param.value ?? param;
+        const userValue = param.user_override ?? param.user_value ?? '';
+        const confidence = param.confidence || 'unknown';
+        const confirmation = param.user_confirmation_status || '未確認';
+        const generationHandling = param.generation_handling || 'KEEP';
+        const occlusionNote = param.occlusion_note || '';
+        const antiMistakeNote = param.anti_misread_note || param.anti_mistake_note || '';
+        return `
+          <div class="sd-param-card">
+            <h4>${escapeHtml(label)}</h4>
+            <label for="sd_ai_${key}">AI推定値</label>
+            <textarea id="sd_ai_${key}" readonly>${escapeHtml(stringifyParamValue(aiValue))}</textarea>
+            <label for="sd_user_${key}" style="margin-top:8px;">ユーザー修正値</label>
+            <textarea id="sd_user_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(stringifyParamValue(userValue))}</textarea>
+            <div class="sd-param-meta">
+              <div>
+                <label for="sd_conf_${key}">確信度</label>
+                <select id="sd_conf_${key}" onchange="markSdSectionEdited('${key}')">
+                  ${['high', 'medium', 'low', 'unknown'].map((v) => `<option value="${v}" ${v === confidence ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label for="sd_status_${key}">確認状態</label>
+                <select id="sd_status_${key}" onchange="markSdSectionEdited('${key}')">
+                  ${['未確認', 'OK', '修正あり', '不明'].map((v) => `<option value="${v}" ${v === confirmation ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label for="sd_handling_${key}">生成時の扱い</label>
+                <select id="sd_handling_${key}" onchange="markSdSectionEdited('${key}')">
+                  ${['LOCK', 'KEEP', 'TRANSFORM', 'IGNORE'].map((v) => `<option value="${v}" ${v === generationHandling ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <label for="sd_occ_${key}" style="margin-top:8px;">見切れ・隠れメモ</label>
+            <textarea id="sd_occ_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(occlusionNote)}</textarea>
+            <label for="sd_anti_${key}" style="margin-top:8px;">誤変換防止メモ</label>
+            <textarea id="sd_anti_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(antiMistakeNote)}</textarea>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="sd-param-list">
+          ${cards}
+          <button class="btn btn-primary" type="button" onclick="confirmSdExtractionParameters()">抽出結果を確定してリアル2D用パラメータを作成</button>
+        </div>
+      `;
+    }
+
+    function renderReal2dParameters() {
+      const value = real2dParameterState.userEditedParameters || JSON.stringify(real2dParameterState.parameters, null, 2);
+      return `
+        <div class="sd-param-list">
+          <div class="sd-param-card">
+            <h4>リアル2D生成用パラメータ（${escapeHtml(getReal2dStatusLabel())}）</h4>
+            <textarea id="real2dParametersEditor" class="sd-json-editor" oninput="markReal2dParametersEdited()">${escapeHtml(value)}</textarea>
+            <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="confirmReal2dParameters()">リアル2D生成用パラメータを確定</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function collectConfirmedSdParameters() {
+      const confirmed = {};
+      SD_EXTRACTION_SECTIONS.forEach(([key]) => {
+        const param = getSectionParam(key);
+        const userValue = getSectionUserValue(key);
+        const aiValue = param.ai_estimate ?? param.ai_value ?? param.value ?? param;
+        const confirmationEl = document.getElementById(`sd_status_${key}`);
+        const confidenceEl = document.getElementById(`sd_conf_${key}`);
+        const handlingEl = document.getElementById(`sd_handling_${key}`);
+        const occlusionEl = document.getElementById(`sd_occ_${key}`);
+        const antiEl = document.getElementById(`sd_anti_${key}`);
+        confirmed[key] = {
+          ai_estimate: aiValue,
+          confidence: confidenceEl?.value || param.confidence || 'unknown',
+          user_confirmation_status: confirmationEl?.value || '未確認',
+          user_override: userValue,
+          final_value: userValue || aiValue || 'unknown',
+          generation_handling: handlingEl?.value || param.generation_handling || 'KEEP',
+          occlusion_note: occlusionEl?.value.trim() || '',
+          anti_misread_note: antiEl?.value.trim() || ''
+        };
+      });
+      return confirmed;
+    }
+
+    function buildReal2dParametersFromConfirmedSd(confirmed) {
+      return {
+        conversion_goal: 'Transform the confirmed SD/chibi source character into a tall real 2D manga/anime fantasy character without changing identity.',
+        target_gender: getFieldValue('tpl_character_sd_to_real_gender') || '未指定',
+        body_proportion: {
+          target: '14-heads-tall direction, small head, long neck, high waist, very long legs',
+          do_not_preserve: 'SD round body, short limbs, oversized head, mascot-like proportions',
+          preserve: 'pose meaning, hand assignment, equipment placement, silhouette logic'
+        },
+        identity_priority: {
+          priority_order: [
+            'user_override',
+            'user-confirmed AI extraction',
+            'unconfirmed AI extraction',
+            'unknown'
+          ],
+          confirmed_sd_parameters: confirmed
+        },
+        conversion_rules: {
+          face: 'Prioritize target gender, around 20 years old impression, refined cool eyes, calm confident expression. Preserve eye color, gaze, facial accessories, and recognizable motifs.',
+          costume: 'Preserve original colors, motif placement, accessory positions, and outfit category while upgrading material quality and detail density.',
+          right_hand_weapon: 'Keep right-hand weapon in the right hand. Prioritize user confirmed category, silhouette, angle, size relationship, and visible motifs.',
+          left_hand_equipment: 'Keep left-hand equipment in the left hand. Do not swap with right-hand weapon. Preserve category, shape, emblem, position, and angle.',
+          composition: 'Keep character position, full-body standing-picture feeling, pose meaning, equipment layout, and screen placement. Exclude UI, text, numbers, buttons, and screenshot frames.',
+          quality_direction: 'Japanese fantasy RPG character key visual, high-rarity SSR style, light novel cover quality, sharp linework, refined ornaments, heroic and mysterious presence.'
+        }
+      };
+    }
+
+    async function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = String(reader.result || '');
+          resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function handleSdToRealExtraction() {
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!selectedReferenceAsset?.file_url) {
+        showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      sdExtractionState = {
+        ...createInitialSdExtractionState(),
+        status: 'extracting',
+        referenceAsset: selectedReferenceAsset,
+        targetGender: getFieldValue('tpl_character_sd_to_real_gender')
+      };
+      real2dParameterState = createInitialReal2dParameterState();
+      renderSdExtractionPanel();
+      showMessage('');
+      showProcessingOverlay('抽出中...', '参照画像からSDキャラ情報を抽出しています。画像生成とNP消費は行いません。');
+
+      try {
+        const blob = await imageSourceToBlob(selectedReferenceAsset.file_url);
+        const imageBase64 = await blobToBase64(blob);
+        const imageMimeType = blob.type || 'image/webp';
+        const { data, error } = await window.supabaseClient.functions.invoke(SD_TO_REAL_EXTRACT_FUNCTION_NAME, {
+          body: {
+            reference_image_base64: imageBase64,
+            reference_image_mime_type: imageMimeType,
+            target_gender: getFieldValue('tpl_character_sd_to_real_gender'),
+            mode_conversion: getFieldValue('tpl_character_mode_conversion')
+          }
+        });
+
+        if (error) {
+          throw new Error(error.message || 'SDキャラ抽出Functionの呼び出しに失敗しました。');
+        }
+        if (!data?.ok) {
+          throw new Error(data?.message || data?.error || 'SDキャラ抽出に失敗しました。');
+        }
+
+        sdExtractionState = {
+          status: 'extracted',
+          referenceAsset: selectedReferenceAsset,
+          targetGender: getFieldValue('tpl_character_sd_to_real_gender'),
+          extractedParameters: data.sd_extracted_parameters || data.extracted?.sd_extracted_parameters || data.extracted || null,
+          userConfirmedParameters: null,
+          confirmedAt: null,
+          error: '',
+          model: data.model || '',
+          extractionPrompt: data.extraction_prompt || '',
+          modelText: data.model_text || data.modelText || '',
+          warnings: data.warnings || []
+        };
+        showMessage('SDキャラ抽出が完了しました。内容を確認・修正して確定してください。');
+      } catch (err) {
+        sdExtractionState = {
+          ...sdExtractionState,
+          status: 'error',
+          error: err.message || String(err)
+        };
+        showMessage(sdExtractionState.error, 'error');
+      } finally {
+        hideProcessingOverlay();
+        renderSdExtractionPanel();
+      }
+    }
+
+    function confirmSdExtractionParameters() {
+      if (!sdExtractionState.extractedParameters) {
+        showMessage('先にSDキャラ抽出を実行してください。', 'error');
+        return;
+      }
+      const confirmed = collectConfirmedSdParameters();
+      sdExtractionState = {
+        ...sdExtractionState,
+        status: 'confirmed',
+        userConfirmedParameters: confirmed,
+        confirmedAt: new Date().toISOString()
+      };
+      real2dParameterState = {
+        status: 'generated',
+        generatedFromSdExtraction: confirmed,
+        parameters: buildReal2dParametersFromConfirmedSd(confirmed),
+        userEditedParameters: '',
+        confirmedAt: null
+      };
+      showMessage('抽出結果を確定し、リアル2D生成用パラメータを作成しました。');
+      renderSdExtractionPanel();
+    }
+
+    function confirmReal2dParameters() {
+      const editor = document.getElementById('real2dParametersEditor');
+      const text = editor?.value || '';
+      try {
+        real2dParameterState = {
+          ...real2dParameterState,
+          status: 'confirmed',
+          parameters: JSON.parse(text),
+          userEditedParameters: text,
+          confirmedAt: new Date().toISOString()
+        };
+        showMessage('リアル2D生成用パラメータを確定しました。生成に進めます。');
+        renderSdExtractionPanel();
+      } catch (err) {
+        showMessage('リアル2D生成用パラメータはJSONとして修正してください。', 'error');
       }
     }
 
@@ -871,7 +1367,15 @@
       });
 
       if (inputId === 'tpl_character_mode_conversion') {
+        resetSdExtractionForReferenceChange();
         updateSdToRealGenderUI();
+      }
+      if (inputId === 'tpl_character_sd_to_real_gender' && isSdToReal2DConversionSelected()) {
+        real2dParameterState = createInitialReal2dParameterState();
+        if (sdExtractionState.status === 'confirmed') {
+          sdExtractionState.status = 'edited';
+        }
+        renderSdExtractionPanel();
       }
     }
 
@@ -1193,6 +1697,7 @@
       }
 
       selectedReferenceAsset = referenceAssets[index] || null;
+      resetSdExtractionForReferenceChange();
       renderReferenceSelection();
       closeReferenceModal();
       showMessage('参照画像を選択しました。');
@@ -1200,6 +1705,7 @@
 
     function clearReferenceSelection() {
       selectedReferenceAsset = null;
+      resetSdExtractionForReferenceChange();
       renderReferenceSelection();
       renderReferenceModalGrid();
       showMessage('参照画像を解除しました。');
@@ -1449,6 +1955,19 @@
         payload.reference_image_url = selectedReferenceAsset.file_url;
       }
 
+      if (isSdToReal2DConversionSelected()) {
+        payload.sd_to_real2d_extraction = {
+          status: sdExtractionState.status,
+          reference_asset_id: selectedReferenceAsset?.id || null,
+          target_gender: fields.tpl_character_sd_to_real_gender,
+          confirmed_at: sdExtractionState.confirmedAt,
+          confirmed_parameters: sdExtractionState.userConfirmedParameters,
+          real2d_parameter_status: real2dParameterState.status,
+          real2d_confirmed_at: real2dParameterState.confirmedAt,
+          real2d_parameters: real2dParameterState.parameters
+        };
+      }
+
       if (backgroundMode !== 'none' && selectedBackgroundAsset?.file_url) {
         payload.background_mode = backgroundMode;
         payload.background_image_url = selectedBackgroundAsset.file_url;
@@ -1536,6 +2055,23 @@
       if (currentMode === 'character' && getBackgroundMode() !== 'none' && !selectedBackgroundAsset?.file_url) {
         showMessage('背景ありを使う場合は、背景画像を選択してください。', 'error');
         return;
+      }
+      if (currentMode === 'character' && isSdToReal2DConversionSelected()) {
+        if (!selectedReferenceAsset?.file_url) {
+          showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
+        if (sdExtractionState.status !== 'confirmed' || !sdExtractionState.userConfirmedParameters) {
+          showMessage('SD→リアル2D変換では、先に抽出結果を確認・確定してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
+        if (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters) {
+          showMessage('SD→リアル2D変換では、リアル2D生成用パラメータを確定してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
       }
 
       const button = document.getElementById('generateBtn');
