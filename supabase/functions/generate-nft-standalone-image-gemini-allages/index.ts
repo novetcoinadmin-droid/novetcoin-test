@@ -35,6 +35,69 @@ function pushIf(lines: string[], label: string, value: unknown) {
   if (v) lines.push(`${label}: ${v}`);
 }
 
+function stringifyPromptValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value || "").trim();
+  }
+}
+
+function buildHandEquipmentVisualLockLines(payload: Record<string, any>) {
+  const extraction = payload.sd_to_real2d_extraction || {};
+  const confirmed = extraction.confirmed_parameters || {};
+  const right = confirmed.right_hand_weapon || {};
+  const left = confirmed.left_hand_equipment || {};
+  const lines: string[] = [];
+
+  const buildItemLine = (
+    label: string,
+    item: Record<string, unknown>,
+    handRule: string,
+  ) => {
+    const finalValue = stringifyPromptValue(
+      item.user_override || item.final_value || item.ai_estimate,
+    );
+    const japanese = stringifyPromptValue(item.ai_estimate_japanese);
+    const occlusion = stringifyPromptValue(item.occlusion_note);
+    const anti = stringifyPromptValue(item.anti_misread_note);
+    const confidence = stringifyPromptValue(item.confidence);
+
+    if (!finalValue && !japanese && !occlusion && !anti) return;
+
+    lines.push(`${label} confirmed extraction: ${finalValue}`);
+    if (japanese) lines.push(`${label} Japanese user-check summary: ${japanese}`);
+    if (confidence) lines.push(`${label} confidence: ${confidence}`);
+    if (occlusion) lines.push(`${label} crop/hidden note: ${occlusion}`);
+    if (anti) lines.push(`${label} wrong-conversion warning: ${anti}`);
+    lines.push(handRule);
+  };
+
+  buildItemLine(
+    "Right-hand equipment",
+    right,
+    "Right-hand equipment visual lock: keep it in the character's right hand. Use the reference image as a localized image-to-image visual anchor for this equipment only: match the visible silhouette, outer contour, tip/base shape, grip connection, angle, screen-side position, size relationship, color blocking, emblem placement, and cropped/hidden parts as closely as possible while redrawing it as polished real 2D fantasy equipment.",
+  );
+  buildItemLine(
+    "Left-hand equipment",
+    left,
+    "Left-hand equipment visual lock: keep it in the character's left hand. Use the reference image as a localized image-to-image visual anchor for this equipment only: match the visible silhouette, outer contour, angle, position against the body, size relationship, emblem/pattern placement, color blocking, and cropped/hidden parts as closely as possible while redrawing it as polished real 2D fantasy equipment.",
+  );
+
+  if (lines.length) {
+    lines.unshift(
+      "Localized equipment image-to-image fidelity mode: for clearly visible right-hand and left-hand equipment, prioritize direct visual fidelity to the provided reference image over generic fantasy redesign.",
+      "This localized equipment fidelity applies only to hand-held equipment and nearby grips/hands; it does not mean copying the full screenshot, background, UI, lighting, or SD body proportions.",
+      "Do not replace visible hand-held equipment with a cleaner, more common, or more generic weapon/shield/staff/book. If the category is uncertain, preserve the visible geometry first.",
+      "Do not swap right-hand and left-hand equipment. Do not merge them, remove one, or move them to the opposite hand.",
+    );
+  }
+
+  return lines;
+}
+
 function isSdToReal2DConversionMode(mode: string) {
   return Boolean(
     mode && (
@@ -226,6 +289,9 @@ function buildPrompt(
     userModeConversion,
   );
   const isSdToReal2D = isSdToReal2DConversionMode(userModeConversion);
+  const handEquipmentVisualLockLines = isSdToReal2D
+    ? buildHandEquipmentVisualLockLines(payload)
+    : [];
 
   const preserveLines: string[] = [];
   pushIf(
@@ -233,6 +299,7 @@ function buildPrompt(
     "Extracted source SD character features to preserve",
     sourceCharacterFeaturesText,
   );
+  preserveLines.push(...handEquipmentVisualLockLines);
   pushIf(
     preserveLines,
     "Illustration style",
@@ -316,7 +383,9 @@ function buildPrompt(
   pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
-    ? "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise. For SD-to-tall real 2D manga conversion, do not use it as a style sample, finished-image sample, pose sample, composition sample, or target image."
+    ? isSdToReal2D
+      ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
+      : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
     : "No reference image is provided. Create a new original character from the text instructions.";
 
   return `
@@ -379,7 +448,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Relative source-character reference image. Use this image as relative visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. Do not use it as a fixed image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
+        "Relative source-character reference image. Use this image as visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. For clearly visible right-hand and left-hand equipment, use this image as a localized image-to-image visual anchor: preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the target real 2D style. Do not use the image as a fixed full-image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
     });
     parts.push({
       inlineData: {
