@@ -1,0 +1,2393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novet NFT Studio | イラスト生成</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --main-purple: #6a0dad;
+      --bg-gray: #f4f7f6;
+      --border: #e5e7eb;
+      --text: #333;
+      --danger: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-gray);
+      color: var(--text);
+    }
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .nav-brand { font-weight: 700; color: var(--main-purple); }
+    .nav-link { color: #666; text-decoration: none; font-size: 14px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 20px 24px;
+    }
+    .panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .preview-area {
+      min-height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #ddd;
+      border-radius: 10px;
+      background: #fcfcfd;
+      padding: 24px;
+      text-align: center;
+      color: #777;
+    }
+    .preview-image {
+      width: 100%;
+      max-width: 720px;
+      max-height: 560px;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .control-group { margin-bottom: 14px; }
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #555;
+    }
+    input[type="text"], textarea, select, button { font: inherit; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .prompt-debug {
+      border: 1px solid #e5d7ff;
+      border-radius: 8px;
+      background: #fbf8ff;
+      padding: 10px;
+    }
+    .prompt-debug.hidden { display: none; }
+    .prompt-debug summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--main-purple);
+    }
+    .prompt-debug textarea {
+      margin-top: 8px;
+      min-height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+    .mode-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+    .mode-btn {
+      flex: 1;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      background: #f8f8f8;
+      cursor: pointer;
+      color: #666;
+      font-weight: 700;
+    }
+    .mode-btn.active {
+      background: var(--main-purple);
+      color: #fff;
+      border-color: var(--main-purple);
+    }
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .choice-btn {
+      min-height: 42px;
+      padding: 9px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      color: #444;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .choice-btn.active {
+      background: var(--main-purple);
+      border-color: var(--main-purple);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(106,13,173,0.18);
+    }
+    .expression-transform-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #e5d7f5;
+      border-radius: 8px;
+      background: #fbf8ff;
+    }
+    .expression-transform-panel.visible { display: block; }
+    .btn {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--main-purple); color: #fff; }
+    .btn-secondary { background: #f3e8ff; color: var(--main-purple); }
+    .btn-danger { background: #fff5f5; color: var(--danger); border: 1px solid #fde2e2; }
+    .muted { color: #777; font-size: 12px; line-height: 1.6; }
+    .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+    .small { font-size: 12px; }
+    .np-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 12px;
+      border: 1px solid #e5d7f5;
+      border-radius: 999px;
+      background: #f7f3ff;
+      color: var(--main-purple);
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+      box-shadow: 0 2px 8px rgba(106,13,173,0.08);
+    }
+    .reference-card {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+      background: #fafafa;
+    }
+    .reference-thumb {
+      width: 100%;
+      max-height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .hidden { display: none !important; }
+    .sd-extract-panel {
+      border: 1px solid #e5d7f5;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbf8ff;
+    }
+    .sd-extract-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .sd-extract-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--main-purple);
+    }
+    .sd-extract-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #e5d7f5;
+      color: #5b2d7e;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .sd-param-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .sd-param-card {
+      border: 1px solid #ece3f8;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+    .sd-param-card h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: #333;
+    }
+    .sd-param-card summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      color: #333;
+      list-style: revert;
+    }
+    .sd-param-card summary span {
+      color: #777;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+    .sd-param-card details > div {
+      margin-top: 10px;
+    }
+    .sd-param-card textarea {
+      min-height: 58px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .sd-param-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .sd-param-meta label {
+      margin-bottom: 4px;
+    }
+    .sd-json-editor {
+      min-height: 180px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .reference-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0,0,0,0.45);
+    }
+    .reference-modal.open { display: flex; }
+    .reference-modal-panel {
+      width: min(960px, 100%);
+      max-height: min(780px, 90vh);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .reference-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .reference-modal-title { font-weight: 700; }
+    .reference-modal-close {
+      width: auto;
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      color: #555;
+    }
+    .reference-modal-body {
+      overflow: auto;
+      padding: 16px;
+    }
+    .reference-modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .reference-item {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      background: #fff;
+      text-align: left;
+      width: 100%;
+    }
+    .reference-item.active { border-color: var(--main-purple); background: #faf4ff; }
+    .reference-item img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #f5f5f5;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .reference-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .message {
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .message.info { display: block; background: #f7f3ff; color: #4b247a; }
+    .message.error { display: block; background: #fff5f5; color: var(--danger); }
+    .processing-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(3px);
+    }
+    .processing-overlay.open { display: flex; }
+    .processing-card {
+      width: min(320px, 100%);
+      padding: 22px;
+      border: 1px solid #e5d7f5;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--main-purple);
+      text-align: center;
+      box-shadow: 0 18px 50px rgba(106,13,173,0.18);
+    }
+    .processing-spinner {
+      width: 34px;
+      height: 34px;
+      margin: 0 auto 12px;
+      border: 4px solid #eee3f8;
+      border-top-color: var(--main-purple);
+      border-radius: 999px;
+      animation: spin 0.8s linear infinite;
+    }
+    .processing-title {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .processing-text {
+      color: #666;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .mobile-control-toggle,
+    .mobile-control-overlay {
+      display: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (max-width: 900px) {
+      nav { padding: 10px 16px; }
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+      .layout {
+        display: block;
+        max-width: none;
+        min-height: calc(100vh - 57px);
+        margin: 0;
+        padding: 14px 12px 18px;
+      }
+      .preview-panel {
+        min-height: calc(100vh - 89px);
+        padding: 14px;
+      }
+      .preview-area {
+        min-height: calc(100vh - 170px);
+        padding: 14px;
+      }
+      .preview-image {
+        max-width: 100%;
+        max-height: calc(100vh - 190px);
+      }
+      .mobile-control-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 1002;
+        width: auto;
+        min-width: 72px;
+        min-height: 40px;
+        padding: 9px 14px;
+        border: none;
+        border-radius: 999px;
+        background: var(--main-purple);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+        cursor: pointer;
+      }
+      .mobile-control-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(0,0,0,0.28);
+      }
+      .mobile-control-overlay.is-open {
+        display: block;
+      }
+      .control-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1001;
+        width: min(76vw, 320px);
+        max-width: 320px;
+        height: 100vh;
+        overflow-y: auto;
+        padding: 16px 12px 22px;
+        border-radius: 16px 0 0 16px;
+        border-right: none;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.24);
+        transform: translateX(110%);
+        transition: transform 0.25s ease;
+      }
+      .control-panel.is-open {
+        transform: translateX(0);
+      }
+      .choice-grid {
+        grid-template-columns: 1fr;
+      }
+      .mode-buttons {
+        flex-direction: column;
+      }
+      textarea {
+        min-height: 86px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">Novet NFT Studio | イラスト生成</div>
+    <a class="nav-link" href="../my-site/index.html">一般サイトへ</a>
+  </nav>
+
+  <div class="layout">
+    <section class="panel preview-panel">
+      <div class="status-row">
+        <h2 style="margin:0;">生成画像</h2>
+        <div id="npBadge" class="np-badge">NP: --</div>
+      </div>
+      <div id="messageBox" class="message"></div>
+      <div id="previewArea" class="preview-area">
+        <div>
+          <p style="font-size:16px; margin:0 0 8px;">ここに生成した画像が表示されます。</p>
+          <p class="muted" style="margin:0;">右側の設定からキャライラストを生成してください。</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel control-panel" id="controlPanel">
+      <div class="control-group">
+        <button class="btn btn-secondary" type="button" onclick="location.href='/my-site/nft_mint.html'">NFTスタジオに戻る</button>
+      </div>
+
+      <div class="control-group">
+        <label>モード</label>
+        <div class="mode-buttons">
+          <button type="button" class="mode-btn active" data-mode="character" onclick="setMode('character')">キャラ</button>
+          <button type="button" class="mode-btn" data-mode="scenery" onclick="setMode('scenery')">風景</button>
+          <button type="button" class="mode-btn" data-mode="other" onclick="setMode('other')">その他</button>
+        </div>
+        <p id="modeHelpText" class="muted">キャラ・風景・その他素材を生成できます。</p>
+      </div>
+
+      <div class="control-group">
+        <label>画風</label>
+        <input type="hidden" id="tpl_character_art_style" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_art_style">
+          <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_art_style', '')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="ラノベ風" onclick="setChoiceValue('tpl_character_art_style', 'ラノベ風')">ラノベ風</button>
+          <button class="choice-btn" type="button" data-value="漫画風" onclick="setChoiceValue('tpl_character_art_style', '漫画風')">漫画風</button>
+          <button class="choice-btn" type="button" data-value="アニメ風" onclick="setChoiceValue('tpl_character_art_style', 'アニメ風')">アニメ風</button>
+        </div>
+      </div>
+
+      <div class="control-group character-only">
+        <label>キャラモード変換</label>
+        <input type="hidden" id="tpl_character_mode_conversion" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_mode_conversion">
+          <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_mode_conversion', '')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="SDキャラから2Dリアルキャラへ変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'SDキャラから2Dリアルキャラへ変換')">SDキャラから2Dリアルキャラへ変換</button>
+          <button class="choice-btn" type="button" data-value="リアルな漫画キャラを２等身のSDキャラに変換" onclick="setChoiceValue('tpl_character_mode_conversion', 'リアルな漫画キャラを２等身のSDキャラに変換')">リアル漫画 → ２等身SD</button>
+        </div>
+        <p class="muted">キャラ画像の参照時に使います。キャラモード専用です。</p>
+      </div>
+
+      <div id="sdToRealGenderGroup" class="control-group character-only hidden">
+        <label>SD→リアル2Dの性別</label>
+        <input type="hidden" id="tpl_character_sd_to_real_gender" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_sd_to_real_gender">
+          <button class="choice-btn active" type="button" data-value="" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="男性" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '男性')">男性</button>
+          <button class="choice-btn" type="button" data-value="女性" onclick="setChoiceValue('tpl_character_sd_to_real_gender', '女性')">女性</button>
+          <button class="choice-btn" type="button" data-value="その他" onclick="setChoiceValue('tpl_character_sd_to_real_gender', 'その他')">その他</button>
+        </div>
+        <p class="muted">SDキャラから2Dリアルキャラへ変換する時だけ使います。</p>
+      </div>
+
+      <div id="sdToRealExtractionGroup" class="control-group character-only hidden">
+        <div class="sd-extract-panel">
+          <div class="sd-extract-header">
+            <div class="sd-extract-title">SD→リアル2D 抽出・確認</div>
+            <div id="sdExtractionStatusBadge" class="sd-extract-status">未抽出</div>
+          </div>
+          <p id="sdExtractionHelpText" class="muted" style="margin:0 0 10px;">
+            SD→リアル2D変換では、参照画像から顔・髪・装備・左右の持ち物・ポーズを抽出してから生成します。
+          </p>
+          <button id="sdExtractBtn" class="btn btn-secondary" type="button" onclick="handleSdToRealExtraction()">抽出する</button>
+          <button id="sdReextractBtn" class="btn btn-secondary hidden" type="button" style="margin-top:8px;" onclick="handleSdToRealExtraction()">再抽出する</button>
+          <div id="sdExtractionError" class="message error" style="margin-top:10px;"></div>
+          <div id="sdExtractionReferenceArea"></div>
+          <div id="sdExtractionParametersArea"></div>
+          <div id="real2dParametersArea"></div>
+        </div>
+      </div>
+
+      <div class="control-group character-only">
+        <label>表情変換</label>
+        <input type="hidden" id="tpl_character_expression_transform" value="">
+        <div class="choice-grid" data-choice-group="tpl_character_expression_transform">
+          <button class="choice-btn active" type="button" data-value="" onclick="setExpressionTransformPreset('')">指定なし</button>
+          <button class="choice-btn" type="button" data-value="joy" onclick="setExpressionTransformPreset('joy')">歓喜</button>
+          <button class="choice-btn" type="button" data-value="anger" onclick="setExpressionTransformPreset('anger')">怒り</button>
+          <button class="choice-btn" type="button" data-value="despair" onclick="setExpressionTransformPreset('despair')">絶望</button>
+          <button class="choice-btn" type="button" data-value="laugh" onclick="setExpressionTransformPreset('laugh')">大笑い</button>
+          <button class="choice-btn" type="button" data-value="closed_eyes" onclick="setExpressionTransformPreset('closed_eyes')">瞳を閉じる</button>
+          <button class="choice-btn" type="button" data-value="open_mouth" onclick="setExpressionTransformPreset('open_mouth')">口を大きく開ける</button>
+        </div>
+        <p id="expressionTransformStatus" class="muted">表情変換の要素は未選択です。</p>
+      </div>
+
+      <div class="control-group character-only">
+        <label>背景設定</label>
+        <input type="hidden" id="tpl_character_background_mode" value="none">
+        <div class="choice-grid" data-choice-group="tpl_character_background_mode">
+          <button class="choice-btn active" type="button" data-value="none" onclick="setBackgroundMode('none')">背景なし</button>
+          <button class="choice-btn" type="button" data-value="reference" onclick="setBackgroundMode('reference')">背景あり（参照）</button>
+          <button class="choice-btn" type="button" data-value="relative" onclick="setBackgroundMode('relative')">背景あり（相対）</button>
+        </div>
+        <p class="muted" style="margin:6px 0 0;">
+          背景あり（参照）は背景が固定されます。背景あり（相対）は画像のイメージを守ります。
+        </p>
+        <div id="backgroundControls" class="hidden" style="margin-top:8px;">
+          <button class="btn btn-secondary" type="button" onclick="handleBackgroundSelectClick()">背景画像を選ぶ</button>
+          <div id="backgroundSelectionArea"></div>
+          <div id="backgroundRelativePromptArea" class="hidden" style="margin-top:10px;">
+            <label for="tpl_character_background_relative_prompt">相対モード追加プロンプト</label>
+            <textarea id="tpl_character_background_relative_prompt" placeholder="例: 夕暮れの雰囲気にする、幻想的な森の印象に寄せる、廃墟感を強める"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div id="referenceControlGroup" class="control-group">
+        <label>参照画像</label>
+        <p class="muted">任意です。カテゴリを選ぶと、保管庫画像から参照画像を選べます。</p>
+        <select id="referenceCategorySelect" onchange="handleReferenceCategoryChange(this.value)">
+          <option value="">基準化画像を選ぶ▼</option>
+          <option value="character">キャラクター</option>
+          <option value="scenery">風景</option>
+          <option value="other">その他</option>
+        </select>
+        <div id="referenceSelectionArea"></div>
+      </div>
+
+      <div class="control-group">
+        <label id="freeTextLabel" for="tpl_character_free_text">自由入力</label>
+        <textarea id="tpl_character_free_text" placeholder="例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。"></textarea>
+      </div>
+
+      <div class="control-group character-only">
+        <label for="tpl_character_view">見え方</label>
+        <select id="tpl_character_view">
+          <option value="">指定なし</option>
+          <option value="顔アップ">顔アップ</option>
+          <option value="バストアップ">バストアップ</option>
+          <option value="上半身">上半身</option>
+          <option value="全身">全身</option>
+        </select>
+      </div>
+
+      <div class="control-group character-only">
+        <label for="tpl_character_age">年齢印象</label>
+        <select id="tpl_character_age">
+          <option value="">指定なし</option>
+          <option value="少年・少女">少年・少女</option>
+          <option value="10代前半">10代前半</option>
+          <option value="10代後半">10代後半</option>
+          <option value="20代前半">20代前半</option>
+          <option value="20代後半">20代後半</option>
+        </select>
+      </div>
+
+      <div class="control-group character-only">
+        <label for="tpl_character_pose">ポーズ</label>
+        <select id="tpl_character_pose">
+          <option value="">指定なし</option>
+          <option value="正面立ち">正面立ち</option>
+          <option value="振り返る">振り返る</option>
+          <option value="座る">座る</option>
+          <option value="歩く">歩く</option>
+        </select>
+      </div>
+
+      <div class="control-group character-only">
+        <label for="tpl_character_outfit">衣装</label>
+        <select id="tpl_character_outfit">
+          <option value="">指定なし</option>
+          <option value="制服">制服</option>
+          <option value="和服">和服</option>
+          <option value="冒険者風">冒険者風</option>
+          <option value="ドレス">ドレス</option>
+          <option value="ローブ">ローブ</option>
+        </select>
+      </div>
+
+      <div class="control-group character-only">
+        <label for="tpl_character_lighting">雰囲気</label>
+        <select id="tpl_character_lighting">
+          <option value="">指定なし</option>
+          <option value="明るい">明るい</option>
+          <option value="暗い">暗い</option>
+          <option value="透明感">透明感</option>
+          <option value="柔らかい光">柔らかい光</option>
+          <option value="神秘的">神秘的</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <button id="generateBtn" class="btn btn-primary" type="button" onclick="handleGenerate()">生成する（10 NP）</button>
+      </div>
+
+      <div class="control-group">
+        <button id="saveTemplateBtn" class="btn btn-secondary" type="button" onclick="handleSavePromptTemplate()">現在の設定をテンプレート保存</button>
+      </div>
+
+      <div class="control-group">
+        <button id="saveBtn" class="btn btn-secondary" type="button" onclick="handleSaveGeneratedImage()" disabled>生成画像をイラスト保管庫に保存</button>
+      </div>
+      <div class="control-group">
+        <details id="promptDebugPanel" class="prompt-debug hidden">
+          <summary>送信プロンプト確認</summary>
+          <textarea id="promptDebugText" readonly placeholder="生成後に、実際にFunctionからGeminiへ送信されたプロンプトが表示されます。"></textarea>
+          <button class="btn btn-secondary" type="button" onclick="copyLastPromptDebug()">プロンプトをコピー</button>
+        </details>
+      </div>
+    </aside>
+  </div>
+
+  <div id="referenceAssetModal" class="reference-modal" aria-hidden="true">
+    <div class="reference-modal-panel" role="dialog" aria-modal="true" aria-labelledby="referenceModalTitle">
+      <div class="reference-modal-header">
+        <div id="referenceModalTitle" class="reference-modal-title">基準化画像を選択</div>
+        <button class="reference-modal-close" type="button" onclick="closeReferenceModal()">閉じる</button>
+      </div>
+      <div class="reference-modal-body">
+        <div id="referenceModalStatus" class="muted"></div>
+        <div id="referenceModalGrid" class="reference-modal-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="processingOverlay" class="processing-overlay" aria-hidden="true" aria-live="polite">
+    <div class="processing-card" role="status">
+      <div class="processing-spinner" aria-hidden="true"></div>
+      <div id="processingTitle" class="processing-title">処理中...</div>
+      <div id="processingText" class="processing-text">完了までこのままお待ちください。</div>
+    </div>
+  </div>
+
+  <script src="../portal/auth-check.js"></script>
+  <script>
+    const GENERATION_COST_NP = 10;
+    const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
+    const SD_TO_REAL_EXTRACT_FUNCTION_NAME = 'extract-sd-character-parameters-for-real2d';
+    const SCENE_GEMINI_FUNCTION_NAME = 'generate-nft-scene-image-gemini-allages';
+    const SCENE_LEONARDO_FUNCTION_NAME = 'generate-nft-scene-image-leonardo';
+    const OTHER_LEONARDO_FUNCTION_NAME = 'generate-nft-other-image-leonardo';
+
+    let currentMode = 'character';
+    let currentUser = null;
+    let currentNpBalance = 0;
+    let currentGeneratedDataUrl = '';
+    let currentGeneratedMimeType = '';
+    let currentGeneratedMode = 'character';
+    let selectedReferenceAsset = null;
+    let selectedBackgroundAsset = null;
+    let referenceAssets = [];
+    let currentReferenceCategory = '';
+    let currentAssetPickerTarget = 'reference';
+    let currentLastPromptDebug = '';
+    let sdExtractionState = createInitialSdExtractionState();
+    let real2dParameterState = createInitialReal2dParameterState();
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (!session?.user) {
+        document.querySelector('.layout').innerHTML = `
+          <div class="panel" style="grid-column:1 / -1; text-align:center;">
+            <h2>ログインが必要です</h2>
+            <p class="muted">このページはログイン済みユーザー向けです。</p>
+          </div>
+        `;
+        return;
+      }
+
+      currentUser = session.user;
+      setupMobileControlPanel();
+      await loadNpBalance();
+      renderReferenceSelection();
+      renderBackgroundSelection();
+      updateBackgroundModeUI();
+      updateModeUI();
+    }
+
+    function isMobileControlWidth() {
+      return window.matchMedia('(max-width: 900px)').matches;
+    }
+
+    function closeMobileControlPanel() {
+      const panel = document.getElementById('controlPanel');
+      const overlay = document.getElementById('mobileControlOverlay');
+      const button = document.getElementById('mobileControlToggle');
+      if (!panel || !overlay || !button) return;
+
+      panel.classList.remove('is-open');
+      overlay.classList.remove('is-open');
+      button.setAttribute('aria-expanded', 'false');
+    }
+
+    function openMobileControlPanel() {
+      const panel = document.getElementById('controlPanel');
+      const overlay = document.getElementById('mobileControlOverlay');
+      const button = document.getElementById('mobileControlToggle');
+      if (!panel || !overlay || !button) return;
+
+      panel.classList.add('is-open');
+      overlay.classList.add('is-open');
+      button.setAttribute('aria-expanded', 'true');
+    }
+
+    function setupMobileControlPanel() {
+      const panel = document.getElementById('controlPanel');
+      if (!panel || document.getElementById('mobileControlToggle')) return;
+
+      const button = document.createElement('button');
+      button.id = 'mobileControlToggle';
+      button.className = 'mobile-control-toggle';
+      button.type = 'button';
+      button.textContent = '操作';
+      button.setAttribute('aria-controls', 'controlPanel');
+      button.setAttribute('aria-expanded', 'false');
+
+      const overlay = document.createElement('div');
+      overlay.id = 'mobileControlOverlay';
+      overlay.className = 'mobile-control-overlay';
+      overlay.setAttribute('aria-hidden', 'true');
+
+      document.body.appendChild(button);
+      document.body.appendChild(overlay);
+
+      button.addEventListener('click', () => {
+        if (!isMobileControlWidth()) return;
+        if (panel.classList.contains('is-open')) {
+          closeMobileControlPanel();
+        } else {
+          openMobileControlPanel();
+        }
+      });
+
+      overlay.addEventListener('click', closeMobileControlPanel);
+
+      window.addEventListener('resize', () => {
+        if (!isMobileControlWidth()) closeMobileControlPanel();
+      });
+    }
+
+    function showMessage(text, type = 'info') {
+      const box = document.getElementById('messageBox');
+      if (!box) return;
+      if (!text) {
+        box.className = 'message';
+        box.textContent = '';
+        return;
+      }
+      box.className = `message ${type}`;
+      box.textContent = text;
+    }
+
+    function renderPromptDebug(data, payload = null) {
+      const panel = document.getElementById('promptDebugPanel');
+      const textarea = document.getElementById('promptDebugText');
+      if (!panel || !textarea) return;
+
+      const prompt = data?.prompt || '';
+      const modelText = data?.modelText ? `\n\n--- modelText ---\n${data.modelText}` : '';
+      const payloadText = payload ? `\n\n--- request payload ---\n${JSON.stringify(payload, null, 2)}` : '';
+      currentLastPromptDebug = prompt
+        ? `${prompt}${modelText}${payloadText}`
+        : payloadText.trim();
+
+      textarea.value = currentLastPromptDebug;
+      panel.classList.toggle('hidden', !currentLastPromptDebug);
+      if (currentLastPromptDebug) panel.open = true;
+    }
+
+    async function copyLastPromptDebug() {
+      if (!currentLastPromptDebug) {
+        showMessage('コピーできるプロンプトがありません。', 'error');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(currentLastPromptDebug);
+        showMessage('送信プロンプトをコピーしました。');
+      } catch (err) {
+        const textarea = document.getElementById('promptDebugText');
+        if (textarea) textarea.select();
+        showMessage('コピーに失敗しました。テキスト欄を選択しました。', 'error');
+      }
+    }
+
+    function showProcessingOverlay(title, text = '完了までこのままお待ちください。') {
+      const overlay = document.getElementById('processingOverlay');
+      const titleEl = document.getElementById('processingTitle');
+      const textEl = document.getElementById('processingText');
+      if (!overlay || !titleEl || !textEl) return;
+
+      titleEl.textContent = title;
+      textEl.textContent = text;
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function hideProcessingOverlay() {
+      const overlay = document.getElementById('processingOverlay');
+      if (!overlay) return;
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function updateModeUI() {
+      document.querySelectorAll('.mode-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === currentMode);
+      });
+
+      const generateBtn = document.getElementById('generateBtn');
+      generateBtn.disabled = false;
+      generateBtn.textContent = `生成する（${GENERATION_COST_NP} NP）`;
+
+      document.querySelectorAll('.character-only').forEach((el) => {
+        el.classList.toggle('hidden', currentMode !== 'character');
+      });
+
+      const modeHelpText = document.getElementById('modeHelpText');
+      const freeTextLabel = document.getElementById('freeTextLabel');
+      const freeText = document.getElementById('tpl_character_free_text');
+      if (currentMode === 'character') {
+        if (modeHelpText) modeHelpText.textContent = 'キャラ画像を生成します。参照画像と画風、キャラ変換を組み合わせられます。';
+        if (freeTextLabel) freeTextLabel.textContent = '自由入力';
+        if (freeText) freeText.placeholder = '例: 夜明けの図書館で、少し寂しそうな少女が本を抱えて立っている。';
+      }
+      if (currentMode === 'scenery') {
+        if (modeHelpText) modeHelpText.textContent = '風景画像を生成します。自由入力は風景ディテールとして送信します。';
+        if (freeTextLabel) freeTextLabel.textContent = '風景の自由入力';
+        if (freeText) freeText.placeholder = '例: 夕暮れの城下町、石畳、遠くに白い城、柔らかい光。';
+      }
+      if (currentMode === 'other') {
+        if (modeHelpText) modeHelpText.textContent = '装備・アイテム・魔法・スキルなどのその他素材を生成します。';
+        if (freeTextLabel) freeTextLabel.textContent = '作成したい内容';
+        if (freeText) freeText.placeholder = '例: 青い宝石が埋め込まれた銀の杖、神秘的な光、冒険者向け。';
+      }
+      updateSdToRealGenderUI();
+    }
+
+    function isSdToReal2DConversionSelected() {
+      return getFieldValue('tpl_character_mode_conversion') === 'SDキャラから2Dリアルキャラへ変換';
+    }
+
+    function updateSdToRealGenderUI() {
+      const group = document.getElementById('sdToRealGenderGroup');
+      const extractionGroup = document.getElementById('sdToRealExtractionGroup');
+      const referenceControlGroup = document.getElementById('referenceControlGroup');
+      const visible = currentMode === 'character' && isSdToReal2DConversionSelected();
+      if (group) group.classList.toggle('hidden', !visible);
+      if (extractionGroup) extractionGroup.classList.toggle('hidden', !visible);
+      if (referenceControlGroup) referenceControlGroup.classList.toggle('hidden', visible);
+      if (!visible && getFieldValue('tpl_character_sd_to_real_gender')) {
+        setChoiceValue('tpl_character_sd_to_real_gender', '');
+      }
+      renderSdExtractionPanel();
+    }
+
+    function createInitialSdExtractionState() {
+      return {
+        status: 'idle',
+        referenceAsset: null,
+        targetGender: '',
+        extractedParameters: null,
+        userConfirmedParameters: null,
+        confirmedAt: null,
+        error: '',
+        model: '',
+        extractionPrompt: '',
+        modelText: '',
+        warnings: []
+      };
+    }
+
+    function createInitialReal2dParameterState() {
+      return {
+        status: 'idle',
+        generatedFromSdExtraction: null,
+        parameters: null,
+        userEditedParameters: '',
+        confirmedAt: null
+      };
+    }
+
+    const SD_EXTRACTION_SECTIONS = [
+      ['face', '顔'],
+      ['hair', '髪'],
+      ['accessories', 'アクセサリ'],
+      ['upper_body_equipment', '装備上'],
+      ['lower_body_equipment', '装備下'],
+      ['back_equipment', '背中装備'],
+      ['shoulder_equipment', '肩装備'],
+      ['right_hand_weapon', '右手武器'],
+      ['left_hand_equipment', '左手装備'],
+      ['pose', 'ポーズ'],
+      ['colors_and_motifs', '色・モチーフ'],
+      ['background_and_ui_exclusion', '背景・UI除外']
+    ];
+
+    function getSdExtractionStatusLabel(status = sdExtractionState.status) {
+      const labels = {
+        idle: '未抽出',
+        extracting: '抽出中',
+        extracted: '抽出完了',
+        edited: '修正あり',
+        confirmed: '確認済み',
+        error: 'エラー'
+      };
+      return labels[status] || '未抽出';
+    }
+
+    function getReal2dStatusLabel(status = real2dParameterState.status) {
+      const labels = {
+        idle: '未作成',
+        generated: '作成済み',
+        edited: '修正あり',
+        confirmed: '確認済み'
+      };
+      return labels[status] || '未作成';
+    }
+
+    function getSdExtractionStatusLabelForSection(confirmation, confidence) {
+      const status = confirmation || '未確認';
+      const conf = confidence || 'unknown';
+      return `${status} / ${conf}`;
+    }
+
+    function stringifyParamValue(value) {
+      if (value == null) return '';
+      if (typeof value === 'string') return value;
+      return JSON.stringify(value, null, 2);
+    }
+
+    function parseMaybeJsonText(text) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return '';
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return trimmed;
+      }
+    }
+
+    function getSectionParam(sectionKey) {
+      const params = sdExtractionState.extractedParameters || {};
+      return params[sectionKey] || {};
+    }
+
+    function getSectionUserValue(sectionKey) {
+      const el = document.getElementById(`sd_user_${sectionKey}`);
+      return parseMaybeJsonText(el?.value || '');
+    }
+
+    function markSdSectionEdited(sectionKey) {
+      if (sdExtractionState.status === 'extracted' || sdExtractionState.status === 'confirmed') {
+        sdExtractionState.status = 'edited';
+      }
+      const statusEl = document.getElementById(`sd_status_${sectionKey}`);
+      if (statusEl && statusEl.value === '未確認') statusEl.value = '修正あり';
+      real2dParameterState = createInitialReal2dParameterState();
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+      const real2dArea = document.getElementById('real2dParametersArea');
+      if (real2dArea) real2dArea.innerHTML = '';
+    }
+
+    function markReal2dParametersEdited() {
+      if (real2dParameterState.status === 'generated' || real2dParameterState.status === 'confirmed') {
+        real2dParameterState.status = 'edited';
+      }
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+    }
+
+    function resetSdExtractionForReferenceChange() {
+      sdExtractionState = createInitialSdExtractionState();
+      real2dParameterState = createInitialReal2dParameterState();
+      renderSdExtractionPanel();
+    }
+
+    function renderSdExtractionPanel() {
+      const group = document.getElementById('sdToRealExtractionGroup');
+      if (!group || group.classList.contains('hidden')) return;
+
+      const statusBadge = document.getElementById('sdExtractionStatusBadge');
+      const helpText = document.getElementById('sdExtractionHelpText');
+      const extractBtn = document.getElementById('sdExtractBtn');
+      const reextractBtn = document.getElementById('sdReextractBtn');
+      const errorBox = document.getElementById('sdExtractionError');
+      const referenceArea = document.getElementById('sdExtractionReferenceArea');
+      const paramsArea = document.getElementById('sdExtractionParametersArea');
+      const real2dArea = document.getElementById('real2dParametersArea');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const isExtracting = sdExtractionState.status === 'extracting';
+
+      if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+      if (helpText) {
+        helpText.textContent = hasReference
+          ? '抽出ボタンで、Geminiの抽出モードを使ってSDキャラ情報をJSON化します。画像生成とNP消費は行いません。'
+          : 'SD→リアル2D変換では参照画像を選択してください。参照画像がない状態では抽出できません。';
+      }
+      if (extractBtn) {
+        extractBtn.disabled = !hasReference || isExtracting;
+        extractBtn.textContent = isExtracting ? '抽出中...' : '抽出する';
+      }
+      if (reextractBtn) {
+        reextractBtn.classList.toggle('hidden', !sdExtractionState.extractedParameters);
+        reextractBtn.disabled = !hasReference || isExtracting;
+      }
+      if (errorBox) {
+        errorBox.textContent = sdExtractionState.error || '';
+        errorBox.style.display = sdExtractionState.error ? 'block' : 'none';
+      }
+      if (referenceArea) {
+        referenceArea.innerHTML = hasReference ? `
+          <div class="reference-card">
+            <div style="font-weight:700;">参照画像</div>
+            <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
+            <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
+            <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を変更</button>
+            <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">参照画像を解除</button>
+          </div>
+        ` : `
+          <div class="reference-card">
+            <div style="font-weight:700;">参照画像未確定</div>
+            <div class="muted">SD→リアル2D変換では、先にSDキャラの参照画像を選択してください。</div>
+            <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を選択</button>
+          </div>
+        `;
+      }
+      if (paramsArea) {
+        paramsArea.innerHTML = sdExtractionState.extractedParameters ? renderSdExtractionParameters() : '';
+      }
+      if (real2dArea) {
+        real2dArea.innerHTML = real2dParameterState.parameters ? renderReal2dParameters() : '';
+      }
+    }
+
+    function renderSdExtractionParameters() {
+      const cards = SD_EXTRACTION_SECTIONS.map(([key, label]) => {
+        const param = getSectionParam(key);
+        const aiValue = param.ai_estimate ?? param.ai_value ?? param.value ?? param;
+        const japaneseValue = param.ai_estimate_japanese || '';
+        const showJapaneseCheck = key === 'right_hand_weapon' || key === 'left_hand_equipment';
+        const userValue = param.user_override ?? param.user_value ?? '';
+        const confidence = param.confidence || 'unknown';
+        const confirmation = param.user_confirmation_status || '未確認';
+        const generationHandling = param.generation_handling || 'KEEP';
+        const occlusionNote = param.occlusion_note || '';
+        const antiMistakeNote = param.anti_misread_note || param.anti_mistake_note || '';
+        return `
+          <div class="sd-param-card">
+            <details>
+              <summary>${escapeHtml(label)}<span>${escapeHtml(getSdExtractionStatusLabelForSection(confirmation, confidence))}</span></summary>
+              <div>
+                ${showJapaneseCheck ? `
+                  <label for="sd_ai_ja_${key}">日本語確認</label>
+                  <textarea id="sd_ai_ja_${key}" readonly>${escapeHtml(stringifyParamValue(japaneseValue || aiValue))}</textarea>
+                ` : ''}
+                <label for="sd_ai_${key}">AI推定値</label>
+                <textarea id="sd_ai_${key}" readonly>${escapeHtml(stringifyParamValue(aiValue))}</textarea>
+                <label for="sd_user_${key}" style="margin-top:8px;">ユーザー修正値</label>
+                <textarea id="sd_user_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(stringifyParamValue(userValue))}</textarea>
+                <div class="sd-param-meta">
+                  <div>
+                    <label for="sd_conf_${key}">確信度</label>
+                    <select id="sd_conf_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['high', 'medium', 'low', 'unknown'].map((v) => `<option value="${v}" ${v === confidence ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label for="sd_status_${key}">確認状態</label>
+                    <select id="sd_status_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['未確認', 'OK', '修正あり', '不明'].map((v) => `<option value="${v}" ${v === confirmation ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label for="sd_handling_${key}">生成時の扱い</label>
+                    <select id="sd_handling_${key}" onchange="markSdSectionEdited('${key}')">
+                      ${['LOCK', 'KEEP', 'TRANSFORM', 'IGNORE'].map((v) => `<option value="${v}" ${v === generationHandling ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+                <label for="sd_occ_${key}" style="margin-top:8px;">見切れ・隠れメモ</label>
+                <textarea id="sd_occ_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(occlusionNote)}</textarea>
+                <label for="sd_anti_${key}" style="margin-top:8px;">誤変換防止メモ</label>
+                <textarea id="sd_anti_${key}" oninput="markSdSectionEdited('${key}')">${escapeHtml(antiMistakeNote)}</textarea>
+              </div>
+            </details>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="sd-param-list">
+          ${cards}
+          <button class="btn btn-primary" type="button" onclick="confirmSdExtractionParameters()">抽出結果を確定してリアル2D用パラメータを作成</button>
+        </div>
+      `;
+    }
+
+    function renderReal2dParameters() {
+      const value = real2dParameterState.userEditedParameters || JSON.stringify(real2dParameterState.parameters, null, 2);
+      return `
+        <div class="sd-param-list">
+          <div class="sd-param-card">
+            <h4>リアル2D生成用パラメータ（${escapeHtml(getReal2dStatusLabel())}）</h4>
+            <textarea id="real2dParametersEditor" class="sd-json-editor" oninput="markReal2dParametersEdited()">${escapeHtml(value)}</textarea>
+            <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="confirmReal2dParameters()">リアル2D生成用パラメータを確定</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function collectConfirmedSdParameters() {
+      const confirmed = {};
+      SD_EXTRACTION_SECTIONS.forEach(([key]) => {
+        const param = getSectionParam(key);
+        const userValue = getSectionUserValue(key);
+        const aiValue = param.ai_estimate ?? param.ai_value ?? param.value ?? param;
+        const confirmationEl = document.getElementById(`sd_status_${key}`);
+        const confidenceEl = document.getElementById(`sd_conf_${key}`);
+        const handlingEl = document.getElementById(`sd_handling_${key}`);
+        const occlusionEl = document.getElementById(`sd_occ_${key}`);
+        const antiEl = document.getElementById(`sd_anti_${key}`);
+        confirmed[key] = {
+          ai_estimate: aiValue,
+          ai_estimate_japanese: param.ai_estimate_japanese || '',
+          confidence: confidenceEl?.value || param.confidence || 'unknown',
+          user_confirmation_status: confirmationEl?.value || '未確認',
+          user_override: userValue,
+          final_value: userValue || aiValue || 'unknown',
+          generation_handling: handlingEl?.value || param.generation_handling || 'KEEP',
+          occlusion_note: occlusionEl?.value.trim() || '',
+          anti_misread_note: antiEl?.value.trim() || ''
+        };
+      });
+      return confirmed;
+    }
+
+    function buildReal2dParametersFromConfirmedSd(confirmed) {
+      return {
+        conversion_goal: 'Transform the confirmed SD/chibi source character into a tall real 2D manga/anime fantasy character without changing identity.',
+        target_gender: getFieldValue('tpl_character_sd_to_real_gender') || '未指定',
+        body_proportion: {
+          target: 'exactly 14-heads-tall real 2D character proportion, head about 1/14 of full body height, very small refined head, long neck, high waist, elongated arms, legs occupying roughly 62 to 68 percent of full body height, extremely long legs',
+          do_not_preserve: 'SD round body, short limbs, oversized head, mascot-like proportions, normal 7-to-10-head anime proportions, average character-sheet proportions, large anime head, low waistline, short legs',
+          preserve: 'pose meaning, hand assignment, equipment placement, silhouette logic'
+        },
+        identity_priority: {
+          priority_order: [
+            'user_override',
+            'user-confirmed AI extraction',
+            'unconfirmed AI extraction',
+            'unknown'
+          ],
+          confirmed_sd_parameters: confirmed
+        },
+        conversion_rules: {
+          face: 'Prioritize target gender, around 20 years old impression, refined cool eyes, calm confident expression. Preserve eye color, gaze, facial accessories, and recognizable motifs.',
+          costume: 'Preserve original colors, motif placement, accessory positions, and outfit category while upgrading material quality and detail density.',
+          right_hand_weapon: 'Keep right-hand weapon in the right hand. Prioritize user confirmed category, silhouette, angle, size relationship, and visible motifs.',
+          left_hand_equipment: 'Keep left-hand equipment in the left hand. Do not swap with right-hand weapon. Preserve category, shape, emblem, position, and angle.',
+          composition: 'Keep character position, full-body standing-picture feeling, pose meaning, equipment layout, and screen placement. Exclude UI, text, numbers, buttons, and screenshot frames.',
+          quality_direction: 'Japanese fantasy RPG character key visual, high-rarity SSR style, light novel cover quality, sharp linework, refined ornaments, heroic and mysterious presence.'
+        }
+      };
+    }
+
+    async function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = String(reader.result || '');
+          resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function handleSdToRealExtraction() {
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!selectedReferenceAsset?.file_url) {
+        showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      sdExtractionState = {
+        ...createInitialSdExtractionState(),
+        status: 'extracting',
+        referenceAsset: selectedReferenceAsset,
+        targetGender: getFieldValue('tpl_character_sd_to_real_gender')
+      };
+      real2dParameterState = createInitialReal2dParameterState();
+      renderSdExtractionPanel();
+      showMessage('');
+      showProcessingOverlay('抽出中...', '参照画像からSDキャラ情報を抽出しています。画像生成とNP消費は行いません。');
+
+      try {
+        const blob = await imageSourceToBlob(selectedReferenceAsset.file_url);
+        const imageBase64 = await blobToBase64(blob);
+        const imageMimeType = blob.type || 'image/webp';
+        const { data, error } = await window.supabaseClient.functions.invoke(SD_TO_REAL_EXTRACT_FUNCTION_NAME, {
+          body: {
+            reference_image_base64: imageBase64,
+            reference_image_mime_type: imageMimeType,
+            target_gender: getFieldValue('tpl_character_sd_to_real_gender'),
+            mode_conversion: getFieldValue('tpl_character_mode_conversion')
+          }
+        });
+
+        if (error) {
+          throw new Error(error.message || 'SDキャラ抽出Functionの呼び出しに失敗しました。');
+        }
+        if (!data?.ok) {
+          throw new Error(data?.message || data?.error || 'SDキャラ抽出に失敗しました。');
+        }
+
+        sdExtractionState = {
+          status: 'extracted',
+          referenceAsset: selectedReferenceAsset,
+          targetGender: getFieldValue('tpl_character_sd_to_real_gender'),
+          extractedParameters: data.sd_extracted_parameters || data.extracted?.sd_extracted_parameters || data.extracted || null,
+          userConfirmedParameters: null,
+          confirmedAt: null,
+          error: '',
+          model: data.model || '',
+          extractionPrompt: data.extraction_prompt || '',
+          modelText: data.model_text || data.modelText || '',
+          warnings: data.warnings || []
+        };
+        showMessage('SDキャラ抽出が完了しました。内容を確認・修正して確定してください。');
+      } catch (err) {
+        sdExtractionState = {
+          ...sdExtractionState,
+          status: 'error',
+          error: err.message || String(err)
+        };
+        showMessage(sdExtractionState.error, 'error');
+      } finally {
+        hideProcessingOverlay();
+        renderSdExtractionPanel();
+      }
+    }
+
+    async function handleSdReferenceSelectClick() {
+      currentAssetPickerTarget = 'reference';
+      openReferenceModal('character', true, 'reference');
+      try {
+        await loadReferenceAssets('character');
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('参照画像一覧の取得に失敗しました。');
+      }
+    }
+
+    function confirmSdExtractionParameters() {
+      if (!sdExtractionState.extractedParameters) {
+        showMessage('先にSDキャラ抽出を実行してください。', 'error');
+        return;
+      }
+      const confirmed = collectConfirmedSdParameters();
+      sdExtractionState = {
+        ...sdExtractionState,
+        status: 'confirmed',
+        userConfirmedParameters: confirmed,
+        confirmedAt: new Date().toISOString()
+      };
+      real2dParameterState = {
+        status: 'generated',
+        generatedFromSdExtraction: confirmed,
+        parameters: buildReal2dParametersFromConfirmedSd(confirmed),
+        userEditedParameters: '',
+        confirmedAt: null
+      };
+      showMessage('抽出結果を確定し、リアル2D生成用パラメータを作成しました。');
+      renderSdExtractionPanel();
+    }
+
+    function confirmReal2dParameters() {
+      const editor = document.getElementById('real2dParametersEditor');
+      const text = editor?.value || '';
+      try {
+        real2dParameterState = {
+          ...real2dParameterState,
+          status: 'confirmed',
+          parameters: JSON.parse(text),
+          userEditedParameters: text,
+          confirmedAt: new Date().toISOString()
+        };
+        showMessage('リアル2D生成用パラメータを確定しました。生成に進めます。');
+        renderSdExtractionPanel();
+      } catch (err) {
+        showMessage('リアル2D生成用パラメータはJSONとして修正してください。', 'error');
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      showMessage('');
+      updateModeUI();
+    }
+
+    function setChoiceValue(inputId, value) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.value = value;
+
+      document.querySelectorAll(`[data-choice-group="${inputId}"] .choice-btn`).forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === value);
+      });
+
+      if (inputId === 'tpl_character_mode_conversion') {
+        resetSdExtractionForReferenceChange();
+        updateSdToRealGenderUI();
+      }
+      if (inputId === 'tpl_character_sd_to_real_gender' && isSdToReal2DConversionSelected()) {
+        real2dParameterState = createInitialReal2dParameterState();
+        if (sdExtractionState.status === 'confirmed') {
+          sdExtractionState.status = 'edited';
+        }
+        renderSdExtractionPanel();
+      }
+    }
+
+    function setBackgroundMode(mode) {
+      setChoiceValue('tpl_character_background_mode', mode);
+      updateBackgroundModeUI();
+    }
+
+    function getBackgroundMode() {
+      return getFieldValue('tpl_character_background_mode') || 'none';
+    }
+
+    function updateBackgroundModeUI() {
+      const mode = getBackgroundMode();
+      const controls = document.getElementById('backgroundControls');
+      const promptArea = document.getElementById('backgroundRelativePromptArea');
+      if (controls) controls.classList.toggle('hidden', mode === 'none');
+      if (promptArea) promptArea.classList.toggle('hidden', mode !== 'relative');
+    }
+
+    function getExpressionTransformPresetSettings(presetKey) {
+      const presets = {
+        joy: {
+          label: '歓喜',
+          expressionText: '歓喜の表情。目を大きく開き、眉を高く上げ、頬を明るくし、口角を大きく上げた強い笑顔。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '歓喜の表情、大きく目を開いた強い笑顔',
+            '感情': '強い喜び、高揚感、明るい幸福感',
+            '眉毛': '高く上がった眉、柔らかく開いた眉',
+            '瞳の形': '大きく開いた明るい目、輝きのある視線',
+            '唇の形': '口角が大きく上がった笑顔',
+            '全体印象': '同じ人物のまま、明るく歓喜している'
+          }
+        },
+        anger: {
+          label: '怒り',
+          expressionText: '怒りの表情。眉を強く寄せ、目つきを鋭くし、口元を強く引き締めた激しい怒り。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '怒りの表情、鋭い目つき、強く引き締めた口元',
+            '感情': '激しい怒り、緊張感、強い敵意',
+            '眉毛': '深く寄せた眉、鋭く吊り上がった眉',
+            '瞳の形': '細く鋭い目、強い睨み',
+            '唇の形': '強く閉じた口、引き締まった唇',
+            '全体印象': '同じ人物のまま、怒りで緊張している'
+          }
+        },
+        despair: {
+          label: '絶望',
+          expressionText: '絶望の表情。目から涙がこぼれ、眉は下がり、口元は小さく震える。深い悲しみと喪失感を大きく表現する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '絶望の表情、涙を浮かべた悲痛な顔',
+            '感情': '深い絶望、喪失感、悲しみ',
+            '眉毛': '下がった眉、苦しそうに寄った眉',
+            '瞳の形': '涙で潤んだ目、力の抜けた視線',
+            '唇の形': '小さく震える口元、弱く開いた唇',
+            '全体印象': '同じ人物のまま、深く絶望している'
+          }
+        },
+        laugh: {
+          label: '大笑い',
+          expressionText: '大笑いの表情。目を細め、口を大きく開け、歯が見えるほど楽しそうに笑う。顔全体を大きく崩して自然に笑わせる。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '大笑いの表情、口を大きく開けた自然な笑顔',
+            '感情': '楽しい、愉快、開放的な喜び',
+            '眉毛': '笑いで柔らかく上がった眉',
+            '瞳の形': '笑って細くなった目、楽しそうな目元',
+            '唇の形': '大きく開いた笑い口、歯が見える笑顔',
+            '全体印象': '同じ人物のまま、自然に大笑いしている'
+          }
+        },
+        closed_eyes: {
+          label: '瞳を閉じる',
+          expressionText: '瞳を閉じた表情。まぶたを自然に閉じ、眉と口元で感情が伝わるようにする。顔の輪郭、髪型、髪色、同一人物感は維持する。',
+          fields: {
+            '表情': '瞳を閉じた表情',
+            '瞳の形': '自然に閉じた目、柔らかなまぶた',
+            '眉毛': '感情に合わせて自然に動いた眉',
+            '唇の形': '表情に合う自然な口元',
+            '全体印象': '同じ人物のまま、目を閉じた印象に変える'
+          }
+        },
+        open_mouth: {
+          label: '口を大きく開ける',
+          expressionText: '口を大きく開けた表情。驚き、叫び、大笑いなどに使えるよう、口を大きく開き、頬と顎の動きを自然に強調する。顔の輪郭、髪型、髪色、瞳の色、同一人物感は維持する。',
+          fields: {
+            '表情': '口を大きく開けた表情',
+            '感情': '強く外に出た感情',
+            '唇の形': '大きく開いた口、自然に動いた顎と頬',
+            '瞳の形': '感情に合わせた目元',
+            '全体印象': '同じ人物のまま、口の開きだけを大きく変える'
+          }
+        }
+      };
+      return presets[presetKey] || null;
+    }
+
+    function setExpressionTransformPreset(presetKey) {
+      const input = document.getElementById('tpl_character_expression_transform');
+      const status = document.getElementById('expressionTransformStatus');
+      if (input) input.value = presetKey;
+
+      document.querySelectorAll('[data-choice-group="tpl_character_expression_transform"] .choice-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === presetKey);
+      });
+
+      const preset = getExpressionTransformPresetSettings(presetKey);
+      if (status) {
+        status.textContent = preset
+          ? `${preset.label}を指定しました。同一性は維持しつつ、表情だけ大きめに変化させます。`
+          : '表情変換の要素は未選択です。';
+      }
+    }
+
+    async function loadNpBalance() {
+      if (!currentUser) return;
+      const { data: profile, error } = await window.supabaseClient
+        .from('profiles')
+        .select('np_balance')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error || !profile) {
+        showMessage('NP残高の取得に失敗しました。', 'error');
+        return;
+      }
+
+      currentNpBalance = Number(profile.np_balance || 0);
+      renderNpBalance();
+    }
+
+    function renderNpBalance() {
+      document.getElementById('npBadge').textContent = `NP: ${Math.floor(currentNpBalance).toLocaleString()}`;
+    }
+
+    function getReferenceCategoryTypes(category) {
+      const categoryFilters = {
+        character: ['illustration', 'character'],
+        scenery: ['scene', 'scenery', 'background', 'landscape'],
+        other: ['other', 'material', 'object', 'effect']
+      };
+      return categoryFilters[category] || [];
+    }
+
+    function getReferenceCategoryLabel(category) {
+      const labels = {
+        character: 'キャラクター',
+        scenery: '風景',
+        other: 'その他'
+      };
+      return labels[category] || '基準化画像';
+    }
+
+    async function loadReferenceAssets(category = currentReferenceCategory) {
+      currentReferenceCategory = category || '';
+      if (!currentUser) return;
+      if (!currentReferenceCategory) {
+        referenceAssets = [];
+        renderReferenceModalGrid();
+        return;
+      }
+
+      const allowedTypes = getReferenceCategoryTypes(currentReferenceCategory);
+      const pageSize = 1000;
+      let from = 0;
+      let allAssets = [];
+
+      while (true) {
+        const { data, error } = await window.supabaseClient
+          .from('user_assets')
+          .select('id,file_url,file_name,asset_type,asset_source,created_at')
+          .eq('user_id', currentUser.id)
+          .in('asset_type', allowedTypes)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          showMessage('参照画像一覧の取得に失敗しました。保管庫のRLS設定を確認してください。', 'error');
+          throw error;
+        }
+
+        const page = data || [];
+        allAssets = allAssets.concat(page);
+        if (page.length < pageSize) break;
+        from += pageSize;
+      }
+
+      referenceAssets = allAssets;
+      renderReferenceModalGrid();
+    }
+
+    async function handleReferenceCategoryChange(category) {
+      currentAssetPickerTarget = 'reference';
+      if (!category) {
+        currentReferenceCategory = '';
+        referenceAssets = [];
+        closeReferenceModal();
+        return;
+      }
+
+      openReferenceModal(category, true, 'reference');
+      try {
+        await loadReferenceAssets(category);
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('取得に失敗しました。');
+      }
+    }
+
+    function openReferenceModal(category, loading = false, target = currentAssetPickerTarget) {
+      currentAssetPickerTarget = target;
+      const modal = document.getElementById('referenceAssetModal');
+      const title = document.getElementById('referenceModalTitle');
+      const status = document.getElementById('referenceModalStatus');
+      const grid = document.getElementById('referenceModalGrid');
+      if (!modal || !title || !status || !grid) return;
+
+      title.textContent = target === 'background'
+        ? `${getReferenceCategoryLabel(category)}の背景画像を選択`
+        : `${getReferenceCategoryLabel(category)}の基準化画像を選択`;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      if (loading) {
+        status.textContent = '保管庫画像を読み込んでいます...';
+        grid.innerHTML = '';
+      }
+    }
+
+    function closeReferenceModal() {
+      const modal = document.getElementById('referenceAssetModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderReferenceModalGrid(errorText = '') {
+      const status = document.getElementById('referenceModalStatus');
+      const grid = document.getElementById('referenceModalGrid');
+      if (!status || !grid) return;
+
+      if (errorText) {
+        status.textContent = errorText;
+        grid.innerHTML = '';
+        return;
+      }
+
+      if (!referenceAssets.length) {
+        status.textContent = 'このカテゴリの保管庫画像はまだありません。';
+        grid.innerHTML = '';
+        return;
+      }
+
+      status.textContent = `${referenceAssets.length}件の画像を表示しています。`;
+      const activeAsset = currentAssetPickerTarget === 'background' ? selectedBackgroundAsset : selectedReferenceAsset;
+      grid.innerHTML = referenceAssets.map((asset, index) => {
+        return `
+          <button class="reference-item ${activeAsset?.id === asset.id ? 'active' : ''}" type="button" onclick="selectReferenceAssetByIndex(${index})">
+            <img src="${escapeAttr(asset.file_url || '')}" alt="${escapeAttr(asset.file_name || '参照画像')}" loading="lazy" />
+            <div class="reference-item-title">${escapeHtml(asset.file_name || '無題')}</div>
+            <div class="muted" style="margin-top:4px;">${escapeHtml(asset.asset_type || 'illustration')}</div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderReferenceSelection() {
+      const area = document.getElementById('referenceSelectionArea');
+      if (!area) return;
+
+      if (!selectedReferenceAsset) {
+        area.innerHTML = '<div class="reference-card">未選択</div>';
+        return;
+      }
+
+      area.innerHTML = `
+        <div class="reference-card">
+          <div style="font-weight:700;">${escapeHtml(selectedReferenceAsset.file_name || '無題')}</div>
+          <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="参照画像" />
+          <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">解除</button>
+        </div>
+      `;
+    }
+
+    function renderBackgroundSelection() {
+      const area = document.getElementById('backgroundSelectionArea');
+      if (!area) return;
+
+      if (!selectedBackgroundAsset) {
+        area.innerHTML = '<div class="reference-card">背景画像は未選択です。</div>';
+        return;
+      }
+
+      area.innerHTML = `
+        <div class="reference-card">
+          <div style="font-weight:700;">${escapeHtml(selectedBackgroundAsset.file_name || '無題')}</div>
+          <img class="reference-thumb" src="${escapeAttr(selectedBackgroundAsset.file_url || '')}" alt="背景画像" />
+          <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearBackgroundSelection()">背景画像を解除</button>
+        </div>
+      `;
+    }
+
+    async function handleBackgroundSelectClick() {
+      currentAssetPickerTarget = 'background';
+      openReferenceModal('scenery', true, 'background');
+      try {
+        await loadReferenceAssets('scenery');
+      } catch (err) {
+        console.error(err);
+        renderReferenceModalGrid('取得に失敗しました。');
+      }
+    }
+
+    function selectReferenceAssetByIndex(index) {
+      if (currentAssetPickerTarget === 'background') {
+        selectedBackgroundAsset = referenceAssets[index] || null;
+        renderBackgroundSelection();
+        closeReferenceModal();
+        showMessage('背景画像を選択しました。');
+        return;
+      }
+
+      selectedReferenceAsset = referenceAssets[index] || null;
+      resetSdExtractionForReferenceChange();
+      renderReferenceSelection();
+      closeReferenceModal();
+      showMessage('参照画像を選択しました。');
+    }
+
+    function clearReferenceSelection() {
+      selectedReferenceAsset = null;
+      resetSdExtractionForReferenceChange();
+      renderReferenceSelection();
+      renderReferenceModalGrid();
+      showMessage('参照画像を解除しました。');
+    }
+
+    function clearBackgroundSelection() {
+      selectedBackgroundAsset = null;
+      renderBackgroundSelection();
+      renderReferenceModalGrid();
+      showMessage('背景画像を解除しました。');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+
+    function getFieldValue(id) {
+      return document.getElementById(id)?.value.trim() || '';
+    }
+
+    function getRenderStyleValue() {
+      const style = getFieldValue('tpl_character_art_style');
+      const styleMap = {
+        'ラノベ風': 'light_novel',
+        '漫画風': 'manga',
+        'アニメ風': 'anime'
+      };
+      return styleMap[style] || '';
+    }
+
+    function getArtStyleInstruction(style = getFieldValue('tpl_character_art_style')) {
+      const instructions = {
+        'ラノベ風': 'ラノベ風。必ずモノクロ固定。白黒、グレースケールのみで描く。カラー化しない。',
+        '漫画風': '漫画風。スクリーントーンを多めに使う。使用色は最大4色までに制限する。',
+        'アニメ風': '現代アニメ風。現在のTVアニメや配信アニメのような、鮮明な線、整った影、クリアな彩色で描く。'
+      };
+      return instructions[style] || '';
+    }
+
+    function getBackgroundPromptInstruction(mode = getBackgroundMode()) {
+      if (mode === 'reference') {
+        return '選択した背景画像の構図・場所・雰囲気を強く維持し、その背景内にキャラクターを自然に配置する。';
+      }
+      if (mode === 'relative') {
+        return '選択した背景画像の雰囲気・色味・世界観・空気感を参考にしつつ、構図は固定せず自然なキャライラストとして生成する。';
+      }
+      return '';
+    }
+
+    function buildCharacterFreeTextWithBackground(baseText) {
+      const backgroundMode = getBackgroundMode();
+      if (backgroundMode === 'none' || !selectedBackgroundAsset?.file_url) {
+        return baseText;
+      }
+
+      const instruction = getBackgroundPromptInstruction(backgroundMode);
+      const relativePrompt = getFieldValue('tpl_character_background_relative_prompt');
+      const lines = [
+        baseText,
+        `背景設定: ${backgroundMode === 'reference' ? '背景あり（参照）' : '背景あり（相対）'}`,
+        `背景画像URL: ${selectedBackgroundAsset.file_url}`,
+        `背景指示: ${instruction}`
+      ];
+      if (backgroundMode === 'relative' && relativePrompt) {
+        lines.push(`相対モード追加プロンプト: ${relativePrompt}`);
+      }
+      return lines.filter(Boolean).join('\n');
+    }
+
+    function getGeneratedAssetType(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return 'scene';
+      if (mode === 'other') return 'other';
+      return 'illustration';
+    }
+
+    function getGeneratedFileLabel(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return '風景';
+      if (mode === 'other') return 'その他素材';
+      return 'イラスト';
+    }
+
+    function getTransactionProductName(mode = currentGeneratedMode) {
+      if (mode === 'scenery') return 'AI風景生成（生成専用）';
+      if (mode === 'other') return 'AIその他素材生成（生成専用）';
+      return 'AIイラスト生成（キャラ・生成専用）';
+    }
+
+    function getModeLabel(mode = currentMode) {
+      if (mode === 'scenery') return '風景';
+      if (mode === 'other') return 'その他素材';
+      return 'キャラ';
+    }
+
+    function buildPromptTemplateSettings() {
+      const mode = currentMode;
+      const artStyle = getFieldValue('tpl_character_art_style');
+      const freeText = getFieldValue('tpl_character_free_text');
+      const referenceInfo = selectedReferenceAsset ? {
+        id: selectedReferenceAsset.id || null,
+        file_name: selectedReferenceAsset.file_name || '',
+        file_url: selectedReferenceAsset.file_url || '',
+        asset_type: selectedReferenceAsset.asset_type || ''
+      } : null;
+
+      const baseSettings = {
+        source_page: 'nft_generate',
+        mode,
+        mode_label: getModeLabel(mode),
+        free_text: freeText,
+        art_style: artStyle,
+        art_style_instruction: getArtStyleInstruction(artStyle),
+        reference_category: currentReferenceCategory || '',
+        reference_asset: referenceInfo
+      };
+
+      if (mode === 'character') {
+        return {
+          ...baseSettings,
+          character: {
+            view: getFieldValue('tpl_character_view'),
+            age: getFieldValue('tpl_character_age'),
+            pose: getFieldValue('tpl_character_pose'),
+            outfit: getFieldValue('tpl_character_outfit'),
+            lighting: getFieldValue('tpl_character_lighting'),
+            mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+            sd_to_real_gender: isSdToReal2DConversionSelected() ? getFieldValue('tpl_character_sd_to_real_gender') : '',
+            expression_transform: getFieldValue('tpl_character_expression_transform')
+          },
+          background: {
+            mode: getBackgroundMode(),
+            instruction: getBackgroundPromptInstruction(),
+            relative_prompt: getFieldValue('tpl_character_background_relative_prompt'),
+            asset: selectedBackgroundAsset ? {
+              id: selectedBackgroundAsset.id || null,
+              file_name: selectedBackgroundAsset.file_name || '',
+              file_url: selectedBackgroundAsset.file_url || '',
+              asset_type: selectedBackgroundAsset.asset_type || ''
+            } : null
+          }
+        };
+      }
+
+      if (mode === 'scenery') {
+        return {
+          ...baseSettings,
+          scene_settings: buildScenePayload().scene_settings,
+          generation_mode: selectedReferenceAsset?.file_url ? 'reference' : 'free',
+          render_style: getRenderStyleValue() || 'manga'
+        };
+      }
+
+      return {
+        ...baseSettings,
+        other_text: freeText,
+        generation_mode: selectedReferenceAsset?.file_url ? 'reference' : 'free',
+        render_style: getRenderStyleValue() || 'manga'
+      };
+    }
+
+    function hasPromptTemplateContent(settings) {
+      const value = JSON.stringify(settings || {});
+      return Boolean(value && value.replace(/["{}\[\],:]/g, '').trim());
+    }
+
+    function extractGeneratedImageSource(data) {
+      if (data?.imageBase64) {
+        const mimeType = data.mimeType || data.mime_type || 'image/png';
+        return {
+          source: `data:${mimeType};base64,${data.imageBase64}`,
+          mimeType
+        };
+      }
+
+      const source = data?.imageUrl
+        || data?.image_url
+        || data?.generatedImageUrl
+        || data?.generated_image_url
+        || data?.dataUrl
+        || data?.data_url
+        || data?.url
+        || '';
+
+      if (!source) return null;
+      return {
+        source,
+        mimeType: data?.mimeType || data?.mime_type || ''
+      };
+    }
+
+    function buildStandalonePayload() {
+      const fields = {
+        tpl_character_free_text: getFieldValue('tpl_character_free_text'),
+        tpl_character_expression: getFieldValue('tpl_character_expression'),
+        tpl_character_view: getFieldValue('tpl_character_view'),
+        tpl_character_age: getFieldValue('tpl_character_age'),
+        tpl_character_pose: getFieldValue('tpl_character_pose'),
+        tpl_character_outfit: getFieldValue('tpl_character_outfit'),
+        tpl_character_lighting: getFieldValue('tpl_character_lighting'),
+        tpl_character_art_style: getFieldValue('tpl_character_art_style'),
+        tpl_character_mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+        tpl_character_sd_to_real_gender: isSdToReal2DConversionSelected() ? getFieldValue('tpl_character_sd_to_real_gender') : '',
+        tpl_character_expression_transform: getFieldValue('tpl_character_expression_transform')
+      };
+      const expressionTransformPreset = getExpressionTransformPresetSettings(fields.tpl_character_expression_transform);
+      const artStyleInstruction = getArtStyleInstruction(fields.tpl_character_art_style);
+      const backgroundMode = getBackgroundMode();
+      const backgroundInstruction = getBackgroundPromptInstruction(backgroundMode);
+      const backgroundRelativePrompt = getFieldValue('tpl_character_background_relative_prompt');
+      const characterFreeText = buildCharacterFreeTextWithBackground(fields.tpl_character_free_text);
+
+      const payload = {
+        template_type: 'character',
+        editable_fields_japanese: {
+          '画風': artStyleInstruction || fields.tpl_character_art_style || 'clean all-ages illustrated style',
+          '質感': 'soft hand-drawn illustration texture',
+          '色調': 'balanced light and shadow',
+          '表情': expressionTransformPreset?.fields?.['表情'] || fields.tpl_character_expression || '自然な表情',
+          '感情': 'calm and readable emotional tone',
+          'キャラモード変換': fields.tpl_character_mode_conversion || '指定なし',
+          ...(fields.tpl_character_sd_to_real_gender ? { 'SD→リアル2Dの性別': fields.tpl_character_sd_to_real_gender } : {}),
+          ...(backgroundInstruction ? { '背景設定': backgroundInstruction } : {}),
+          ...(expressionTransformPreset?.fields || {})
+        },
+        tpl_character_free_text: characterFreeText,
+        tpl_character_expression: expressionTransformPreset?.expressionText || fields.tpl_character_expression,
+        tpl_character_view: fields.tpl_character_view,
+        tpl_character_age: fields.tpl_character_age,
+        tpl_character_pose: fields.tpl_character_pose,
+        tpl_character_outfit: fields.tpl_character_outfit,
+        tpl_character_lighting: fields.tpl_character_lighting,
+        tpl_character_art_style: artStyleInstruction || fields.tpl_character_art_style,
+        tpl_character_mode_conversion: fields.tpl_character_mode_conversion,
+        tpl_character_sd_to_real_gender: fields.tpl_character_sd_to_real_gender,
+        tpl_character_expression_transform: expressionTransformPreset?.label || ''
+      };
+
+      if (selectedReferenceAsset?.file_url) {
+        payload.reference_image_url = selectedReferenceAsset.file_url;
+      }
+
+      if (isSdToReal2DConversionSelected()) {
+        payload.sd_to_real2d_extraction = {
+          status: sdExtractionState.status,
+          reference_asset_id: selectedReferenceAsset?.id || null,
+          target_gender: fields.tpl_character_sd_to_real_gender,
+          confirmed_at: sdExtractionState.confirmedAt,
+          confirmed_parameters: sdExtractionState.userConfirmedParameters,
+          real2d_parameter_status: real2dParameterState.status,
+          real2d_confirmed_at: real2dParameterState.confirmedAt,
+          real2d_parameters: real2dParameterState.parameters
+        };
+      }
+
+      if (backgroundMode !== 'none' && selectedBackgroundAsset?.file_url) {
+        payload.background_mode = backgroundMode;
+        payload.background_image_url = selectedBackgroundAsset.file_url;
+        payload.background_asset_id = selectedBackgroundAsset.id || null;
+        payload.background_instruction = backgroundInstruction;
+        if (backgroundMode === 'relative') {
+          payload.background_relative_prompt = backgroundRelativePrompt;
+        }
+      }
+
+      return payload;
+    }
+
+    function buildScenePayload() {
+      const freeText = getFieldValue('tpl_character_free_text');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const renderStyle = getRenderStyleValue() || 'manga';
+      const artStyleInstruction = getArtStyleInstruction();
+      const detailText = freeText || (hasReference ? '参照画像の風景要素を活かす' : '自然な風景');
+
+      return {
+        scene_settings: {
+          pov: '',
+          composition: hasReference ? '参照画像に合わせる' : 'ワイド構図',
+          scale: '中景',
+          place: '',
+          world: '',
+          detail: artStyleInstruction ? `${detailText}\n画風指定: ${artStyleInstruction}` : detailText,
+          light: '',
+          tone: '',
+          person: '人物なし',
+          mood: ''
+        },
+        reference_enabled: hasReference,
+        reference_image_url: hasReference ? selectedReferenceAsset.file_url : null,
+        reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
+        generation_mode: hasReference ? 'reference' : 'free',
+        render_style: renderStyle,
+        style_instruction: artStyleInstruction,
+        debug_prompt_only: false
+      };
+    }
+
+    function buildOtherPayload() {
+      const freeText = getFieldValue('tpl_character_free_text');
+      const hasReference = Boolean(selectedReferenceAsset?.file_url);
+      const renderStyle = getRenderStyleValue() || 'manga';
+      const artStyleInstruction = getArtStyleInstruction();
+      const otherText = freeText || (hasReference ? '参照画像の素材をもとにしたその他素材' : 'その他素材');
+
+      return {
+        template_type: 'other',
+        other_text: artStyleInstruction ? `${otherText}\n画風指定: ${artStyleInstruction}` : otherText,
+        reference_enabled: hasReference,
+        reference_image_url: hasReference ? selectedReferenceAsset.file_url : null,
+        reference_asset_id: hasReference ? (selectedReferenceAsset.id || null) : null,
+        generation_mode: hasReference ? 'reference' : 'free',
+        render_style: renderStyle,
+        style_instruction: artStyleInstruction,
+        debug_prompt_only: false
+      };
+    }
+
+    function buildPayloadForCurrentMode() {
+      if (currentMode === 'scenery') return buildScenePayload();
+      if (currentMode === 'other') return buildOtherPayload();
+      return buildStandalonePayload();
+    }
+
+    function getFunctionNameForCurrentMode() {
+      if (currentMode === 'scenery') {
+        return selectedReferenceAsset?.file_url ? SCENE_GEMINI_FUNCTION_NAME : SCENE_LEONARDO_FUNCTION_NAME;
+      }
+      if (currentMode === 'other') {
+        return selectedReferenceAsset?.file_url ? SCENE_GEMINI_FUNCTION_NAME : OTHER_LEONARDO_FUNCTION_NAME;
+      }
+      return FUNCTION_NAME;
+    }
+
+    async function handleGenerate() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (currentMode === 'character' && getBackgroundMode() !== 'none' && !selectedBackgroundAsset?.file_url) {
+        showMessage('背景ありを使う場合は、背景画像を選択してください。', 'error');
+        return;
+      }
+      if (currentMode === 'character' && isSdToReal2DConversionSelected()) {
+        if (!selectedReferenceAsset?.file_url) {
+          showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
+        if (sdExtractionState.status !== 'confirmed' || !sdExtractionState.userConfirmedParameters) {
+          showMessage('SD→リアル2D変換では、先に抽出結果を確認・確定してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
+        if (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters) {
+          showMessage('SD→リアル2D変換では、リアル2D生成用パラメータを確定してください。', 'error');
+          renderSdExtractionPanel();
+          return;
+        }
+      }
+
+      const button = document.getElementById('generateBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '生成中...';
+      document.getElementById('saveBtn').disabled = true;
+      currentGeneratedDataUrl = '';
+      currentGeneratedMimeType = '';
+      currentGeneratedMode = currentMode;
+      renderPromptDebug(null);
+      showMessage('');
+      showProcessingOverlay('生成中...', '画像を生成しています。完了まで他の操作はできません。');
+
+      try {
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from('profiles')
+          .select('np_balance')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error('プロフィールの取得に失敗しました。');
+        }
+
+        const currentNp = Number(profile.np_balance || 0);
+        if (currentNp < GENERATION_COST_NP) {
+          throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
+        }
+
+        const payload = buildPayloadForCurrentMode();
+        const functionName = getFunctionNameForCurrentMode();
+        console.log('generation request payload', payload);
+        const { data, error } = await window.supabaseClient.functions.invoke(functionName, { body: payload });
+        console.log('generation function response', data);
+
+        if (error) {
+          throw new Error(error.message || '生成Functionの呼び出しに失敗しました。');
+        }
+        if (!data?.ok && data?.status !== 'success') {
+          throw new Error(data?.error || '画像生成に失敗しました。');
+        }
+
+        renderPromptDebug(data, payload);
+        const generatedImage = extractGeneratedImageSource(data);
+        if (!generatedImage?.source) {
+          throw new Error('生成画像が返されませんでした。');
+        }
+
+        const newNp = currentNp - GENERATION_COST_NP;
+        const { error: updateError } = await window.supabaseClient
+          .from('profiles')
+          .update({ np_balance: newNp })
+          .eq('id', currentUser.id);
+
+        if (updateError) {
+          throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+        }
+
+        currentNpBalance = newNp;
+        renderNpBalance();
+
+        const { error: txError } = await window.supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: currentUser.id,
+            tx_type: 'np_use',
+            type: 'ai_illustration_generation',
+            product_name: getTransactionProductName(currentGeneratedMode),
+            amount_nvt: 0,
+            amount_np: -GENERATION_COST_NP,
+            balance_before_np: currentNp,
+            balance_after_np: newNp,
+            related_table: 'profiles',
+            related_id: currentUser.id
+          });
+
+        if (txError) {
+          console.error('transactions insert error:', txError);
+          showMessage('生成は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+        } else {
+          showMessage('生成が完了しました。');
+        }
+
+        currentGeneratedMimeType = generatedImage.mimeType || '';
+        currentGeneratedDataUrl = generatedImage.source;
+        renderPreview(currentGeneratedDataUrl);
+        if (isMobileControlWidth()) closeMobileControlPanel();
+        document.getElementById('saveBtn').disabled = false;
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message || '生成に失敗しました。', 'error');
+      } finally {
+        hideProcessingOverlay();
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    async function handleSavePromptTemplate() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+
+      const settings = buildPromptTemplateSettings();
+      if (!hasPromptTemplateContent(settings)) {
+        showMessage('保存する設定がありません。', 'error');
+        return;
+      }
+
+      const defaultName = `${getModeLabel(currentMode)}生成設定 ${new Date().toLocaleString('ja-JP')}`;
+      const presetName = prompt('保存するテンプレート名を入力してください。', defaultName);
+      if (!presetName || !presetName.trim()) return;
+
+      const button = document.getElementById('saveTemplateBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '保存中...';
+      showMessage('');
+
+      try {
+        const referenceAsset = selectedReferenceAsset || null;
+        const { error } = await window.supabaseClient
+          .from('scene_presets')
+          .insert({
+            user_id: currentUser.id,
+            preset_name: presetName.trim(),
+            template_type: currentMode === 'scenery' ? 'scenery' : currentMode,
+            place_type: getModeLabel(currentMode),
+            custom_place: getFieldValue('tpl_character_free_text') || null,
+            scene_settings: settings,
+            reference_enabled: Boolean(referenceAsset?.file_url),
+            reference_asset_id: referenceAsset?.id || null,
+            reference_image_url: referenceAsset?.file_url || null
+          });
+
+        if (error) throw error;
+        showMessage('現在の設定をイラスト保管庫の生成設定に保存しました。');
+      } catch (err) {
+        console.error('prompt template save error:', err);
+        showMessage(err.message || 'テンプレート保存に失敗しました。', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function renderPreview(dataUrl) {
+      const previewArea = document.getElementById('previewArea');
+      previewArea.innerHTML = `<img class="preview-image" src="${escapeAttr(dataUrl)}" alt="生成画像" />`;
+    }
+
+    async function handleSaveGeneratedImage() {
+      if (!currentGeneratedDataUrl) {
+        showMessage('まず生成してください。', 'error');
+        return;
+      }
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+
+      const button = document.getElementById('saveBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '保存中...';
+      showMessage('');
+      showProcessingOverlay('保存中...', 'イラスト保管庫に保存しています。完了まで他の操作はできません。');
+
+      let uploadedFileName = '';
+      try {
+        const blob = await imageSourceToBlob(currentGeneratedDataUrl);
+        const mimeType = currentGeneratedMimeType || blob.type || 'image/png';
+        const extension = extensionFromMimeType(mimeType);
+        const assetType = getGeneratedAssetType(currentGeneratedMode);
+        const fileName = `generated_${assetType}_${currentUser.id}_${Date.now()}.${extension}`;
+        uploadedFileName = fileName;
+
+        const { error: uploadError } = await window.supabaseClient.storage
+          .from('illustrations')
+          .upload(fileName, blob, {
+            contentType: mimeType,
+            upsert: false
+          });
+
+        if (uploadError) {
+          throwStorageLimitAwareError(uploadError);
+        }
+
+        const { data: publicUrlData } = window.supabaseClient.storage
+          .from('illustrations')
+          .getPublicUrl(fileName);
+
+        const { error: insertError } = await window.supabaseClient
+          .from('user_assets')
+          .insert({
+            user_id: currentUser.id,
+            file_url: publicUrlData.publicUrl,
+            file_name: `生成${getGeneratedFileLabel(currentGeneratedMode)} ${new Date().toLocaleString('ja-JP')}`,
+            asset_type: assetType,
+            asset_source: 'generated'
+          });
+
+        if (insertError) {
+          await window.supabaseClient.storage.from('illustrations').remove([fileName]);
+          throwStorageLimitAwareError(insertError);
+        }
+
+        showMessage('イラスト保管庫に保存しました。');
+        await loadReferenceAssets();
+      } catch (err) {
+        console.error(err);
+        if (uploadedFileName) {
+          await window.supabaseClient.storage.from('illustrations').remove([uploadedFileName]);
+        }
+        showMessage(err.message || '保存に失敗しました。', 'error');
+      } finally {
+        hideProcessingOverlay();
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function throwStorageLimitAwareError(error) {
+      if (error?.message && error.message.includes('ASSET_STORAGE_LIMIT_REACHED')) {
+        throw new Error('保存庫は50枚までです。不要な画像を削除してから再度保存してください。');
+      }
+      throw error;
+    }
+
+    function extensionFromMimeType(mimeType) {
+      const normalized = String(mimeType || '').toLowerCase();
+      if (normalized.includes('webp')) return 'webp';
+      if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+      if (normalized.includes('png')) return 'png';
+      return 'png';
+    }
+
+    async function imageSourceToBlob(source) {
+      if (String(source || '').startsWith('data:')) {
+        return dataUrlToBlob(source);
+      }
+
+      const response = await fetch(source);
+      if (!response.ok) {
+        throw new Error('生成画像URLの取得に失敗しました。');
+      }
+      return response.blob();
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(',');
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      const binary = atob(parts[1]);
+      const array = [];
+      for (let i = 0; i < binary.length; i += 1) {
+        array.push(binary.charCodeAt(i));
+      }
+      return new Blob([new Uint8Array(array)], { type: mime });
+    }
+  </script>
+</body>
+</html>
