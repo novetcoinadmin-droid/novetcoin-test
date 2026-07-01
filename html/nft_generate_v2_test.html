@@ -281,6 +281,18 @@
       font-size: 12px;
       line-height: 1.45;
     }
+    .sd-drawing-box {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #e5d7f5;
+      border-radius: 8px;
+      background: #fbf8ff;
+    }
+    .sd-drawing-status {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--main-purple);
+    }
     .reference-modal {
       position: fixed;
       inset: 0;
@@ -744,6 +756,7 @@
     const GENERATION_COST_NP = 10;
     const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
     const SD_TO_REAL_EXTRACT_FUNCTION_NAME = 'extract-sd-character-parameters-for-real2d';
+    const SD_TO_REAL_DRAWING_FUNCTION_NAME = 'generate-sd-to-real2d-drawing-data';
     const SCENE_GEMINI_FUNCTION_NAME = 'generate-nft-scene-image-gemini-allages';
     const SCENE_LEONARDO_FUNCTION_NAME = 'generate-nft-scene-image-leonardo';
     const OTHER_LEONARDO_FUNCTION_NAME = 'generate-nft-other-image-leonardo';
@@ -762,6 +775,7 @@
     let currentLastPromptDebug = '';
     let sdExtractionState = createInitialSdExtractionState();
     let real2dParameterState = createInitialReal2dParameterState();
+    let sdDrawingState = createInitialSdDrawingState();
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -990,6 +1004,19 @@
       };
     }
 
+    function createInitialSdDrawingState() {
+      return {
+        status: 'idle',
+        drawingData: null,
+        dataUrl: '',
+        model: '',
+        prompt: '',
+        modelText: '',
+        error: '',
+        warnings: []
+      };
+    }
+
     const SD_EXTRACTION_SECTIONS = [
       ['face', '顔'],
       ['hair', '髪'],
@@ -1066,6 +1093,7 @@
       const statusEl = document.getElementById(`sd_status_${sectionKey}`);
       if (statusEl && statusEl.value === '未確認') statusEl.value = '修正あり';
       real2dParameterState = createInitialReal2dParameterState();
+      sdDrawingState = createInitialSdDrawingState();
       const statusBadge = document.getElementById('sdExtractionStatusBadge');
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
       const real2dArea = document.getElementById('real2dParametersArea');
@@ -1076,6 +1104,7 @@
       if (real2dParameterState.status === 'generated' || real2dParameterState.status === 'confirmed') {
         real2dParameterState.status = 'edited';
       }
+      sdDrawingState = createInitialSdDrawingState();
       const statusBadge = document.getElementById('sdExtractionStatusBadge');
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
     }
@@ -1083,6 +1112,7 @@
     function resetSdExtractionForReferenceChange() {
       sdExtractionState = createInitialSdExtractionState();
       real2dParameterState = createInitialReal2dParameterState();
+      sdDrawingState = createInitialSdDrawingState();
       renderSdExtractionPanel();
     }
 
@@ -1209,12 +1239,26 @@
 
     function renderReal2dParameters() {
       const value = real2dParameterState.userEditedParameters || JSON.stringify(real2dParameterState.parameters, null, 2);
+      const canDraw = real2dParameterState.status === 'confirmed' && real2dParameterState.parameters;
+      const drawingStatus = sdDrawingState.status === 'generated'
+        ? '描画PNG作成済み'
+        : sdDrawingState.status === 'generating'
+          ? '描画データ作成中'
+          : sdDrawingState.status === 'error'
+            ? '描画エラー'
+            : '未描画';
       return `
         <div class="sd-param-list">
           <div class="sd-param-card">
             <h4>リアル2D生成用パラメータ（${escapeHtml(getReal2dStatusLabel())}）</h4>
             <textarea id="real2dParametersEditor" class="sd-json-editor" oninput="markReal2dParametersEdited()">${escapeHtml(value)}</textarea>
             <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="confirmReal2dParameters()">リアル2D生成用パラメータを確定</button>
+            <div class="sd-drawing-box">
+              <div class="sd-drawing-status">${escapeHtml(drawingStatus)}</div>
+              <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdToRealDrawingMvp()" ${canDraw ? '' : 'disabled'}>描画方式MVPで変換</button>
+              <p class="muted" style="margin:8px 0 0;">Canvasで14頭身の変換ラフをPNG化します。生成画像保存ボタンで保管庫へ保存できます。</p>
+              ${sdDrawingState.error ? `<div class="message error" style="margin-top:8px;">${escapeHtml(sdDrawingState.error)}</div>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -1383,6 +1427,7 @@
         userEditedParameters: '',
         confirmedAt: null
       };
+      sdDrawingState = createInitialSdDrawingState();
       showMessage('抽出結果を確定し、リアル2D生成用パラメータを作成しました。');
       renderSdExtractionPanel();
     }
@@ -1398,10 +1443,304 @@
           userEditedParameters: text,
           confirmedAt: new Date().toISOString()
         };
+        sdDrawingState = createInitialSdDrawingState();
         showMessage('リアル2D生成用パラメータを確定しました。生成に進めます。');
         renderSdExtractionPanel();
       } catch (err) {
         showMessage('リアル2D生成用パラメータはJSONとして修正してください。', 'error');
+      }
+    }
+
+    function getDrawingColor(drawingData, key, fallback) {
+      const value = drawingData?.colors?.[key];
+      return /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
+    }
+
+    function drawEllipsePath(ctx, x, y, rx, ry) {
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    }
+
+    function drawRoundedDiamond(ctx, x, y, width, height) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - height / 2);
+      ctx.quadraticCurveTo(x + width / 2, y - height / 4, x + width / 2, y);
+      ctx.quadraticCurveTo(x + width / 2, y + height / 4, x, y + height / 2);
+      ctx.quadraticCurveTo(x - width / 2, y + height / 4, x - width / 2, y);
+      ctx.quadraticCurveTo(x - width / 2, y - height / 4, x, y - height / 2);
+      ctx.closePath();
+    }
+
+    function renderSdToRealDrawingCanvas(drawingData) {
+      const canvasInfo = drawingData?.canvas || {};
+      const width = Number(canvasInfo.width) || 1024;
+      const height = Number(canvasInfo.height) || 1536;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      const line = getDrawingColor(drawingData, 'line', '#2a2530');
+      const skin = getDrawingColor(drawingData, 'skin', '#f2c9b8');
+      const hair = getDrawingColor(drawingData, 'hair', '#5b4a68');
+      const main = getDrawingColor(drawingData, 'main', '#6d4aa2');
+      const sub = getDrawingColor(drawingData, 'sub', '#d9d2e9');
+      const accent = getDrawingColor(drawingData, 'accent', '#d6ad4f');
+      const shadow = getDrawingColor(drawingData, 'shadow', '#4d3a62');
+      const bg = /^#[0-9a-f]{6}$/i.test(canvasInfo.background || '') ? canvasInfo.background : '#f8f6fb';
+
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, bg);
+      gradient.addColorStop(1, '#ffffff');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      const guide = drawingData?.bodyGuide || {};
+      const cx = width * (Number(guide.centerX) || 0.5);
+      const top = height * (Number(guide.topY) || 0.07);
+      const bodyHeight = height * (Number(guide.heightRatio) || 0.86);
+      const head = bodyHeight / 14;
+      const headCx = cx;
+      const headCy = top + head * 0.55;
+      const neckY = top + head * 1.15;
+      const shoulderY = top + head * 1.55;
+      const chestY = top + head * 2.55;
+      const waistY = top + head * 4.1;
+      const hipY = top + head * 5.0;
+      const kneeY = top + head * 9.5;
+      const footY = top + bodyHeight;
+      const shoulderW = head * 1.95;
+      const waistW = head * 1.1;
+      const hipW = head * 1.45;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(3, width * 0.004);
+
+      ctx.globalAlpha = 0.11;
+      ctx.strokeStyle = main;
+      for (let i = 0; i <= 14; i++) {
+        const y = top + head * i;
+        ctx.beginPath();
+        ctx.moveTo(cx - head * 1.7, y);
+        ctx.lineTo(cx + head * 1.7, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = line;
+
+      ctx.fillStyle = sub;
+      ctx.beginPath();
+      ctx.moveTo(cx - head * 1.25, shoulderY);
+      ctx.bezierCurveTo(cx - head * 2.25, top + head * 3.1, cx - head * 1.65, top + head * 7.2, cx - head * 0.8, footY - head * 1.5);
+      ctx.lineTo(cx + head * 0.8, footY - head * 1.5);
+      ctx.bezierCurveTo(cx + head * 1.65, top + head * 7.2, cx + head * 2.25, top + head * 3.1, cx + head * 1.25, shoulderY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = skin;
+      drawEllipsePath(ctx, headCx, headCy, head * 0.34, head * 0.45);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = hair;
+      ctx.beginPath();
+      ctx.moveTo(headCx - head * 0.48, headCy - head * 0.22);
+      ctx.bezierCurveTo(headCx - head * 0.64, headCy - head * 0.78, headCx + head * 0.55, headCy - head * 0.82, headCx + head * 0.48, headCy - head * 0.12);
+      ctx.bezierCurveTo(headCx + head * 0.42, headCy + head * 0.42, headCx - head * 0.42, headCy + head * 0.42, headCx - head * 0.48, headCy - head * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(2, width * 0.0026);
+      ctx.beginPath();
+      ctx.moveTo(headCx - head * 0.14, headCy + head * 0.04);
+      ctx.lineTo(headCx + head * 0.14, headCy + head * 0.04);
+      ctx.moveTo(headCx - head * 0.1, headCy + head * 0.18);
+      ctx.quadraticCurveTo(headCx, headCy + head * 0.24, headCx + head * 0.1, headCy + head * 0.18);
+      ctx.stroke();
+
+      ctx.fillStyle = main;
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(3, width * 0.004);
+      ctx.beginPath();
+      ctx.moveTo(cx - shoulderW / 2, shoulderY);
+      ctx.lineTo(cx + shoulderW / 2, shoulderY);
+      ctx.lineTo(cx + waistW / 2, waistY);
+      ctx.lineTo(cx + hipW / 2, hipY);
+      ctx.lineTo(cx + head * 0.52, footY - head * 0.45);
+      ctx.lineTo(cx + head * 0.12, footY - head * 0.28);
+      ctx.lineTo(cx, hipY + head * 0.15);
+      ctx.lineTo(cx - head * 0.12, footY - head * 0.28);
+      ctx.lineTo(cx - head * 0.52, footY - head * 0.45);
+      ctx.lineTo(cx - hipW / 2, hipY);
+      ctx.lineTo(cx - waistW / 2, waistY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shadow;
+      ctx.globalAlpha = 0.24;
+      ctx.beginPath();
+      ctx.moveTo(cx, shoulderY);
+      ctx.lineTo(cx + waistW / 2, waistY);
+      ctx.lineTo(cx + head * 0.5, footY - head * 0.45);
+      ctx.lineTo(cx + head * 0.12, footY - head * 0.28);
+      ctx.lineTo(cx, hipY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(4, width * 0.005);
+      ctx.beginPath();
+      ctx.moveTo(cx - shoulderW * 0.33, chestY);
+      ctx.quadraticCurveTo(cx, chestY + head * 0.42, cx + shoulderW * 0.33, chestY);
+      ctx.moveTo(cx - hipW * 0.42, hipY);
+      ctx.quadraticCurveTo(cx, hipY + head * 0.25, cx + hipW * 0.42, hipY);
+      ctx.stroke();
+
+      ctx.fillStyle = accent;
+      drawRoundedDiamond(ctx, cx, chestY + head * 0.12, head * 0.34, head * 0.52);
+      ctx.fill();
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(2, width * 0.0028);
+      ctx.stroke();
+
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(6, width * 0.007);
+      const rightHandX = cx - shoulderW * 0.95;
+      const leftHandX = cx + shoulderW * 0.95;
+      const handY = waistY + head * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - shoulderW / 2, shoulderY + head * 0.1);
+      ctx.lineTo(rightHandX, handY);
+      ctx.moveTo(cx + shoulderW / 2, shoulderY + head * 0.1);
+      ctx.lineTo(leftHandX, handY);
+      ctx.stroke();
+
+      const rightEq = drawingData?.equipment?.rightHand || {};
+      const leftEq = drawingData?.equipment?.leftHand || {};
+      ctx.strokeStyle = rightEq.color || main;
+      ctx.lineWidth = Math.max(9, width * 0.01);
+      ctx.beginPath();
+      ctx.moveTo(rightHandX - head * 0.1, handY + head * 0.3);
+      ctx.lineTo(rightHandX - head * 1.15, top + head * 2.0);
+      ctx.stroke();
+      ctx.fillStyle = rightEq.accent || accent;
+      drawRoundedDiamond(ctx, rightHandX - head * 1.25, top + head * 1.7, head * 0.45, head * 0.95);
+      ctx.fill();
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(3, width * 0.004);
+      ctx.stroke();
+
+      ctx.fillStyle = leftEq.color || sub;
+      drawRoundedDiamond(ctx, leftHandX + head * 0.25, handY + head * 0.2, head * 0.95, head * 1.25);
+      ctx.fill();
+      ctx.strokeStyle = line;
+      ctx.stroke();
+      ctx.fillStyle = leftEq.accent || accent;
+      drawEllipsePath(ctx, leftHandX + head * 0.25, handY + head * 0.2, head * 0.18, head * 0.18);
+      ctx.fill();
+
+      ctx.strokeStyle = line;
+      ctx.lineWidth = Math.max(5, width * 0.006);
+      ctx.beginPath();
+      ctx.moveTo(cx - head * 0.12, hipY + head * 0.15);
+      ctx.lineTo(cx - head * 0.62, kneeY);
+      ctx.lineTo(cx - head * 0.52, footY - head * 0.25);
+      ctx.moveTo(cx + head * 0.12, hipY + head * 0.15);
+      ctx.lineTo(cx + head * 0.62, kneeY);
+      ctx.lineTo(cx + head * 0.52, footY - head * 0.25);
+      ctx.stroke();
+
+      ctx.restore();
+      return canvas.toDataURL('image/png');
+    }
+
+    async function handleSdToRealDrawingMvp() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!selectedReferenceAsset?.file_url) {
+        showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
+        return;
+      }
+      if (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters) {
+        showMessage('先にリアル2D生成用パラメータを確定してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      sdDrawingState = { ...createInitialSdDrawingState(), status: 'generating' };
+      document.getElementById('saveBtn').disabled = true;
+      renderSdExtractionPanel();
+      showMessage('');
+      showProcessingOverlay('描画データ作成中...', 'Geminiで描画JSONを作り、CanvasでPNG化しています。');
+
+      try {
+        const blob = await imageSourceToBlob(selectedReferenceAsset.file_url);
+        const imageBase64 = await blobToBase64(blob);
+        const imageMimeType = blob.type || 'image/webp';
+        const { data, error } = await window.supabaseClient.functions.invoke(SD_TO_REAL_DRAWING_FUNCTION_NAME, {
+          body: {
+            reference_image_base64: imageBase64,
+            reference_image_mime_type: imageMimeType,
+            target_gender: getFieldValue('tpl_character_sd_to_real_gender'),
+            mode_conversion: getFieldValue('tpl_character_mode_conversion'),
+            confirmed_parameters: real2dParameterState.parameters
+          }
+        });
+
+        if (error) {
+          throw new Error(error.message || '描画データFunctionの呼び出しに失敗しました。');
+        }
+        if (!data?.ok || !data?.drawing_data) {
+          throw new Error(data?.message || data?.error || '描画データの作成に失敗しました。');
+        }
+
+        const dataUrl = renderSdToRealDrawingCanvas(data.drawing_data);
+        sdDrawingState = {
+          status: 'generated',
+          drawingData: data.drawing_data,
+          dataUrl,
+          model: data.model || '',
+          prompt: data.drawing_prompt || '',
+          modelText: data.model_text || '',
+          error: '',
+          warnings: data.warnings || []
+        };
+        currentGeneratedMode = 'character';
+        currentGeneratedMimeType = 'image/png';
+        currentGeneratedDataUrl = dataUrl;
+        renderPreview(dataUrl);
+        renderPromptDebug({
+          prompt: data.drawing_prompt || '',
+          modelText: data.model_text || ''
+        }, {
+          drawing_data: data.drawing_data,
+          source_page: 'nft_generate_v2_test',
+          conversion: 'sd_to_real2d_canvas_mvp'
+        });
+        document.getElementById('saveBtn').disabled = false;
+        showMessage('描画方式MVPのPNGを作成しました。必要ならイラスト保管庫に保存してください。');
+      } catch (err) {
+        console.error(err);
+        sdDrawingState = {
+          ...createInitialSdDrawingState(),
+          status: 'error',
+          error: err.message || String(err)
+        };
+        showMessage(sdDrawingState.error, 'error');
+      } finally {
+        hideProcessingOverlay();
+        renderSdExtractionPanel();
       }
     }
 
