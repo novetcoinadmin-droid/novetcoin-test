@@ -91,6 +91,64 @@ function normalizeNumber(value: unknown, fallback: number, min: number, max: num
   return Math.min(max, Math.max(min, num));
 }
 
+function normalizeSvgElement(value: unknown) {
+  const element = asRecord(value);
+  const type = pickString(element.type);
+  if (!["path", "ellipse", "circle", "polygon", "polyline", "line", "rect"].includes(type)) {
+    return null;
+  }
+
+  const normalized: Record<string, unknown> = {
+    type,
+    id: pickString(element.id).slice(0, 60),
+    fill: normalizeColor(element.fill, "none"),
+    stroke: normalizeColor(element.stroke, "#2a2530"),
+    strokeWidth: normalizeNumber(element.strokeWidth, 3, 0, 40),
+    opacity: normalizeNumber(element.opacity, 1, 0, 1),
+    note: pickString(element.note).slice(0, 300),
+  };
+
+  if (pickString(element.fill).toLowerCase() === "none") normalized.fill = "none";
+  if (pickString(element.stroke).toLowerCase() === "none") normalized.stroke = "none";
+
+  if (type === "path") {
+    const d = pickString(element.d).replace(/[^MmZzLlHhVvCcSsQqTtAa0-9,.\-\s]/g, "").slice(0, 1800);
+    if (!d) return null;
+    normalized.d = d;
+  } else if (type === "polygon" || type === "polyline") {
+    const points = pickString(element.points).replace(/[^0-9,.\-\s]/g, "").slice(0, 1200);
+    if (!points) return null;
+    normalized.points = points;
+  } else {
+    ["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "rx", "ry", "r", "width", "height"].forEach((key) => {
+      if (element[key] != null) normalized[key] = normalizeNumber(element[key], 0, -3000, 3000);
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeSvgData(source: Record<string, unknown>) {
+  const svg = asRecord(source.svg);
+  const rawLayers = Array.isArray(svg.layers) ? svg.layers : [];
+  const layers = rawLayers.slice(0, 28).map((layerValue) => {
+    const layer = asRecord(layerValue);
+    const elements = Array.isArray(layer.elements)
+      ? layer.elements.map(normalizeSvgElement).filter(Boolean).slice(0, 40)
+      : [];
+    return {
+      id: pickString(layer.id).slice(0, 60) || "layer",
+      label: pickString(layer.label).slice(0, 120) || "Layer",
+      elements,
+    };
+  }).filter((layer) => layer.elements.length);
+
+  return {
+    viewBox: pickString(svg.viewBox).replace(/[^0-9,.\-\s]/g, "").slice(0, 80) || "0 0 1024 1536",
+    layers,
+  };
+}
+
 function normalizeDrawingData(parsed: Record<string, unknown>) {
   const source = asRecord(parsed.drawing_data || parsed.drawingData || parsed);
   const canvas = asRecord(source.canvas);
@@ -186,6 +244,7 @@ function normalizeDrawingData(parsed: Record<string, unknown>) {
       flow: pickString(cape.flow) || "long cape flowing down character right side",
       pattern: pickString(cape.pattern) || "gold trim and small ornamental motifs near the edge",
     },
+    svg: normalizeSvgData(source),
     details: {
       face: pickString(details.face) || "small refined mature anime face",
       hair: pickString(details.hair) || "preserve source hair color and bang silhouette",
@@ -238,6 +297,11 @@ Hard rules:
 - The output is drawing instructions, not prose and not an image.
 - Use valid hex colors.
 - Keep all coordinates normalized where requested.
+- Also return an optional SVG layer plan. Use viewBox "0 0 1024 1536". The SVG should be deterministic, full-body, and character-only.
+- SVG element types allowed: path, ellipse, circle, polygon, polyline, line, rect.
+- For SVG paths, use absolute coordinates when possible. Keep path data compact and valid.
+- SVG layers must be ordered back-to-front and must include separate layers for cape/back, legs/body, head/hair, face cover/ornament, right-hand equipment, left-hand shield/equipment, and gold motifs.
+- Do not include text elements, external images, scripts, filters, foreignObject, CSS, URLs, or embedded raster images.
 
 Target gender: ${targetGender || "unspecified"}
 Mode conversion: ${modeConversion || "SD character to real 2D"}
@@ -320,6 +384,27 @@ Return this JSON shape:
       "lining": "#d8caa4",
       "flow": "which side it flows to and length",
       "pattern": "edge trim, holes, emblems, repeated motifs"
+    },
+    "svg": {
+      "viewBox": "0 0 1024 1536",
+      "layers": [
+        {
+          "id": "cape-back",
+          "label": "cape and back equipment",
+          "elements": [
+            {
+              "type": "path",
+              "id": "main-cape",
+              "d": "M ...",
+              "fill": "#263896",
+              "stroke": "#2a2530",
+              "strokeWidth": 5,
+              "opacity": 1,
+              "note": "blue cape flowing to character right with gold trim"
+            }
+          ]
+        }
+      ]
     },
     "details": {
       "face": "small refined mature anime face details to preserve",

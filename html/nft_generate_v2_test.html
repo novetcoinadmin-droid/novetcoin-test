@@ -1497,6 +1497,166 @@
       ctx.closePath();
     }
 
+    function escapeSvgValue(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function getSvgPaint(value, fallback) {
+      if (String(value || '').toLowerCase() === 'none') return 'none';
+      return /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
+    }
+
+    function buildSvgElementMarkup(element) {
+      const type = element?.type || '';
+      const fill = getSvgPaint(element?.fill, 'none');
+      const stroke = getSvgPaint(element?.stroke, '#2a2530');
+      const strokeWidth = Number.isFinite(Number(element?.strokeWidth)) ? Number(element.strokeWidth) : 3;
+      const opacity = Number.isFinite(Number(element?.opacity)) ? Math.max(0, Math.min(1, Number(element.opacity))) : 1;
+      const common = `fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}"`;
+      if (type === 'path' && element.d) {
+        return `<path d="${escapeSvgValue(element.d)}" ${common}/>`;
+      }
+      if ((type === 'polygon' || type === 'polyline') && element.points) {
+        return `<${type} points="${escapeSvgValue(element.points)}" ${common}/>`;
+      }
+      if (type === 'ellipse') {
+        return `<ellipse cx="${Number(element.cx) || 0}" cy="${Number(element.cy) || 0}" rx="${Number(element.rx) || 1}" ry="${Number(element.ry) || 1}" ${common}/>`;
+      }
+      if (type === 'circle') {
+        return `<circle cx="${Number(element.cx) || 0}" cy="${Number(element.cy) || 0}" r="${Number(element.r) || 1}" ${common}/>`;
+      }
+      if (type === 'line') {
+        return `<line x1="${Number(element.x1) || 0}" y1="${Number(element.y1) || 0}" x2="${Number(element.x2) || 0}" y2="${Number(element.y2) || 0}" ${common}/>`;
+      }
+      if (type === 'rect') {
+        return `<rect x="${Number(element.x) || 0}" y="${Number(element.y) || 0}" width="${Number(element.width) || 1}" height="${Number(element.height) || 1}" rx="${Number(element.rx) || 0}" ${common}/>`;
+      }
+      return '';
+    }
+
+    function buildSvgFromGeminiLayers(drawingData) {
+      const svg = drawingData?.svg || {};
+      const layers = Array.isArray(svg.layers) ? svg.layers : [];
+      if (!layers.length) return '';
+      const canvas = drawingData?.canvas || {};
+      const width = Number(canvas.width) || 1024;
+      const height = Number(canvas.height) || 1536;
+      const background = /^#[0-9a-f]{6}$/i.test(canvas.background || '') ? canvas.background : '#f8f6fb';
+      const viewBox = String(svg.viewBox || `0 0 ${width} ${height}`).replace(/[^0-9,.\-\s]/g, '') || `0 0 ${width} ${height}`;
+      const layerMarkup = layers.map((layer) => {
+        const elements = Array.isArray(layer.elements) ? layer.elements.map(buildSvgElementMarkup).join('') : '';
+        if (!elements) return '';
+        return `<g id="${escapeSvgValue(layer.id || 'layer')}">${elements}</g>`;
+      }).join('');
+      if (!layerMarkup) return '';
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}"><rect width="100%" height="100%" fill="${background}"/>${layerMarkup}</svg>`;
+    }
+
+    function buildFallbackSvgDrawing(drawingData) {
+      const canvas = drawingData?.canvas || {};
+      const width = Number(canvas.width) || 1024;
+      const height = Number(canvas.height) || 1536;
+      const bg = /^#[0-9a-f]{6}$/i.test(canvas.background || '') ? canvas.background : '#f8f6fb';
+      const line = getDrawingColor(drawingData, 'line', '#2a2530');
+      const skin = getDrawingColor(drawingData, 'skin', '#f2c9b8');
+      const hair = getDrawingColor(drawingData, 'hair', '#5b4a68');
+      const main = getDrawingColor(drawingData, 'main', '#263896');
+      const accent = getDrawingColor(drawingData, 'accent', '#d6ad4f');
+      const cape = drawingData?.cape || {};
+      const capeColor = /^#[0-9a-f]{6}$/i.test(cape.color || '') ? cape.color : '#263896';
+      const capeLining = /^#[0-9a-f]{6}$/i.test(cape.lining || '') ? cape.lining : '#d8caa4';
+      const accessories = drawingData?.accessories || {};
+      const featherColor = /^#[0-9a-f]{6}$/i.test(accessories.featherColor || '') ? accessories.featherColor : '#dfe6f2';
+      const flowerColor = /^#[0-9a-f]{6}$/i.test(accessories.flowerColor || '') ? accessories.flowerColor : '#b23a32';
+      const head = drawingData?.head || {};
+      const eyeColor = /^#[0-9a-f]{6}$/i.test(head.visibleEyeColor || '') ? head.visibleEyeColor : '#7fa6d9';
+      const right = drawingData?.equipment?.rightHand || {};
+      const left = drawingData?.equipment?.leftHand || {};
+      const rightColor = /^#[0-9a-f]{6}$/i.test(right.color || '') ? right.color : '#2b2a28';
+      const rightAccent = /^#[0-9a-f]{6}$/i.test(right.accent || '') ? right.accent : '#b99a45';
+      const shieldColor = /^#[0-9a-f]{6}$/i.test(left.color || '') ? left.color : '#f8f5ee';
+      const emblemColor = /^#[0-9a-f]{6}$/i.test(left.emblemColor || '') ? left.emblemColor : '#b94b35';
+      const cx = 512;
+      const top = 108;
+      const unit = 94;
+      const shoulderY = top + unit * 1.55;
+      const waistY = top + unit * 4.1;
+      const hipY = top + unit * 5;
+      const footY = top + unit * 14;
+      const headCx = cx;
+      const headCy = top + unit * 0.55;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 1024 1536">
+        <rect width="100%" height="100%" fill="${bg}"/>
+        <g stroke="#e4e6f0" stroke-width="4" opacity="0.7">${Array.from({ length: 15 }, (_, i) => `<line x1="330" y1="${top + unit * i}" x2="694" y2="${top + unit * i}"/>`).join('')}</g>
+        <path d="M410 ${shoulderY} C330 520 350 940 430 ${footY - 110} L600 ${footY - 90} C760 880 745 520 615 ${shoulderY + 10} Z" fill="${capeColor}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M622 ${shoulderY + 40} C710 600 690 930 595 ${footY - 110}" fill="none" stroke="${capeLining}" stroke-width="8" stroke-linecap="round"/>
+        <path d="M412 ${shoulderY} L612 ${shoulderY} L560 ${waistY} L592 ${hipY} L558 ${footY - 35} L520 ${footY - 10} L512 ${hipY + 12} L504 ${footY - 10} L466 ${footY - 35} L432 ${hipY} L464 ${waistY} Z" fill="${main}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M470 340 Q512 380 554 340 M455 610 Q512 635 569 610" fill="none" stroke="${accent}" stroke-width="7" stroke-linecap="round"/>
+        <path d="M512 330 L532 360 L512 392 L492 360 Z" fill="${accent}" stroke="${line}" stroke-width="4"/>
+        <ellipse cx="${headCx}" cy="${headCy}" rx="34" ry="45" fill="${skin}" stroke="${line}" stroke-width="5"/>
+        <path d="M468 140 C458 72 575 74 562 154 C564 288 530 344 492 265 C468 215 470 175 468 140 Z" fill="${hair}" stroke="${line}" stroke-width="5"/>
+        <path d="M466 170 L558 168 L550 212 L460 213 Z" fill="${main}" stroke="${line}" stroke-width="5"/>
+        <ellipse cx="532" cy="165" rx="9" ry="12" fill="${eyeColor}" stroke="${line}" stroke-width="3"/>
+        <path d="M480 118 L512 82 L552 118 L542 146 L490 146 Z" fill="${main}" stroke="${line}" stroke-width="5"/>
+        <path d="M493 121 Q512 96 533 121 M500 134 Q512 121 526 134" fill="none" stroke="${accent}" stroke-width="4" stroke-linecap="round"/>
+        <path d="M550 94 C618 -60 610 -120 580 -190 C570 -90 532 20 550 94 Z" fill="${featherColor}" stroke="${line}" stroke-width="5"/>
+        <g fill="${flowerColor}" stroke="none">${Array.from({ length: 8 }, (_, i) => {
+          const a = Math.PI * 2 * i / 8;
+          return `<ellipse cx="${560 + Math.cos(a) * 13}" cy="${92 + Math.sin(a) * 13}" rx="9" ry="5" transform="rotate(${i * 45} ${560 + Math.cos(a) * 13} ${92 + Math.sin(a) * 13})"/>`;
+        }).join('')}<circle cx="560" cy="92" r="6" fill="${accent}"/></g>
+        <line x1="420" y1="390" x2="320" y2="610" stroke="${line}" stroke-width="8" stroke-linecap="round"/>
+        <line x1="604" y1="390" x2="682" y2="530" stroke="${line}" stroke-width="8" stroke-linecap="round"/>
+        <line x1="320" y1="610" x2="205" y2="315" stroke="${rightColor}" stroke-width="10" stroke-linecap="round"/>
+        <path d="M135 260 L298 350 L210 410 L180 392 L118 468 L132 350 L88 302 Z" fill="${rightColor}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M150 275 L274 342 M145 342 L214 385" fill="none" stroke="${rightAccent}" stroke-width="7" stroke-linecap="round"/>
+        <polygon points="690,472 728,490 748,528 730,568 690,588 650,568 632,528 652,490" fill="${shieldColor}" stroke="${line}" stroke-width="6"/>
+        <polygon points="690,485 718,498 733,528 718,558 690,572 662,558 648,528 662,498" fill="none" stroke="${accent}" stroke-width="6"/>
+        <path d="M690 498 L700 522 L725 514 L704 532 L724 552 L698 542 L690 570 L682 542 L656 552 L676 532 L655 514 L680 522 Z" fill="${emblemColor}" stroke="none"/>
+      </svg>`;
+    }
+
+    async function svgToPngDataUrl(svgText, width = 1024, height = 1536) {
+      return new Promise((resolve, reject) => {
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (err) {
+            URL.revokeObjectURL(url);
+            reject(err);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('SVGのPNG変換に失敗しました。'));
+        };
+        img.src = url;
+      });
+    }
+
+    async function renderSdToRealDrawingSvg(drawingData) {
+      const svgText = buildSvgFromGeminiLayers(drawingData) || buildFallbackSvgDrawing(drawingData);
+      const canvas = drawingData?.canvas || {};
+      const width = Number(canvas.width) || 1024;
+      const height = Number(canvas.height) || 1536;
+      return {
+        svgText,
+        dataUrl: await svgToPngDataUrl(svgText, width, height)
+      };
+    }
+
     function renderSdToRealDrawingCanvas(drawingData) {
       const canvasInfo = drawingData?.canvas || {};
       const width = Number(canvasInfo.width) || 1024;
@@ -1827,10 +1987,14 @@
           throw new Error(data?.message || data?.error || '描画データの作成に失敗しました。');
         }
 
-        const dataUrl = renderSdToRealDrawingCanvas(data.drawing_data);
+        const rendered = await renderSdToRealDrawingSvg(data.drawing_data);
+        const dataUrl = rendered.dataUrl || renderSdToRealDrawingCanvas(data.drawing_data);
         sdDrawingState = {
           status: 'generated',
-          drawingData: data.drawing_data,
+          drawingData: {
+            ...data.drawing_data,
+            rendered_svg: rendered.svgText || ''
+          },
           dataUrl,
           model: data.model || '',
           prompt: data.drawing_prompt || '',
@@ -1847,8 +2011,9 @@
           modelText: data.model_text || ''
         }, {
           drawing_data: data.drawing_data,
+          rendered_svg: rendered.svgText || '',
           source_page: 'nft_generate_v2_test',
-          conversion: 'sd_to_real2d_canvas_mvp'
+          conversion: 'sd_to_real2d_svg_mvp'
         });
         document.getElementById('saveBtn').disabled = false;
         showMessage('描画方式MVPのPNGを作成しました。必要ならイラスト保管庫に保存してください。');
