@@ -1156,8 +1156,10 @@
             <div style="font-weight:700;">参照画像</div>
             <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
             <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
+            <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="handleSdToRealDrawingMvp('holistic_svg')">一枚絵SVG抽出で変換</button>
             <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を変更</button>
             <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">参照画像を解除</button>
+            <p class="muted" style="margin:8px 0 0;">旧抽出を使わず、参照画像全体を一枚絵として解析してSVG化します。</p>
           </div>
         ` : `
           <div class="reference-card">
@@ -1944,7 +1946,7 @@
       return canvas.toDataURL('image/png');
     }
 
-    async function handleSdToRealDrawingMvp() {
+    async function handleSdToRealDrawingMvp(drawingMode = 'parameter_assisted_svg') {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
         return;
@@ -1954,7 +1956,8 @@
         showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
         return;
       }
-      if (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters) {
+      const isHolistic = drawingMode === 'holistic_svg';
+      if (!isHolistic && (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters)) {
         showMessage('先にリアル2D生成用パラメータを確定してください。', 'error');
         renderSdExtractionPanel();
         return;
@@ -1964,7 +1967,12 @@
       document.getElementById('saveBtn').disabled = true;
       renderSdExtractionPanel();
       showMessage('');
-      showProcessingOverlay('描画データ作成中...', 'Geminiで描画JSONを作り、CanvasでPNG化しています。');
+      showProcessingOverlay(
+        isHolistic ? '一枚絵SVG抽出中...' : '描画データ作成中...',
+        isHolistic
+          ? '参照画像全体を解析し、SVGレイヤーとしてPNG化しています。'
+          : 'Geminiで描画JSONを作り、SVG/CanvasでPNG化しています。'
+      );
 
       try {
         const blob = await imageSourceToBlob(selectedReferenceAsset.file_url);
@@ -1976,7 +1984,10 @@
             reference_image_mime_type: imageMimeType,
             target_gender: getFieldValue('tpl_character_sd_to_real_gender'),
             mode_conversion: getFieldValue('tpl_character_mode_conversion'),
-            confirmed_parameters: real2dParameterState.parameters
+            drawing_mode: drawingMode,
+            confirmed_parameters: isHolistic ? {
+              note: 'Holistic SVG mode: use the reference image as the primary source. Do not depend on old extraction fields.'
+            } : real2dParameterState.parameters
           }
         });
 
@@ -2013,10 +2024,12 @@
           drawing_data: data.drawing_data,
           rendered_svg: rendered.svgText || '',
           source_page: 'nft_generate_v2_test',
-          conversion: 'sd_to_real2d_svg_mvp'
+          conversion: isHolistic ? 'sd_to_real2d_holistic_svg_mvp' : 'sd_to_real2d_svg_mvp'
         });
         document.getElementById('saveBtn').disabled = false;
-        showMessage('描画方式MVPのPNGを作成しました。必要ならイラスト保管庫に保存してください。');
+        showMessage(isHolistic
+          ? '一枚絵SVG抽出のPNGを作成しました。必要ならイラスト保管庫に保存してください。'
+          : '描画方式MVPのPNGを作成しました。必要ならイラスト保管庫に保存してください。');
       } catch (err) {
         console.error(err);
         sdDrawingState = {

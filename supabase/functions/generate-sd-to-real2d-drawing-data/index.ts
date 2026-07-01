@@ -275,21 +275,29 @@ function buildDrawingInstruction(
   targetGender: string,
   modeConversion: string,
   confirmedParameters: unknown,
+  drawingMode: string,
 ) {
+  const isHolistic = drawingMode === "holistic_svg";
   return `
-You are a drawing-data generator for an SD/chibi game character to tall real 2D manga character conversion.
+You are a ${isHolistic ? "holistic image-to-SVG extraction engine" : "drawing-data generator"} for an SD/chibi game character to tall real 2D manga character conversion.
 
 Do not generate an image. Return JSON only.
 
 Goal:
-Create browser Canvas drawing data for a deterministic MVP renderer. The renderer will draw a 14-heads-tall full-body PNG.
+${isHolistic
+    ? "Analyze the provided reference image as one complete character picture, then create a full-body SVG layer plan that redraws the whole character as a 14-heads-tall real 2D manga-style figure. Treat the source as a single composition, not as independent extraction fields."
+    : "Create browser Canvas/SVG drawing data for a deterministic MVP renderer. The renderer will draw a 14-heads-tall full-body PNG."
+  }
 
 Hard rules:
+- Do not rely on old extraction fields as the primary source in holistic_svg mode. Read the image directly and preserve the whole character composition.
 - Preserve the source character identity: hair, face accessories, outfit motifs, color palette, equipment, pose logic, and hand assignment.
 - Do not preserve SD/chibi body proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, numbers, or frames.
 - Right-hand equipment and left-hand equipment must stay separate and must not be swapped.
 - Make the target body exactly 14-heads-tall. The head must be very small relative to body height.
 - Convert screenshot/game UI into exclusion notes only. Do not draw level labels, dates, buttons, panels, browser UI, or background scenery.
+- First solve the full silhouette as one picture: head position, torso mass, cape/back shape, right-hand equipment location, left-hand equipment location, legs, and overall balance.
+- Then layer internal details onto that silhouette. Do not assemble a generic stick character from isolated parts.
 - Break distinctive features into explicit drawable parts. Do not merge face cover, forehead ornament, hair overlap, visible eye, feather, flower, cape, right-hand equipment, and left-hand shield into one vague accessory.
 - If the source has one visible eye and the other side is covered by hair or a face ornament, preserve that asymmetry.
 - If the source has a feather or wing-like head ornament and a red flower, output both as separate accessory fields.
@@ -305,8 +313,9 @@ Hard rules:
 
 Target gender: ${targetGender || "unspecified"}
 Mode conversion: ${modeConversion || "SD character to real 2D"}
+Drawing mode: ${drawingMode || "parameter_assisted_svg"}
 
-User-confirmed source parameters:
+Optional user-confirmed source parameters. In holistic_svg mode, use these only as weak notes; the image is the authority:
 ${JSON.stringify(confirmedParameters || {}, null, 2)}
 
 Return this JSON shape:
@@ -449,6 +458,7 @@ Deno.serve(async (req) => {
     "image/webp";
   const targetGender = pickString(body.target_gender);
   const modeConversion = pickString(body.mode_conversion);
+  const drawingMode = pickString(body.drawing_mode) || "parameter_assisted_svg";
   const confirmedParameters = body.confirmed_parameters || {};
 
   if (!imageBase64) {
@@ -459,6 +469,7 @@ Deno.serve(async (req) => {
     targetGender,
     modeConversion,
     confirmedParameters,
+    drawingMode,
   );
   const geminiPayload = {
     contents: [
