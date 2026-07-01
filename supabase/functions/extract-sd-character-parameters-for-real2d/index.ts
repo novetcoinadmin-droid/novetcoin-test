@@ -108,6 +108,7 @@ function normalizeExtractedParameters(parsed: Record<string, unknown>) {
     left_hand_equipment: blankExtractionField("LOCK"),
     pose: blankExtractionField("KEEP"),
     colors_and_motifs: blankExtractionField("LOCK"),
+    advanced_drawing_hints: blankExtractionField("LOCK"),
     background_and_ui_exclusion: blankExtractionField("IGNORE"),
   };
 
@@ -323,6 +324,16 @@ Return this exact JSON shape:
       "occlusion_note": "",
       "anti_misread_note": ""
     },
+    "advanced_drawing_hints": {
+      "ai_estimate": "",
+      "ai_estimate_japanese": "",
+      "confidence": "unknown",
+      "user_confirmation_status": "未確認",
+      "user_override": "",
+      "generation_handling": "LOCK",
+      "occlusion_note": "",
+      "anti_misread_note": ""
+    },
     "background_and_ui_exclusion": {
       "ai_estimate": "",
       "ai_estimate_japanese": "",
@@ -349,6 +360,7 @@ Category detail checklist:
 - left_hand_equipment: inferred category, hand assignment, shape, size, position, angle, emblem, color, crop/hidden state.
 - pose: body direction, face direction, right arm, left arm, right weapon placement, left equipment placement, legs, cape/hair flow, screen composition.
 - colors_and_motifs: main colors, sub colors, accent colors, repeated motifs, emblem positions, ornament atmosphere.
+- advanced_drawing_hints: renderer-oriented character parts. Include head/hair shape, visible eye side and color, covered eye side, face-cover/high-collar shape, forehead ornament/circlet, feather/wing ornament side and color, flower/hair ornament side and color, cape shape/flow/pattern, right-hand weapon silhouette and screen position, left-hand shield/equipment shape and emblem, and which parts must be separate layers.
 - background_and_ui_exclusion: background use, UI elements, UI exclusion targets, character screen position.
 
 For right_hand_weapon.ai_estimate_japanese and left_hand_equipment.ai_estimate_japanese:

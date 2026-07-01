@@ -97,8 +97,13 @@ function normalizeDrawingData(parsed: Record<string, unknown>) {
   const colors = asRecord(source.colors);
   const bodyGuide = asRecord(source.bodyGuide || source.body_guide);
   const pose = asRecord(source.pose);
+  const head = asRecord(source.head);
+  const accessories = asRecord(source.accessories);
   const equipment = asRecord(source.equipment);
+  const cape = asRecord(source.cape);
   const details = asRecord(source.details);
+  const rightHand = asRecord(equipment.rightHand);
+  const leftHand = asRecord(equipment.leftHand);
 
   return {
     canvas: {
@@ -130,6 +135,23 @@ function normalizeDrawingData(parsed: Record<string, unknown>) {
       legs: pickString(pose.legs) || "long standing pose",
       notes: pickString(pose.notes),
     },
+    head: {
+      hairShape: pickString(head.hairShape) || "long side-swept bangs covering one side",
+      hairCoverageSide: pickString(head.hairCoverageSide) || "character left",
+      visibleEyeSide: pickString(head.visibleEyeSide) || "character right",
+      visibleEyeColor: normalizeColor(head.visibleEyeColor, "#7fa6d9"),
+      faceCoverShape: pickString(head.faceCoverShape) ||
+        "high blue collar or face cover across lower face",
+      foreheadOrnament: pickString(head.foreheadOrnament) ||
+        "blue and gold forehead ornament or circlet",
+    },
+    accessories: {
+      featherSide: pickString(accessories.featherSide) || "character right",
+      featherColor: normalizeColor(accessories.featherColor, "#dfe6f2"),
+      flowerSide: pickString(accessories.flowerSide) || "character right",
+      flowerColor: normalizeColor(accessories.flowerColor, "#b23a32"),
+      goldDangles: pickString(accessories.goldDangles) || "small gold hanging ornaments",
+    },
     silhouette: {
       hairShape: pickString(source.silhouette && asRecord(source.silhouette).hairShape) ||
         "medium fantasy hair with recognizable bangs",
@@ -140,19 +162,29 @@ function normalizeDrawingData(parsed: Record<string, unknown>) {
     },
     equipment: {
       rightHand: {
-        category: pickString(asRecord(equipment.rightHand).category) || "right-hand equipment",
-        shape: pickString(asRecord(equipment.rightHand).shape) ||
-          "long readable weapon silhouette matching source",
-        color: normalizeColor(asRecord(equipment.rightHand).color, "#6d4aa2"),
-        accent: normalizeColor(asRecord(equipment.rightHand).accent, "#d6ad4f"),
+        category: pickString(rightHand.category) || "large umbrella-like staff or polearm",
+        shape: pickString(rightHand.shape) ||
+          "long black shaft with large tattered black-and-gold umbrella or banner-shaped head on screen left",
+        color: normalizeColor(rightHand.color, "#2b2a28"),
+        accent: normalizeColor(rightHand.accent, "#b99a45"),
+        position: pickString(rightHand.position) || "screen left of character, diagonal upward",
+        headShape: pickString(rightHand.headShape) || "large ragged canopy or cloth blade",
       },
       leftHand: {
-        category: pickString(asRecord(equipment.leftHand).category) || "left-hand equipment",
-        shape: pickString(asRecord(equipment.leftHand).shape) ||
-          "compact readable equipment silhouette matching source",
-        color: normalizeColor(asRecord(equipment.leftHand).color, "#d9d2e9"),
-        accent: normalizeColor(asRecord(equipment.leftHand).accent, "#d6ad4f"),
+        category: pickString(leftHand.category) || "small round polygon shield",
+        shape: pickString(leftHand.shape) ||
+          "white round octagonal shield at waist front with gold rim and red star emblem",
+        color: normalizeColor(leftHand.color, "#f8f5ee"),
+        accent: normalizeColor(leftHand.accent, "#d6ad4f"),
+        emblemColor: normalizeColor(leftHand.emblemColor, "#b94b35"),
+        position: pickString(leftHand.position) || "front of waist, held by character left hand",
       },
+    },
+    cape: {
+      color: normalizeColor(cape.color, "#263896"),
+      lining: normalizeColor(cape.lining, "#d8caa4"),
+      flow: pickString(cape.flow) || "long cape flowing down character right side",
+      pattern: pickString(cape.pattern) || "gold trim and small ornamental motifs near the edge",
     },
     details: {
       face: pickString(details.face) || "small refined mature anime face",
@@ -198,6 +230,11 @@ Hard rules:
 - Do not preserve SD/chibi body proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, numbers, or frames.
 - Right-hand equipment and left-hand equipment must stay separate and must not be swapped.
 - Make the target body exactly 14-heads-tall. The head must be very small relative to body height.
+- Convert screenshot/game UI into exclusion notes only. Do not draw level labels, dates, buttons, panels, browser UI, or background scenery.
+- Break distinctive features into explicit drawable parts. Do not merge face cover, forehead ornament, hair overlap, visible eye, feather, flower, cape, right-hand equipment, and left-hand shield into one vague accessory.
+- If the source has one visible eye and the other side is covered by hair or a face ornament, preserve that asymmetry.
+- If the source has a feather or wing-like head ornament and a red flower, output both as separate accessory fields.
+- If the source has a large right-hand umbrella/staff/banner-like weapon and a small left-hand round shield/equipment, output those shapes literally. Do not replace them with generic spear and generic shield.
 - The output is drawing instructions, not prose and not an image.
 - Use valid hex colors.
 - Keep all coordinates normalized where requested.
@@ -240,6 +277,21 @@ Return this JSON shape:
       "legs": "short literal description",
       "notes": "pose and composition locks"
     },
+    "head": {
+      "hairShape": "long side-swept bangs, which side is covered, hair length and silhouette",
+      "hairCoverageSide": "character left / character right / none / uncertain",
+      "visibleEyeSide": "character left / character right / both / uncertain",
+      "visibleEyeColor": "#7fa6d9",
+      "faceCoverShape": "lower-face mask, high collar, eyepatch, visor, or none; include color and coverage",
+      "foreheadOrnament": "circlet/crest/forehead ornament shape, color, and position"
+    },
+    "accessories": {
+      "featherSide": "character left / character right / none / uncertain",
+      "featherColor": "#dfe6f2",
+      "flowerSide": "character left / character right / none / uncertain",
+      "flowerColor": "#b23a32",
+      "goldDangles": "small hanging gold ornaments, side and count impression"
+    },
     "silhouette": {
       "hairShape": "literal source hair silhouette adapted to mature real 2D",
       "capeOrBack": "cape, wing, back cloth, ribbon, aura, none, with source position",
@@ -250,14 +302,24 @@ Return this JSON shape:
         "category": "source category or uncertain category",
         "shape": "specific visible silhouette, angle, size, tip/base/grip notes",
         "color": "#6d4aa2",
-        "accent": "#d6ad4f"
+        "accent": "#d6ad4f",
+        "position": "screen position and diagonal/vertical angle",
+        "headShape": "large visible head/canopy/blade/shield-like part shape"
       },
       "leftHand": {
         "category": "source category or uncertain category",
         "shape": "specific visible silhouette, angle, size, emblem notes",
         "color": "#d9d2e9",
-        "accent": "#d6ad4f"
+        "accent": "#d6ad4f",
+        "emblemColor": "#b94b35",
+        "position": "screen position and relation to waist/hand"
       }
+    },
+    "cape": {
+      "color": "#263896",
+      "lining": "#d8caa4",
+      "flow": "which side it flows to and length",
+      "pattern": "edge trim, holes, emblems, repeated motifs"
     },
     "details": {
       "face": "small refined mature anime face details to preserve",

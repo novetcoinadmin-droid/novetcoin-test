@@ -1029,6 +1029,7 @@
       ['left_hand_equipment', '左手装備'],
       ['pose', 'ポーズ'],
       ['colors_and_motifs', '色・モチーフ'],
+      ['advanced_drawing_hints', '描画用詳細ヒント'],
       ['background_and_ui_exclusion', '背景・UI除外']
     ];
 
@@ -1471,6 +1472,31 @@
       ctx.closePath();
     }
 
+    function drawStarPath(ctx, cx, cy, outer, inner, points = 8) {
+      ctx.beginPath();
+      for (let i = 0; i < points * 2; i++) {
+        const angle = -Math.PI / 2 + (Math.PI * i) / points;
+        const radius = i % 2 === 0 ? outer : inner;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
+    function drawPolygonPath(ctx, cx, cy, radius, sides = 8, rotation = -Math.PI / 2) {
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const angle = rotation + (Math.PI * 2 * i) / sides;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+
     function renderSdToRealDrawingCanvas(drawingData) {
       const canvasInfo = drawingData?.canvas || {};
       const width = Number(canvasInfo.width) || 1024;
@@ -1488,6 +1514,14 @@
       const accent = getDrawingColor(drawingData, 'accent', '#d6ad4f');
       const shadow = getDrawingColor(drawingData, 'shadow', '#4d3a62');
       const bg = /^#[0-9a-f]{6}$/i.test(canvasInfo.background || '') ? canvasInfo.background : '#f8f6fb';
+      const headData = drawingData?.head || {};
+      const accessoryData = drawingData?.accessories || {};
+      const capeData = drawingData?.cape || {};
+      const capeColor = /^#[0-9a-f]{6}$/i.test(capeData.color || '') ? capeData.color : '#263896';
+      const capeLining = /^#[0-9a-f]{6}$/i.test(capeData.lining || '') ? capeData.lining : '#d8caa4';
+      const featherColor = /^#[0-9a-f]{6}$/i.test(accessoryData.featherColor || '') ? accessoryData.featherColor : '#dfe6f2';
+      const flowerColor = /^#[0-9a-f]{6}$/i.test(accessoryData.flowerColor || '') ? accessoryData.flowerColor : '#b23a32';
+      const visibleEyeColor = /^#[0-9a-f]{6}$/i.test(headData.visibleEyeColor || '') ? headData.visibleEyeColor : '#7fa6d9';
 
       const gradient = ctx.createLinearGradient(0, 0, width, height);
       gradient.addColorStop(0, bg);
@@ -1531,15 +1565,30 @@
       ctx.globalAlpha = 1;
       ctx.strokeStyle = line;
 
-      ctx.fillStyle = sub;
+      ctx.fillStyle = capeColor;
       ctx.beginPath();
-      ctx.moveTo(cx - head * 1.25, shoulderY);
-      ctx.bezierCurveTo(cx - head * 2.25, top + head * 3.1, cx - head * 1.65, top + head * 7.2, cx - head * 0.8, footY - head * 1.5);
-      ctx.lineTo(cx + head * 0.8, footY - head * 1.5);
-      ctx.bezierCurveTo(cx + head * 1.65, top + head * 7.2, cx + head * 2.25, top + head * 3.1, cx + head * 1.25, shoulderY);
+      ctx.moveTo(cx - head * 1.05, shoulderY);
+      ctx.bezierCurveTo(cx - head * 1.65, top + head * 3.1, cx - head * 1.35, top + head * 7.2, cx - head * 0.78, footY - head * 1.4);
+      ctx.lineTo(cx + head * 0.96, footY - head * 1.25);
+      ctx.bezierCurveTo(cx + head * 2.18, top + head * 8.4, cx + head * 2.45, top + head * 4.1, cx + head * 1.15, shoulderY + head * 0.08);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+      ctx.strokeStyle = capeLining;
+      ctx.lineWidth = Math.max(5, width * 0.006);
+      ctx.beginPath();
+      ctx.moveTo(cx + head * 1.12, shoulderY + head * 0.25);
+      ctx.bezierCurveTo(cx + head * 1.86, top + head * 4.0, cx + head * 1.72, top + head * 8.8, cx + head * 0.8, footY - head * 1.35);
+      ctx.stroke();
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(3, width * 0.004);
+      for (let i = 0; i < 5; i++) {
+        const y = shoulderY + head * (1.1 + i * 1.35);
+        ctx.beginPath();
+        ctx.arc(cx + head * 1.35, y, head * 0.11, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = line;
 
       ctx.fillStyle = skin;
       drawEllipsePath(ctx, headCx, headCy, head * 0.34, head * 0.45);
@@ -1548,18 +1597,65 @@
 
       ctx.fillStyle = hair;
       ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.48, headCy - head * 0.22);
-      ctx.bezierCurveTo(headCx - head * 0.64, headCy - head * 0.78, headCx + head * 0.55, headCy - head * 0.82, headCx + head * 0.48, headCy - head * 0.12);
-      ctx.bezierCurveTo(headCx + head * 0.42, headCy + head * 0.42, headCx - head * 0.42, headCy + head * 0.42, headCx - head * 0.48, headCy - head * 0.22);
+      ctx.moveTo(headCx - head * 0.5, headCy - head * 0.18);
+      ctx.bezierCurveTo(headCx - head * 0.66, headCy - head * 0.82, headCx + head * 0.62, headCy - head * 0.84, headCx + head * 0.5, headCy - head * 0.08);
+      ctx.bezierCurveTo(headCx + head * 0.52, headCy + head * 1.8, headCx + head * 0.18, headCy + head * 2.35, headCx - head * 0.2, headCy + head * 1.6);
+      ctx.bezierCurveTo(headCx - head * 0.55, headCy + head * 0.72, headCx - head * 0.48, headCy + head * 0.18, headCx - head * 0.5, headCy - head * 0.18);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
+      ctx.fillStyle = main;
+      ctx.beginPath();
+      ctx.moveTo(headCx - head * 0.47, headCy + head * 0.05);
+      ctx.lineTo(headCx + head * 0.46, headCy + head * 0.03);
+      ctx.lineTo(headCx + head * 0.38, headCy + head * 0.42);
+      ctx.lineTo(headCx - head * 0.52, headCy + head * 0.42);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = visibleEyeColor;
+      drawEllipsePath(ctx, headCx + head * 0.18, headCy - head * 0.02, head * 0.08, head * 0.11);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = main;
+      drawRoundedDiamond(ctx, headCx, headCy - head * 0.38, head * 0.62, head * 0.48);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(2, width * 0.0026);
+      ctx.beginPath();
+      ctx.moveTo(headCx - head * 0.21, headCy - head * 0.39);
+      ctx.quadraticCurveTo(headCx, headCy - head * 0.58, headCx + head * 0.21, headCy - head * 0.39);
+      ctx.moveTo(headCx - head * 0.14, headCy - head * 0.28);
+      ctx.quadraticCurveTo(headCx, headCy - head * 0.43, headCx + head * 0.14, headCy - head * 0.28);
+      ctx.stroke();
+      ctx.strokeStyle = line;
+
+      ctx.fillStyle = featherColor;
+      ctx.beginPath();
+      ctx.moveTo(headCx + head * 0.42, headCy - head * 0.58);
+      ctx.bezierCurveTo(headCx + head * 1.0, headCy - head * 1.6, headCx + head * 0.85, headCy - head * 2.35, headCx + head * 0.64, headCy - head * 2.85);
+      ctx.bezierCurveTo(headCx + head * 0.44, headCy - head * 2.1, headCx + head * 0.15, headCy - head * 1.25, headCx + head * 0.42, headCy - head * 0.58);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = flowerColor;
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8;
+        drawEllipsePath(ctx, headCx + head * 0.52 + Math.cos(angle) * head * 0.12, headCy - head * 0.55 + Math.sin(angle) * head * 0.12, head * 0.08, head * 0.04);
+        ctx.fill();
+      }
+      ctx.fillStyle = accent;
+      drawEllipsePath(ctx, headCx + head * 0.52, headCy - head * 0.55, head * 0.06, head * 0.06);
+      ctx.fill();
+
       ctx.strokeStyle = line;
       ctx.lineWidth = Math.max(2, width * 0.0026);
       ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.14, headCy + head * 0.04);
-      ctx.lineTo(headCx + head * 0.14, headCy + head * 0.04);
       ctx.moveTo(headCx - head * 0.1, headCy + head * 0.18);
       ctx.quadraticCurveTo(headCx, headCy + head * 0.24, headCx + head * 0.1, headCy + head * 0.18);
       ctx.stroke();
@@ -1625,26 +1721,52 @@
 
       const rightEq = drawingData?.equipment?.rightHand || {};
       const leftEq = drawingData?.equipment?.leftHand || {};
-      ctx.strokeStyle = rightEq.color || main;
-      ctx.lineWidth = Math.max(9, width * 0.01);
+      const rightColor = /^#[0-9a-f]{6}$/i.test(rightEq.color || '') ? rightEq.color : '#2b2a28';
+      const rightAccent = /^#[0-9a-f]{6}$/i.test(rightEq.accent || '') ? rightEq.accent : '#b99a45';
+      const leftColor = /^#[0-9a-f]{6}$/i.test(leftEq.color || '') ? leftEq.color : '#f8f5ee';
+      const leftAccent = /^#[0-9a-f]{6}$/i.test(leftEq.accent || '') ? leftEq.accent : '#d6ad4f';
+      const emblemColor = /^#[0-9a-f]{6}$/i.test(leftEq.emblemColor || '') ? leftEq.emblemColor : '#b94b35';
+
+      ctx.strokeStyle = rightColor;
+      ctx.lineWidth = Math.max(8, width * 0.009);
       ctx.beginPath();
       ctx.moveTo(rightHandX - head * 0.1, handY + head * 0.3);
-      ctx.lineTo(rightHandX - head * 1.15, top + head * 2.0);
+      ctx.lineTo(rightHandX - head * 1.22, top + head * 3.0);
       ctx.stroke();
-      ctx.fillStyle = rightEq.accent || accent;
-      drawRoundedDiamond(ctx, rightHandX - head * 1.25, top + head * 1.7, head * 0.45, head * 0.95);
+      ctx.fillStyle = rightColor;
+      ctx.beginPath();
+      ctx.moveTo(rightHandX - head * 1.58, top + head * 2.08);
+      ctx.lineTo(rightHandX - head * 0.36, top + head * 2.94);
+      ctx.lineTo(rightHandX - head * 1.08, top + head * 3.4);
+      ctx.lineTo(rightHandX - head * 1.34, top + head * 3.28);
+      ctx.lineTo(rightHandX - head * 1.82, top + head * 3.78);
+      ctx.lineTo(rightHandX - head * 1.72, top + head * 3.12);
+      ctx.lineTo(rightHandX - head * 2.06, top + head * 2.78);
+      ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = line;
       ctx.lineWidth = Math.max(3, width * 0.004);
       ctx.stroke();
+      ctx.strokeStyle = rightAccent;
+      ctx.lineWidth = Math.max(4, width * 0.005);
+      ctx.beginPath();
+      ctx.moveTo(rightHandX - head * 1.5, top + head * 2.22);
+      ctx.lineTo(rightHandX - head * 0.58, top + head * 2.9);
+      ctx.moveTo(rightHandX - head * 1.88, top + head * 2.78);
+      ctx.lineTo(rightHandX - head * 1.15, top + head * 3.28);
+      ctx.stroke();
 
-      ctx.fillStyle = leftEq.color || sub;
-      drawRoundedDiamond(ctx, leftHandX + head * 0.25, handY + head * 0.2, head * 0.95, head * 1.25);
+      ctx.fillStyle = leftColor;
+      drawPolygonPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.58, 10);
       ctx.fill();
       ctx.strokeStyle = line;
       ctx.stroke();
-      ctx.fillStyle = leftEq.accent || accent;
-      drawEllipsePath(ctx, leftHandX + head * 0.25, handY + head * 0.2, head * 0.18, head * 0.18);
+      ctx.strokeStyle = leftAccent;
+      ctx.lineWidth = Math.max(5, width * 0.006);
+      drawPolygonPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.48, 10);
+      ctx.stroke();
+      ctx.fillStyle = emblemColor;
+      drawStarPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.34, head * 0.1, 8);
       ctx.fill();
 
       ctx.strokeStyle = line;
