@@ -1035,17 +1035,37 @@ function sanitizeDownloadFileName(name, fallback) {
     const safeName = String(name || fallback || "asset")
         .replace(/[\\/:*?"<>|]/g, "_")
         .replace(/\s+/g, "_")
+        .replace(/\.(png|jpe?g|webp|gif|bmp|svg)$/i, "")
         .trim();
 
     return safeName || fallback || "asset";
 }
 
-function getAssetFileExtension(asset) {
+function getImageFileExtension(asset, blob) {
+    const type = (blob && blob.type ? blob.type : "").toLowerCase();
+    const typeMap = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "image/bmp": "bmp",
+        "image/svg+xml": "svg"
+    };
+
+    if (typeMap[type]) {
+        return typeMap[type];
+    }
+
     const urlPath = (asset.file_url || "").split("?")[0];
     const fileName = urlPath.split("/").pop() || "";
     const match = fileName.match(/\.([a-zA-Z0-9]+)$/);
 
-    return match ? match[1].toLowerCase() : "webp";
+    if (match && ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"].includes(match[1].toLowerCase())) {
+        return match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase();
+    }
+
+    return "webp";
 }
 
 async function downloadAssetCategory(assetType, categoryLabel, button) {
@@ -1097,7 +1117,11 @@ async function downloadAssetCategory(assetType, categoryLabel, button) {
             }
 
             const blob = await response.blob();
-            const ext = getAssetFileExtension(asset);
+            if (blob.type && !blob.type.toLowerCase().startsWith("image/")) {
+                throw new Error(`${asset.file_name || asset.id} が画像データとして取得できませんでした。`);
+            }
+
+            const ext = getImageFileExtension(asset, blob);
             const baseName = sanitizeDownloadFileName(asset.file_name, `${assetType}_${i + 1}`);
             let zipFileName = `${baseName}.${ext}`;
             let suffix = 2;
