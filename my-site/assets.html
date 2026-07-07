@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>イラスト保管庫 | Novet NFT Studio</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
         :root { --main-purple: #6a0dad; --bg-gray: #f4f7f6; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -362,6 +363,35 @@
         style="flex:1; padding:10px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-weight:bold; cursor:pointer;"
     >
         風景設定
+    </button>
+</div>
+
+        <div id="assetBulkDownloadBar" style="display:flex; gap:10px; margin-bottom:20px;">
+    <button
+        id="downloadIllustrationAssetsBtn"
+        type="button"
+        onclick="downloadAssetCategory('illustration', 'キャラ', this)"
+        style="flex:1; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        キャラまとめてDL
+    </button>
+
+    <button
+        id="downloadSceneAssetsBtn"
+        type="button"
+        onclick="downloadAssetCategory('scene', '風景', this)"
+        style="flex:1; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        風景まとめてDL
+    </button>
+
+    <button
+        id="downloadOtherAssetsBtn"
+        type="button"
+        onclick="downloadAssetCategory('other', 'その他', this)"
+        style="flex:1; padding:10px; border:1px solid #6a0dad; background:#fff; color:#6a0dad; border-radius:6px; font-weight:bold; cursor:pointer;"
+    >
+        その他まとめてDL
     </button>
 </div>
 
@@ -998,6 +1028,112 @@ async function fetchOtherImageAssets() {
                 装備・アイテム・魔法・スキルなどの素材がここに表示されます。
             </p>
         `;
+    }
+}
+
+function sanitizeDownloadFileName(name, fallback) {
+    const safeName = String(name || fallback || "asset")
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .replace(/\s+/g, "_")
+        .trim();
+
+    return safeName || fallback || "asset";
+}
+
+function getAssetFileExtension(asset) {
+    const urlPath = (asset.file_url || "").split("?")[0];
+    const fileName = urlPath.split("/").pop() || "";
+    const match = fileName.match(/\.([a-zA-Z0-9]+)$/);
+
+    return match ? match[1].toLowerCase() : "webp";
+}
+
+async function downloadAssetCategory(assetType, categoryLabel, button) {
+    if (!currentUser) {
+        alert("ログイン情報を確認できませんでした。");
+        return;
+    }
+
+    if (!window.JSZip) {
+        alert("一括DL機能の読み込みが完了していません。ページを再読み込みしてからもう一度お試しください。");
+        return;
+    }
+
+    const originalText = button ? button.innerText : "";
+
+    if (button) {
+        button.disabled = true;
+        button.innerText = "準備中...";
+    }
+
+    try {
+        const { data: assets, error } = await window.supabaseClient
+            .from("user_assets")
+            .select("id, file_url, file_name")
+            .eq("user_id", currentUser.id)
+            .eq("asset_type", assetType)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        if (!assets || assets.length === 0) {
+            alert(`${categoryLabel}の保存ファイルがありません。`);
+            return;
+        }
+
+        const zip = new JSZip();
+        const usedNames = new Set();
+
+        for (let i = 0; i < assets.length; i++) {
+            const asset = assets[i];
+
+            if (button) {
+                button.innerText = `${i + 1}/${assets.length}`;
+            }
+
+            const response = await fetch(asset.file_url);
+            if (!response.ok) {
+                throw new Error(`${asset.file_name || asset.id} の取得に失敗しました。`);
+            }
+
+            const blob = await response.blob();
+            const ext = getAssetFileExtension(asset);
+            const baseName = sanitizeDownloadFileName(asset.file_name, `${assetType}_${i + 1}`);
+            let zipFileName = `${baseName}.${ext}`;
+            let suffix = 2;
+
+            while (usedNames.has(zipFileName)) {
+                zipFileName = `${baseName}_${suffix}.${ext}`;
+                suffix++;
+            }
+
+            usedNames.add(zipFileName);
+            zip.file(zipFileName, blob);
+        }
+
+        if (button) {
+            button.innerText = "ZIP作成中...";
+        }
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const objectUrl = URL.createObjectURL(zipBlob);
+        const link = document.createElement("a");
+        const dateText = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+        link.href = objectUrl;
+        link.download = `novet_assets_${assetType}_${dateText}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+        console.error("一括DLエラー:", err);
+        alert("一括DLに失敗しました: " + (err.message || String(err)));
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerText = originalText;
+        }
     }
 }
 
