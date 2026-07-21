@@ -149,7 +149,7 @@ function getCharacterModeConversionInstructions(mode: string) {
   if (isSdToPhotorealIntermediateMode(mode)) {
     return {
       composition:
-        "full-body vertical photorealistic live-action character concept art, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
+        "full-body vertical photorealistic live-action cosplay photograph, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
       lines: [
         "Use Image-to-Image transformation. Keep and change instructions are separated below.",
         "KEEP: Preserve the reference image pose, composition, camera angle, hairstyle, hair color, hair ornaments, outfit design, outfit colors, decorations, cape, right-hand item, left-hand item, item positions, item angles, left/right assignment, and character motifs.",
@@ -411,7 +411,7 @@ function buildPrompt(
 
   const referenceInstruction = hasReferenceImage
     ? isPhotorealIntermediate
-      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source. KEEP: same pose, same composition, same camera angle, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment layout, and the reference hairstyle. CHANGE: convert the character into a high-resolution photorealistic cosplay-style photograph of a 25-or-older tall adult fashion-model type with Korean-idol-style beautiful facial features matching the selected gender. DO NOT keep SD/chibi/anime/game-screenshot appearance, child body, childlike face, oversized head, short limbs, short legs, low waistline, or upscaled-original look. Do not copy screenshot UI, text, buttons, or frames."
+      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source. KEEP: same pose, same composition, same camera angle, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment layout, and the reference hairstyle. CHANGE: convert the character into a high-resolution photorealistic cosplay-style photograph of a 25-or-older tall adult fashion-model type with Korean-idol-style beautiful facial features matching the selected gender. Transformation priority: the live-action photoreal adult body and exactly 10-heads-tall model proportions are mandatory even if the source silhouette becomes less exact. Keep design details, but do not keep the SD silhouette. DO NOT keep SD/chibi/anime/game-screenshot appearance, child body, childlike face, oversized head, short limbs, short legs, low waistline, or upscaled-original look. Do not copy screenshot UI, text, buttons, or frames."
       : isSdToReal2D
         ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
         : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
@@ -420,13 +420,13 @@ function buildPrompt(
   return `
 ${referenceInstruction}
 
-Generate one all-ages character image.
+${isPhotorealIntermediate ? "Generate one all-ages photorealistic live-action cosplay photograph." : "Generate one all-ages character image."}
 
 Important rules:
 - Keep it all-ages only.
 - Do not add explicit or sexual content.
 - Do not create multiple people unless the user explicitly requests it.
-- Prefer a clean, high-quality finished illustration.
+${isPhotorealIntermediate ? "- Output must look like a real photographed adult cosplayer, not an anime illustration, 3D game render, or upscaled source screenshot." : "- Prefer a clean, high-quality finished illustration."}
 - Avoid text, signatures, logos, watermarks, and UI elements in the image.
 
 Composition:
