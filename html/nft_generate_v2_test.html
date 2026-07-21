@@ -1156,10 +1156,11 @@
             <div style="font-weight:700;">参照画像</div>
             <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
             <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
+            <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="handleSdToPhotorealIntermediate()">10頭身実写化を試す</button>
             <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="handleSdToRealDrawingMvp('holistic_svg')">一枚絵SVG抽出で変換</button>
             <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を変更</button>
             <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">参照画像を解除</button>
-            <p class="muted" style="margin:8px 0 0;">旧抽出を使わず、参照画像全体を一枚絵として解析してSVG化します。</p>
+            <p class="muted" style="margin:8px 0 0;">まず10頭身の実写風イケメン/美女へ寄せ、その画像を次のリアル漫画風変換の元にできます。</p>
           </div>
         ` : `
           <div class="reference-card">
@@ -2740,6 +2741,143 @@
       return FUNCTION_NAME;
     }
 
+    function buildSdToPhotorealIntermediatePayload() {
+      const gender = getFieldValue('tpl_character_sd_to_real_gender');
+      const genderInstruction = gender === '男性'
+        ? 'Redesign the SD source character as a photorealistic handsome young man / ikemen. Keep the face attractive, sharp, cool, and clearly male.'
+        : gender === '女性'
+          ? 'Redesign the SD source character as a photorealistic beautiful young woman. Keep the face elegant, attractive, and clearly female.'
+          : 'Redesign the SD source character as an attractive photorealistic adult character. Keep the gender impression natural and stylish.';
+      const userFreeText = getFieldValue('tpl_character_free_text');
+      const promptLines = [
+        'SDキャラを、次のリアル漫画風変換の中間素材として実写化する。',
+        'ターゲットは10頭身のフォトリアルな全身キャラクター。頭は小さめ、首・胴・脚は自然に長く、ただし14頭身にはしない。',
+        '元SDキャラのポーズ、向き、腕の位置、手持ち装備の左右、装備の角度、シルエット配置をできる限り守る。',
+        '髪型、髪色、目の色、顔や頭のアクセサリー、衣装モチーフ、色構成、武器・盾・小物の特徴は同一人物として認識できる程度に残す。',
+        'SDの大きな頭、短い手足、丸い幼児体型、マスコット感、ゲームUI、文字、背景パネルは引き継がない。',
+        '出力は実写寄りだが、現実の有名人や特定人物には似せない。ファンタジー衣装は実写映画の衣装・小道具のような質感にする。',
+        genderInstruction,
+        userFreeText ? `追加メモ: ${userFreeText}` : ''
+      ].filter(Boolean).join('\n');
+
+      return {
+        template_type: 'character',
+        source_page: 'nft_generate_v2_test',
+        generation_mode: 'reference',
+        sd_to_real_conversion_stage: 'photoreal_intermediate',
+        tpl_character_mode_conversion: 'SDキャラから10頭身実写へ変換',
+        tpl_character_sd_to_real_gender: gender,
+        tpl_character_free_text: promptLines,
+        tpl_character_view: '全身',
+        tpl_character_age: '20歳前後',
+        tpl_character_pose: '参照SDキャラのポーズを維持',
+        tpl_character_outfit: '参照SDキャラの衣装・装備モチーフを実写映画風に維持',
+        tpl_character_lighting: '自然で立体感のあるフォトリアル照明',
+        tpl_character_art_style: 'photorealistic live-action character concept art, realistic human anatomy, cinematic fantasy costume texture',
+        editable_fields_japanese: {
+          '画風': '実写風フォトリアル。リアル漫画風へ変換する前段階の中間画像。',
+          'キャラモード変換': 'SDキャラから10頭身実写へ変換',
+          'SD→リアル2Dの性別': gender || '指定なし',
+          '体型': '10頭身、全身、自然な成人体型。14頭身にはしない。',
+          'ポーズ': '参照SDキャラのポーズ、向き、左右の手持ち装備を維持。'
+        },
+        reference_image_url: selectedReferenceAsset?.file_url || '',
+        reference_asset_id: selectedReferenceAsset?.id || null
+      };
+    }
+
+    async function handleSdToPhotorealIntermediate() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!selectedReferenceAsset?.file_url) {
+        showMessage('SD→実写化では参照画像を選択してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      const saveButton = document.getElementById('saveBtn');
+      const generateButton = document.getElementById('generateBtn');
+      if (saveButton) saveButton.disabled = true;
+      if (generateButton) generateButton.disabled = true;
+      currentGeneratedDataUrl = '';
+      currentGeneratedMimeType = '';
+      currentGeneratedMode = 'character';
+      renderPromptDebug(null);
+      showMessage('');
+      showProcessingOverlay('10頭身実写化中...', 'SDキャラのポーズを保ちながら、実写風の中間画像を生成しています。');
+
+      try {
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from('profiles')
+          .select('np_balance')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
+        const currentNp = Number(profile.np_balance || 0);
+        if (currentNp < GENERATION_COST_NP) throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
+
+        const payload = buildSdToPhotorealIntermediatePayload();
+        console.log('sd photoreal intermediate payload', payload);
+        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
+        console.log('sd photoreal intermediate response', data);
+
+        if (error) throw new Error(error.message || '実写化Functionの呼び出しに失敗しました。');
+        if (!data?.ok && data?.status !== 'success') throw new Error(data?.error || '実写化に失敗しました。');
+
+        renderPromptDebug(data, payload);
+        const generatedImage = extractGeneratedImageSource(data);
+        if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
+
+        const newNp = currentNp - GENERATION_COST_NP;
+        const { error: updateError } = await window.supabaseClient
+          .from('profiles')
+          .update({ np_balance: newNp })
+          .eq('id', currentUser.id);
+
+        if (updateError) throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+
+        currentNpBalance = newNp;
+        renderNpBalance();
+
+        const { error: txError } = await window.supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: currentUser.id,
+            tx_type: 'np_use',
+            type: 'ai_illustration_generation',
+            product_name: 'AIイラスト生成（SD→10頭身実写化テスト）',
+            amount_nvt: 0,
+            amount_np: -GENERATION_COST_NP,
+            balance_before_np: currentNp,
+            balance_after_np: newNp,
+            related_table: 'profiles',
+            related_id: currentUser.id
+          });
+
+        if (txError) {
+          console.error('transactions insert error:', txError);
+          showMessage('10頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+        } else {
+          showMessage('10頭身実写化が完了しました。次はこの画像を参照画像としてリアル漫画風へ変換できます。');
+        }
+
+        currentGeneratedMimeType = generatedImage.mimeType || '';
+        currentGeneratedDataUrl = generatedImage.source;
+        renderPreview(currentGeneratedDataUrl);
+        if (isMobileControlWidth()) closeMobileControlPanel();
+        if (saveButton) saveButton.disabled = false;
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message || '10頭身実写化に失敗しました。', 'error');
+      } finally {
+        hideProcessingOverlay();
+        if (generateButton) generateButton.disabled = false;
+      }
+    }
     async function handleGenerate() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');

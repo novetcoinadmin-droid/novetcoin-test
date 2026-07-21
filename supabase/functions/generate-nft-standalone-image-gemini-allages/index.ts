@@ -108,6 +108,14 @@ function isSdToReal2DConversionMode(mode: string) {
   );
 }
 
+function isSdToPhotorealIntermediateMode(mode: string) {
+  return Boolean(
+    mode &&
+      mode.includes("10頭身") &&
+      (mode.includes("実写") || mode.includes("フォトリアル")),
+  );
+}
+
 function getCharacterModeConversionInstructions(mode: string) {
   if (!mode) {
     return {
@@ -138,6 +146,23 @@ function getCharacterModeConversionInstructions(mode: string) {
     };
   }
 
+  if (isSdToPhotorealIntermediateMode(mode)) {
+    return {
+      composition:
+        "full-body vertical photorealistic live-action character concept art, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
+      lines: [
+        "Character mode conversion: transform the source SD/chibi character into a photorealistic live-action style intermediate image for a later real manga conversion.",
+        "Strict body proportion: exactly 10-heads-tall, not 14-heads-tall and not normal anime proportions. Use realistic adult anatomy, a small refined head, long legs, and a natural high-fashion full-body silhouette.",
+        "Preserve the original SD character's pose as strongly as possible: stance, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, cape/back shape, and overall character-only framing.",
+        "Preserve recognizable identity motifs from the SD source: hairstyle, bangs, hair color, eye color, face/head accessories, outfit motifs, color palette, symbolic items, weapons, shields, and repeated ornament patterns.",
+        "Remove SD/chibi proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, frames, and background panels.",
+        "Render as photorealistic live-action fantasy character concept art with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, and a believable human face.",
+        "Do not resemble any real celebrity, public figure, named character, franchise character, or specific private person.",
+      ],
+      finalGoal:
+        "Create a stable photorealistic 10-heads-tall intermediate version of the same SD character, preserving the pose and identity so it can be used as the source for the next real manga-style conversion.",
+    };
+  }
   if (isSdToReal2DConversionMode(mode)) {
     return {
       composition:
@@ -290,6 +315,7 @@ function buildPrompt(
   const modeConversion = getCharacterModeConversionInstructions(
     userModeConversion,
   );
+  const isPhotorealIntermediate = isSdToPhotorealIntermediateMode(userModeConversion);
   const isSdToReal2D = isSdToReal2DConversionMode(userModeConversion);
   const handEquipmentVisualLockLines = isSdToReal2D
     ? buildHandEquipmentVisualLockLines(payload)
@@ -385,15 +411,17 @@ function buildPrompt(
   pushIf(changeLines, "Background relative prompt", backgroundRelativePrompt);
 
   const referenceInstruction = hasReferenceImage
-    ? isSdToReal2D
-      ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
-      : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
+    ? isPhotorealIntermediate
+      ? "Use the provided SD/chibi reference image as the source-character identity and pose reference. For this 10-heads photorealistic intermediate conversion, do not copy the screenshot, background, UI, text, SD body proportions, or chibi face scale. Preserve pose, facing direction, left/right equipment assignment, color palette, hairstyle, accessories, outfit motifs, and equipment silhouette while redrawing the character as a realistic adult live-action fantasy concept."
+      : isSdToReal2D
+        ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
+        : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
     : "No reference image is provided. Create a new original character from the text instructions.";
 
   return `
 ${referenceInstruction}
 
-Generate one all-ages character illustration.
+Generate one all-ages character image.
 
 Important rules:
 - Keep it all-ages only.
@@ -450,7 +478,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Relative source-character reference image. Use this image as visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. For clearly visible right-hand and left-hand equipment, use this image as a localized image-to-image visual anchor: preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the target real 2D style. Do not use the image as a fixed full-image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
+        "Relative source-character reference image. Use this image as visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. For clearly visible right-hand and left-hand equipment, use this image as a localized image-to-image visual anchor: preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the requested target style. Do not use the image as a fixed full-image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
     });
     parts.push({
       inlineData: {
