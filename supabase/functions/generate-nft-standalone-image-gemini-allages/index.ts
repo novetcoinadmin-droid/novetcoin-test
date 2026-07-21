@@ -1,4 +1,4 @@
-﻿const corsHeaders = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
@@ -152,15 +152,15 @@ function getCharacterModeConversionInstructions(mode: string) {
         "full-body vertical photorealistic live-action character concept art, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: use Image-to-Image transformation to convert the source SD/chibi character into a photorealistic live-action style intermediate image for a later real manga conversion.",
-        "Strict body proportion: exactly 10-heads-tall, not 14-heads-tall and not normal anime proportions. Use realistic adult anatomy, a small refined head, long legs, and a natural high-fashion full-body silhouette.",
-        "Strictly preserve the reference image pose and composition: same stance, same camera angle, same full-body framing, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, cape/back shape, and overall silhouette placement.",
+        "Strict body proportion: replace the SD/chibi body completely with an exactly 10-heads-tall photorealistic adult human body. Do not preserve the chibi silhouette, chibi head size, short limbs, mascot body, anime body, or game-icon look.",
+        "Preserve only the reference pose and composition: same stance, same camera angle, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, and cape/back direction. Rebuild the body silhouette as a tall photorealistic adult human; do not keep the SD silhouette.",
         "Preserve the reference hairstyle exactly as the image indicates: hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. Also preserve eye color, face/head accessories, outfit motifs, color palette, symbolic items, weapons, shields, and repeated ornament patterns.",
-        "Remove SD/chibi proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, frames, and background panels.",
-        "Render as photorealistic live-action fantasy character concept art with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, and a believable human face.",
+        "The output must visibly be a live-action human photograph / photorealistic cosplay photo. If the result still looks like SD, chibi, anime, game screenshot, mascot, or a simple cleaned-up version of the source, it is wrong. Remove SD/chibi proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, frames, and background panels.",
+        "Render as a high-resolution photorealistic cosplay-style photograph of an attractive Asian adult character with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, and a believable human face.",
         "Do not resemble any real celebrity, public figure, named character, franchise character, or specific private person.",
       ],
       finalGoal:
-        "Create a stable photorealistic 10-heads-tall intermediate version of the same SD character, preserving the pose and identity so it can be used as the source for the next real manga-style conversion.",
+        "Create a stable photorealistic 10-heads-tall live-action cosplay photograph of the same character, preserving pose, hairstyle, costume motifs, and equipment layout, while fully replacing the SD body and anime rendering.",
     };
   }
   if (isSdToReal2DConversionMode(mode)) {
@@ -412,7 +412,7 @@ function buildPrompt(
 
   const referenceInstruction = hasReferenceImage
     ? isPhotorealIntermediate
-      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source. Strictly keep the same pose, same composition, same camera angle, same full-body framing, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment silhouette, and the reference hairstyle. For the hairstyle, preserve the visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement from the reference image. Change only the body proportion and rendering style into a 10-heads photorealistic adult live-action fantasy concept. Do not copy screenshot UI, text, buttons, frames, or SD/chibi body proportions."
+      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source for pose and design only. Keep the same pose, same composition, same camera angle, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment layout, and the reference hairstyle. For the hairstyle, preserve the visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement from the reference image. Change the SD/chibi character completely into a 10-heads photorealistic adult live-action fantasy cosplay photograph. The final image must not look like an SD character, anime illustration, game screenshot, or upscaled original. Do not copy screenshot UI, text, buttons, frames, or SD/chibi body proportions."
       : isSdToReal2D
         ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
         : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
@@ -478,7 +478,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Reference image for Image-to-Image transformation. Use this image directly to preserve the character's pose, composition, camera angle, full-body framing, hairstyle, face/head accessories, hand-held equipment geometry, motif placement, and pose relationships. Preserve the reference hairstyle: visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. For clearly visible right-hand and left-hand equipment, preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the requested target style. Do not copy screenshot UI, text, buttons, dates, or icons.",
+        "Reference image for Image-to-Image transformation. Use this image directly to preserve the character's pose, composition, camera angle, hairstyle, face/head accessories, hand-held equipment geometry, motif placement, and pose relationships, but replace the SD/chibi body and anime rendering with a photorealistic adult human cosplay photograph. Preserve the reference hairstyle: visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. For clearly visible right-hand and left-hand equipment, preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the requested target style. Do not copy screenshot UI, text, buttons, dates, or icons.",
     });
     parts.push({
       inlineData: {
