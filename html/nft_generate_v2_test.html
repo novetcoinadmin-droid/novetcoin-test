@@ -1032,6 +1032,18 @@
       ['background_and_ui_exclusion', '背景・UI除外']
     ];
 
+    async function getFunctionErrorMessage(error, fallbackMessage) {
+      const baseMessage = error?.message || fallbackMessage;
+      const response = error?.context || error?.response;
+      if (!response || typeof response.json !== 'function') return baseMessage;
+      try {
+        const body = await response.json();
+        const detail = body?.message || body?.error || body?.details || body?.raw_text;
+        return detail ? `${baseMessage}: ${detail}` : baseMessage;
+      } catch (_) {
+        return baseMessage;
+      }
+    }
     function getSdExtractionStatusLabel(status = sdExtractionState.status) {
       const labels = {
         idle: '未抽出',
@@ -1362,7 +1374,7 @@
         });
 
         if (error) {
-          throw new Error(error.message || 'SDキャラ抽出Functionの呼び出しに失敗しました。');
+          throw new Error(await getFunctionErrorMessage(error, 'SDキャラ抽出Functionの呼び出しに失敗しました。'));
         }
         if (!data?.ok) {
           throw new Error(data?.message || data?.error || 'SDキャラ抽出に失敗しました。');
@@ -1381,7 +1393,7 @@
           modelText: data.model_text || data.modelText || '',
           warnings: data.warnings || []
         };
-        showMessage('SDキャラ抽出が完了しました。内容を確認・修正して確定してください。');
+        showMessage('SDキャラ抽出が完了しました。10頭身実写化を試せます。');
       } catch (err) {
         sdExtractionState = {
           ...sdExtractionState,
