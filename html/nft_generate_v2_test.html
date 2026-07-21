@@ -2744,21 +2744,19 @@
     function buildSdToPhotorealIntermediatePayload() {
       const gender = getFieldValue('tpl_character_sd_to_real_gender');
       const genderInstruction = gender === '男性'
-        ? 'Redesign the SD source character as a photorealistic handsome young man / ikemen. Keep the face attractive, sharp, cool, and clearly male.'
+        ? '性別：男性。韓国風男性アイドルのような整った美男、シャープな顔立ち、大人っぽい表情の成人男性モデル。'
         : gender === '女性'
-          ? 'Redesign the SD source character as a photorealistic beautiful young woman. Keep the face elegant, attractive, and clearly female.'
-          : 'Redesign the SD source character as an attractive photorealistic adult character. Keep the gender impression natural and stylish.';
+          ? '性別：女性。韓国風女性アイドルのような整った美女、上品で大人っぽい顔立ちの成人女性モデル。'
+          : '性別：その他。韓国風アイドルのような中性的で整った美形、大人っぽい顔立ちの成人モデル。';
       const userFreeText = getFieldValue('tpl_character_free_text');
       const promptLines = [
-        '目的：添付画像をImage-to-Imageで直接変換し、次のリアル漫画風変換の中間素材として実写化する。',
-        '変更する部分：SD/アニメ絵を完全にやめ、10頭身の実写人物写真に変換する。男性なら25歳前後のイケメンな日本人成人男性、女性なら25歳前後の美女。180cm以上に見える長身の成人モデル体型。頭は全身の約1/10、脚は全身の55〜60%、高い腰位置、長い首、広めの肩幅、大人の骨格、大人の顔立ち。ファッションモデルのような縦長シルエット。ただし14頭身にはしない。',
-        '維持する部分：元画像と同じポーズ、同じ構図、同じカメラアングルを維持する。腕の位置、手持ち装備の左右、装備の角度は変えない。ただし身体比率は維持しない。SD体型、SD頭身、SDシルエット、短い脚、低い腰位置、アニメ塗りは維持しない。',
-        '維持する部分：参考画像の髪型を維持する。髪の長さ、前髪、横髪、後ろ髪、毛流れ、髪のボリューム、髪色、髪飾りの位置を参考画像に合わせる。目の色、顔や頭のアクセサリー、衣装モチーフ、色構成、武器・盾・小物の特徴も残す。',
-        '必須条件：出力は実写人物であること。元画像の身体比率をコピーしない。SDキャラ、ちびキャラ、アニメ絵、ゲームスクリーンショット風、元画像の単なる高画質化は禁止。SDの大きな頭、短い手足、短い脚、低い腰位置、丸い幼児体型、マスコット感、子供っぽい顔、幼い顔、低身長、少年少女体型、ゲームUI、文字、背景パネルは引き継がない。',
-        '出力スタイル：high-resolution photorealistic cosplay-style photograph, 4K, realistic human face, realistic skin, cinematic fantasy costume materials。ファンタジー衣装は実写映画の衣装・小道具のような質感にする。現実の有名人や特定人物には似せない。',
+        '添付画像をImage-to-Imageで直接変換してください。',
+        '【維持するもの】参照画像と同じポーズ、同じ構図、同じカメラアングルを維持。参考画像の髪型、髪色、髪飾りを維持。参考画像の衣装デザイン、衣装の色、装飾、マントを維持。右手と左手の持ち物、小物の位置、角度、左右を維持。',
+        '【変更するもの】SDキャラを、25歳以上の長身成人モデル体型の実写人物に変換。高精細な実写・コスプレ撮影風、4K、フォトリアル。顔立ちは、選択された性別に合わせた韓国風アイドルのような整った美男美女。子供体型ではなく、大人の骨格。小さい頭、長い脚、高い腰位置、長い首、広めの肩幅。肌、布、金属、革、装飾はリアルな質感。',
         genderInstruction,
+        '【禁止】SDキャラのままにしない。ちびキャラにしない。アニメ絵にしない。元画像の単なる高画質化にしない。大きな頭、短い手足、低い腰位置、幼い顔、子供体型にしない。',
         userFreeText ? `追加メモ: ${userFreeText}` : ''
-      ].filter(Boolean).join('\n');
+      ].filter(Boolean).join('\\n');
 
       return {
         template_type: 'character',
@@ -2768,9 +2766,9 @@
         tpl_character_mode_conversion: 'SDキャラから10頭身実写へ変換',
         tpl_character_sd_to_real_gender: gender,
         tpl_character_free_text: promptLines,
-        tpl_character_view: '元画像と同じ構図・同じアングル、ただし実写成人の全身写真',
-        tpl_character_age: '25歳前後の成人。子供っぽさなし。',
-        tpl_character_pose: '参照SDキャラと同じポーズ・同じ構図・同じアングルを維持し、身体比率は10頭身の長身成人モデル体型へ再設計',
+        tpl_character_view: '元画像と同じ構図・同じアングル、ただし25歳以上の長身成人モデルの実写写真',
+        tpl_character_age: '25歳以上の成人。子供っぽさなし。',
+        tpl_character_pose: '参照SDキャラと同じポーズ・同じ構図・同じアングルを維持し、身体は長身成人モデル体型へ変更',
         tpl_character_outfit: '参照SDキャラの衣装・装備モチーフを実写映画風に維持',
         tpl_character_lighting: '自然で立体感のあるフォトリアル照明',
         tpl_character_art_style: 'photorealistic live-action character concept art, realistic human anatomy, cinematic fantasy costume texture',
@@ -2778,7 +2776,7 @@
           '画風': '実写風フォトリアル。リアル漫画風へ変換する前段階の中間画像。',
           'キャラモード変換': 'SDキャラから10頭身実写へ変換',
           'SD→リアル2Dの性別': gender || '指定なし',
-          '体型': '10頭身、全身、180cm以上に見える長身の成人モデル体型。頭は全身の約1/10、脚は全身の55〜60%、高い腰位置、長い首、広めの肩幅、大人の骨格、大人の顔立ち。SD体型・短い脚・低い腰位置・子供体型・SDシルエットは残さない。14頭身にはしない。',
+          '体型': '25歳以上の長身成人モデル体型。小さい頭、長い脚、高い腰位置、長い首、広めの肩幅、大人の骨格。SD体型・短い脚・低い腰位置・子供体型・SDシルエットは残さない。',
           'ポーズ': '参照SDキャラと同じポーズ、同じ構図、同じアングル、左右の手持ち装備を維持。ただしSD頭身とSDシルエットは維持しない。',
           '髪型': '参考画像の髪型を維持。髪の長さ、前髪、横髪、後ろ髪、毛流れ、髪のボリューム、髪色、髪飾りの位置を参考画像に合わせる。'
         },
