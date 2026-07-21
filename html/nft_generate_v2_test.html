@@ -589,10 +589,11 @@
           <p id="sdExtractionHelpText" class="muted" style="margin:0 0 10px;">
             SD→リアル2D変換では、参照画像から顔・髪・装備・左右の持ち物・ポーズを抽出してから生成します。
           </p>
+          <div id="sdExtractionReferenceArea"></div>
           <button id="sdExtractBtn" class="btn btn-secondary" type="button" onclick="handleSdToRealExtraction()">抽出する</button>
           <button id="sdReextractBtn" class="btn btn-secondary hidden" type="button" style="margin-top:8px;" onclick="handleSdToRealExtraction()">再抽出する</button>
           <div id="sdExtractionError" class="message error" style="margin-top:10px;"></div>
-          <div id="sdExtractionReferenceArea"></div>
+          <div id="sdPhotorealActionArea"></div>
         </div>
       </div>
 
@@ -1123,8 +1124,10 @@
       const reextractBtn = document.getElementById('sdReextractBtn');
       const errorBox = document.getElementById('sdExtractionError');
       const referenceArea = document.getElementById('sdExtractionReferenceArea');
+      const photorealActionArea = document.getElementById('sdPhotorealActionArea');
       const hasReference = Boolean(selectedReferenceAsset?.file_url);
       const isExtracting = sdExtractionState.status === 'extracting';
+      const extractionReady = Boolean(sdExtractionState.extractedParameters) && !isExtracting;
 
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
       if (helpText) {
@@ -1150,10 +1153,8 @@
             <div style="font-weight:700;">参照画像</div>
             <div class="muted">${escapeHtml(selectedReferenceAsset.file_name || '')}</div>
             <img class="reference-thumb" src="${escapeAttr(selectedReferenceAsset.file_url || '')}" alt="SD参照画像" />
-            <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="handleSdToPhotorealIntermediate()">10頭身実写化を試す</button>
             <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を変更</button>
             <button class="btn btn-danger" type="button" style="margin-top:8px;" onclick="clearReferenceSelection()">参照画像を解除</button>
-            <p class="muted" style="margin:8px 0 0;">まず10頭身の実写風イケメン/美女へ寄せ、その画像を次のリアル漫画風変換の元にできます。</p>
           </div>
         ` : `
           <div class="reference-card">
@@ -1162,6 +1163,12 @@
             <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdReferenceSelectClick()">参照画像を選択</button>
           </div>
         `;
+      }
+      if (photorealActionArea) {
+        photorealActionArea.innerHTML = hasReference ? `
+          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleSdToPhotorealIntermediate()">10頭身実写化を試す</button>
+          <p class="muted" style="margin:8px 0 0;">${extractionReady ? '抽出済みです。10頭身の実写風イケメン/美女へ寄せ、その画像を次のリアル漫画風変換の元にできます。' : '先に抽出してください。抽出が完了すると10頭身実写化を試せます。'}</p>
+        ` : '';
       }
     }
 
@@ -2780,6 +2787,11 @@
       if (!isSdToReal2DConversionSelected()) return;
       if (!selectedReferenceAsset?.file_url) {
         showMessage('SD→実写化では参照画像を選択してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+      if (!sdExtractionState.extractedParameters) {
+        showMessage('先に抽出してください。抽出完了後に10頭身実写化を試せます。', 'error');
         renderSdExtractionPanel();
         return;
       }
