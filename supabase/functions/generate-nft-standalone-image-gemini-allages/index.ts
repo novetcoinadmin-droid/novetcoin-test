@@ -1,4 +1,4 @@
-const corsHeaders = {
+﻿const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
@@ -151,10 +151,10 @@ function getCharacterModeConversionInstructions(mode: string) {
       composition:
         "full-body vertical photorealistic live-action character concept art, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
       lines: [
-        "Character mode conversion: transform the source SD/chibi character into a photorealistic live-action style intermediate image for a later real manga conversion.",
+        "Character mode conversion: use Image-to-Image transformation to convert the source SD/chibi character into a photorealistic live-action style intermediate image for a later real manga conversion.",
         "Strict body proportion: exactly 10-heads-tall, not 14-heads-tall and not normal anime proportions. Use realistic adult anatomy, a small refined head, long legs, and a natural high-fashion full-body silhouette.",
-        "Preserve the original SD character's pose as strongly as possible: stance, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, cape/back shape, and overall character-only framing.",
-        "Preserve recognizable identity motifs from the SD source: hairstyle, bangs, hair color, eye color, face/head accessories, outfit motifs, color palette, symbolic items, weapons, shields, and repeated ornament patterns.",
+        "Strictly preserve the reference image pose and composition: same stance, same camera angle, same full-body framing, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, cape/back shape, and overall silhouette placement.",
+        "Preserve the reference hairstyle exactly as the image indicates: hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. Also preserve eye color, face/head accessories, outfit motifs, color palette, symbolic items, weapons, shields, and repeated ornament patterns.",
         "Remove SD/chibi proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, frames, and background panels.",
         "Render as photorealistic live-action fantasy character concept art with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, and a believable human face.",
         "Do not resemble any real celebrity, public figure, named character, franchise character, or specific private person.",
@@ -412,7 +412,7 @@ function buildPrompt(
 
   const referenceInstruction = hasReferenceImage
     ? isPhotorealIntermediate
-      ? "Use the provided SD/chibi reference image as the source-character identity and pose reference. For this 10-heads photorealistic intermediate conversion, do not copy the screenshot, background, UI, text, SD body proportions, or chibi face scale. Preserve pose, facing direction, left/right equipment assignment, color palette, hairstyle, accessories, outfit motifs, and equipment silhouette while redrawing the character as a realistic adult live-action fantasy concept."
+      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source. Strictly keep the same pose, same composition, same camera angle, same full-body framing, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment silhouette, and the reference hairstyle. For the hairstyle, preserve the visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement from the reference image. Change only the body proportion and rendering style into a 10-heads photorealistic adult live-action fantasy concept. Do not copy screenshot UI, text, buttons, frames, or SD/chibi body proportions."
       : isSdToReal2D
         ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
         : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
@@ -478,7 +478,7 @@ async function callGeminiImageModel(params: {
   if (params.referenceImageBase64) {
     parts.push({
       text:
-        "Relative source-character reference image. Use this image as visual guidance to read the source character's identity, face accessories, hand-held equipment geometry, motif placement, and pose relationships. For clearly visible right-hand and left-hand equipment, use this image as a localized image-to-image visual anchor: preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the requested target style. Do not use the image as a fixed full-image reference, exact composition target, background target, screenshot layout, UI, text, buttons, dates, or icons. Preserve the character design through parameterized transformation rather than copying the whole image.",
+        "Reference image for Image-to-Image transformation. Use this image directly to preserve the character's pose, composition, camera angle, full-body framing, hairstyle, face/head accessories, hand-held equipment geometry, motif placement, and pose relationships. Preserve the reference hairstyle: visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. For clearly visible right-hand and left-hand equipment, preserve the equipment's visible silhouette, angle, hand assignment, grip connection, size relationship, color blocking, emblem placement, and cropped/hidden parts as directly as possible while redrawing it in the requested target style. Do not copy screenshot UI, text, buttons, dates, or icons.",
     });
     parts.push({
       inlineData: {
