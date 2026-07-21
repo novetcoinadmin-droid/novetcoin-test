@@ -2743,6 +2743,9 @@
           ? '性別：女性。韓国風女性アイドルのような整った美女、上品で大人っぽい顔立ちの成人女性モデル。'
           : '性別：その他。韓国風アイドルのような中性的で整った美形、大人っぽい顔立ちの成人モデル。';
       const userFreeText = getFieldValue('tpl_character_free_text');
+      const extractedFeaturesText = sdExtractionState.extractedParameters
+        ? JSON.stringify(sdExtractionState.extractedParameters, null, 2)
+        : '';
       const promptLines = [
         '添付画像をImage-to-Imageで直接変換してください。',
         '【維持するもの】参照画像と同じポーズ、同じ構図、同じカメラアングルを維持。参考画像の髪型、髪色、髪飾りを維持。参考画像の衣装デザイン、衣装の色、装飾、マントを維持。右手と左手の持ち物、小物の位置、角度、左右を維持。',
@@ -2760,6 +2763,8 @@
         tpl_character_mode_conversion: 'SDキャラから10頭身実写へ変換',
         tpl_character_sd_to_real_gender: gender,
         tpl_character_free_text: promptLines,
+        source_character_features_text: extractedFeaturesText,
+        sd_extracted_parameters: sdExtractionState.extractedParameters || null,
         tpl_character_view: '元画像と同じ構図・同じアングル、ただし25歳以上の長身成人モデルの実写写真',
         tpl_character_age: '25歳以上の成人。子供っぽさなし。',
         tpl_character_pose: '参照SDキャラと同じポーズ・同じ構図・同じアングルを維持し、身体は長身成人モデル体型へ変更',
