@@ -1,4 +1,4 @@
-const corsHeaders = {
+﻿const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
@@ -152,15 +152,15 @@ function getCharacterModeConversionInstructions(mode: string) {
         "full-body vertical photorealistic live-action character concept art, one complete exactly 10-heads-tall adult character, the whole body visible from head to feet",
       lines: [
         "Character mode conversion: use Image-to-Image transformation to convert the source SD/chibi character into a photorealistic live-action style intermediate image for a later real manga conversion.",
-        "Strict body proportion: replace the SD/chibi body completely with an exactly 10-heads-tall photorealistic adult human body. Do not preserve the chibi silhouette, chibi head size, short limbs, mascot body, anime body, or game-icon look.",
+        "Strict body and age lock: replace the SD/chibi body completely with an exactly 10-heads-tall photorealistic adult fashion-model body, around 25 years old. Use a tall adult model physique, mature face, adult bone structure, high waistline, long legs, long neck, and confident adult presence. Do not preserve the chibi silhouette, chibi head size, short limbs, childlike face, teenage face, low height, mascot body, anime body, or game-icon look.",
         "Preserve only the reference pose and composition: same stance, same camera angle, torso direction, head direction, arm positions, hand-held equipment positions, left/right hand assignment, equipment angle, and cape/back direction. Rebuild the body silhouette as a tall photorealistic adult human; do not keep the SD silhouette.",
         "Preserve the reference hairstyle exactly as the image indicates: hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement. Also preserve eye color, face/head accessories, outfit motifs, color palette, symbolic items, weapons, shields, and repeated ornament patterns.",
         "The output must visibly be a live-action human photograph / photorealistic cosplay photo. If the result still looks like SD, chibi, anime, game screenshot, mascot, or a simple cleaned-up version of the source, it is wrong. Remove SD/chibi proportions, huge head, short limbs, round toddler body, mascot charm, screenshot UI, text, buttons, frames, and background panels.",
-        "Render as a high-resolution photorealistic cosplay-style photograph of an attractive Asian adult character with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, and a believable human face.",
+        "Render as a high-resolution photorealistic cosplay-style photograph of an attractive tall Asian adult fashion model character with cinematic costume materials, realistic fabric/metal/leather texture, natural skin, realistic lighting, mature facial features, and a believable adult human face.",
         "Do not resemble any real celebrity, public figure, named character, franchise character, or specific private person.",
       ],
       finalGoal:
-        "Create a stable photorealistic 10-heads-tall live-action cosplay photograph of the same character, preserving pose, hairstyle, costume motifs, and equipment layout, while fully replacing the SD body and anime rendering.",
+        "Create a stable photorealistic 10-heads-tall live-action cosplay photograph of the same character as a tall adult fashion-model type, preserving pose, hairstyle, costume motifs, and equipment layout, while fully replacing the SD body, childlike impression, and anime rendering.",
     };
   }
   if (isSdToReal2DConversionMode(mode)) {
@@ -412,7 +412,7 @@ function buildPrompt(
 
   const referenceInstruction = hasReferenceImage
     ? isPhotorealIntermediate
-      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source for pose and design only. Keep the same pose, same composition, same camera angle, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment layout, and the reference hairstyle. For the hairstyle, preserve the visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement from the reference image. Change the SD/chibi character completely into a 10-heads photorealistic adult live-action fantasy cosplay photograph. The final image must not look like an SD character, anime illustration, game screenshot, or upscaled original. Do not copy screenshot UI, text, buttons, frames, or SD/chibi body proportions."
+      ? "Use the provided SD/chibi reference image as the direct Image-to-Image source for pose and design only. Keep the same pose, same composition, same camera angle, facing direction, left/right equipment assignment, equipment angles, color palette, accessories, outfit motifs, equipment layout, and the reference hairstyle. For the hairstyle, preserve the visible hair length, bangs, side hair, back hair, hair flow, volume, hair color, and hair ornament placement from the reference image. Change the SD/chibi character completely into a 10-heads photorealistic tall adult fashion-model live-action fantasy cosplay photograph, around 25 years old, with mature facial features and no childlike impression. The final image must not look like an SD character, anime illustration, game screenshot, or upscaled original. Do not copy screenshot UI, text, buttons, frames, or SD/chibi body proportions."
       : isSdToReal2D
         ? "Use the provided reference image as the source-character identity reference. For SD-to-tall real 2D manga conversion, do not copy the full screenshot, background, UI, lighting, SD body proportions, or finished composition. However, for clearly visible right-hand and left-hand equipment, use the reference image as a localized image-to-image visual anchor and preserve the equipment geometry, hand assignment, angle, position, and silhouette as directly as possible."
         : "Use the provided reference image only as a source-character identity reference unless the mode-specific instructions say otherwise."
