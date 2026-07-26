@@ -118,12 +118,12 @@ function isSdToPhotorealIntermediateMode(mode: string) {
 
 function getPhotorealGenderInstruction(gender: string) {
   if (gender === "男性") {
-    return "a handsome adult man with refined Korean-idol-style facial beauty";
+    return "a handsome and unmistakably masculine adult male hero with a sharp jawline, mature facial bone structure, and refined Korean-idol-style beauty";
   }
   if (gender === "女性") {
-    return "a beautiful adult woman with refined Korean-idol-style facial beauty";
+    return "a beautiful and unmistakably adult female hero with mature facial bone structure and refined Korean-idol-style beauty";
   }
-  return "an androgynous beautiful adult with refined Korean-idol-style facial beauty";
+  return "a beautiful androgynous adult hero with mature facial bone structure and refined Korean-idol-style beauty";
 }
 
 function buildSdPhotorealDirectEditPrompt(payload: any) {
@@ -134,21 +134,25 @@ function buildSdPhotorealDirectEditPrompt(payload: any) {
   const genderInstruction = getPhotorealGenderInstruction(gender);
 
   return `
-Use the attached image as the primary character, design, equipment, pose, and framing reference. Directly edit the attached image into a new photorealistic image.
+Use the attached image as the primary character, design, equipment, pose, and framing reference. Directly transform the attached 3D/SD character image into a new cinematic full-body character image.
 
 MANDATORY TRANSFORMATION:
 - Transform the SD/chibi 3D fantasy character into ${genderInstruction}, age 25 or older.
-- The result must have realistic adult human anatomy and a tall fashion-model physique with approximately ten-heads-tall heroic proportions.
-- Use a small realistically proportioned adult head, mature adult bone structure, a long neck, adult shoulders, a high waist, long arms, and very long legs.
-- The result must look like a real person in a high-budget live-action fantasy movie still.
-- Render realistic skin, hair, embroidered fabric, polished metal, leather, feathers, and other physical materials.
+- Render the result as a premium protagonist from a high-budget cinematic 3D CGI fantasy feature film, with physically based rendering, realistic materials, cinematic lighting, and polished hero-character quality.
+- Use idealized but believable adult anatomy and a tall international fashion-model physique.
+- Strict proportion target: exactly ten head units from the top of the skull to the soles of the feet. Measure head height from chin to skull crown, excluding hair volume, hats, feathers, horns, and other ornaments.
+- The anatomical head must be approximately one tenth of the total body height. The legs from hip joint to sole must occupy approximately 60 to 65 percent of the total body height.
+- Use a small adult head, long neck, mature shoulders, elongated torso, high waist and crotch position, long arms, very long thighs, and very long lower legs.
+- Make the ten-heads-tall silhouette immediately obvious before adding costume detail. Do not let clothing, cape, boots, or equipment visually shorten the legs.
 
-POSE PRESERVATION IS THE HIGHEST PRIORITY:
+POSE AND EQUIPMENT ORIENTATION PRESERVATION ARE THE HIGHEST PRIORITY:
 - Preserve the same standing posture and center of gravity.
 - Preserve the direction of the torso and the direction and tilt of the head.
 - Preserve the role, bend, and direction of both arms and both legs.
-- Preserve which hand holds each item and never swap the left and right equipment.
-- Preserve each hand-held item's direction, angle, and relationship to the body.
+- Treat every hand-held item and body-attached piece of equipment as part of the pose, regardless of its type or design.
+- For every held item, preserve the holding hand, contact point, dominant screen-space axis, rotation, orientation, tilt, and the location of its distal or functional end relative to the character and image frame.
+- Preserve whether each item is raised, lowered, open, closed, extended, folded, or resting. Never rotate, reverse, mirror, raise, lower, open, close, or re-aim an item unless the reference image already shows that state.
+- Never swap left-hand and right-hand equipment. Never replace a visible item with a more common or easier design.
 - Preserve the overall camera angle and full-body vertical framing.
 - Adapt joint positions naturally to the new adult anatomy. Do not preserve the SD body's exact pixel coordinates, limb lengths, head size, or silhouette.
 
@@ -156,22 +160,22 @@ PRESERVE THE ORIGINAL CHARACTER DESIGN:
 - Preserve the reference hairstyle exactly: hair length, bangs, side hair, back hair, flow, volume, color, and all hair ornaments.
 - Preserve the outfit category, garment shapes, color placement, trim, cape, gloves, trousers, boots, medals, emblems, and visible decorations.
 - Preserve all visible weapons, shields, bags, ornaments, and accessories, including their distinctive shape, colors, motifs, size relationships, placement, and left/right assignment.
-- Convert those designs into believable real-world materials without simplifying, replacing, or independently redesigning them.
+- Convert those designs into physically believable cinematic CGI materials without simplifying, replacing, or independently redesigning them.
 - Keep visible face coverings, eyepatches, headpieces, feathers, ribbons, flowers, and other identity details in their original positions.
 
 BACKGROUND AND CLEANUP:
 - Remove all game UI, text, buttons, icons, level indicators, borders, and screenshot interface elements.
-- Recreate the visible environment as a cinematic photorealistic fantasy setting inspired by the reference, while keeping the character as the clear full-body subject.
+- Recreate the visible environment as a cinematic feature-film CGI fantasy setting inspired by the reference, while keeping the character as the clear full-body subject.
 
 DO NOT:
-- Do not return an SD character, chibi character, anime illustration, manga illustration, 3D game render, figurine, doll, mascot, or an upscaled/repainted copy of the source.
+- Do not return an SD character, chibi character, anime illustration, manga illustration, low-quality game render, game screenshot, figurine, plastic doll, mascot, cosplay photograph, or an upscaled/repainted copy of the source.
 - Do not produce a child, teenager, childlike face, oversized head, short limbs, short legs, low waist, round SD torso, or compact SD silhouette.
-- Do not make the image look like a cosplay photograph or costume snapshot.
-- Do not redesign the costume, shorten or otherwise change the hairstyle, remove equipment, swap hands, or change the pose meaning.
+- Do not use ordinary seven-to-eight-head adult proportions. Do not use average-length legs, a long head, a low crotch, oversized boots, or a costume silhouette that hides the required model proportions.
+- Do not redesign the costume, shorten or otherwise change the hairstyle, remove equipment, swap hands, change any equipment's orientation, or change the pose meaning.
 - Do not depict or imitate a real celebrity, public figure, or specific private person.
 
 FINAL CHECK BEFORE OUTPUT:
-The output must visibly satisfy all three requirements at once: (1) an unmistakably photorealistic live-action adult age 25+, (2) a tall approximately ten-heads-tall model physique with the SD proportions completely removed, and (3) the same recognizable character design, pose meaning, hairstyle, costume, and equipment layout as the attached image.
+Before finalizing, verify all four requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an unmistakable exactly ten-heads-tall fashion-model silhouette with very long legs and all SD proportions removed, (3) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (4) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item.
 ${userNote ? `\nAdditional user direction:\n${userNote}` : ""}
 `.trim();
 }

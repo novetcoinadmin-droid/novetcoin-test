@@ -2762,10 +2762,10 @@
         photoreal_user_note: userFreeText,
         tpl_character_view: '元画像の姿勢・向き・重心・全身縦構図を維持。ただしSD体型の画素位置とシルエットは維持しない',
         tpl_character_age: '25歳以上の成人。子供っぽさなし。',
-        tpl_character_pose: '元画像と同じ姿勢、重心、体と顔の向き、腕と脚の役割、左右の手と装備の対応、装備の角度を維持',
-        tpl_character_outfit: '参照画像の衣装・装備・配色・装飾・髪型を再設計せず実写素材として維持',
-        tpl_character_lighting: '高予算の実写ファンタジー映画のシネマティック照明',
-        tpl_character_art_style: 'photorealistic high-budget live-action fantasy film still, realistic adult anatomy, not anime, not 3D game art, not cosplay photography',
+        tpl_character_pose: '元画像と同じ姿勢、重心、体と顔の向き、腕と脚の役割を維持。すべての手持ち装備について、持つ手、握る位置、画面上の主軸、回転、向き、傾き、機能する側の位置、開閉・展開状態を参照画像どおりに維持',
+        tpl_character_outfit: '参照画像の髪型、衣装、装備、配色、装飾を再設計せず、物理的に説得力のある映画3DCG素材として維持',
+        tpl_character_lighting: '高予算の映画3DCGファンタジー作品のシネマティック照明',
+        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, exactly ten-heads-tall adult fashion-model anatomy, legs occupying 60 to 65 percent of total height, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
         reference_image_url: selectedReferenceAsset?.file_url || '',
         reference_asset_id: selectedReferenceAsset?.id || null
       };
