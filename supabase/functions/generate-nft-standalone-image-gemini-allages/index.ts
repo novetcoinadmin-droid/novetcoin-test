@@ -882,15 +882,7 @@ Required target parameter groups:
   return text;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ ok: false, error: "Method not allowed" }, 405);
-  }
-
+async function processGenerationPayload(payload: any) {
   try {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const GEMINI_IMAGE_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") ||
@@ -906,7 +898,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const payload = await req.json();
     const templateType = pickString(
       payload.template_type || payload.type || "character",
     );
@@ -1011,5 +1002,90 @@ Deno.serve(async (req) => {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+}
+
+function isPhotorealStreamingRequest(payload: any) {
+  const mode = pickString(payload?.tpl_character_mode_conversion) ||
+    pickString(payload?.character_mode_conversion);
+  const hasReference = Boolean(
+    pickString(payload?.reference_image_base64) ||
+      pickString(payload?.reference_image_url) ||
+      pickString(payload?.referenceImageUrl),
+  );
+  return payload?.direct_image_edit === true &&
+    isSdToPhotorealIntermediateMode(mode) &&
+    hasReference;
+}
+
+function streamJsonResponse(task: Promise<Response>) {
+  const encoder = new TextEncoder();
+  let completion!: Promise<void>;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(" ".repeat(1024)));
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(" ".repeat(1024)));
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, 10_000);
+
+      completion = (async () => {
+        try {
+          const response = await task;
+          controller.enqueue(encoder.encode(await response.text()));
+          controller.close();
+        } catch (error) {
+          controller.enqueue(encoder.encode(JSON.stringify({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          })));
+          controller.close();
+        } finally {
+          clearInterval(heartbeat);
+        }
+      })();
+    },
+  });
+
+  // Keep the worker alive while the response stream is waiting for Gemini.
+  if (typeof EdgeRuntime !== "undefined") {
+    EdgeRuntime.waitUntil(completion);
+  }
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return jsonResponse({ ok: false, error: "Method not allowed" }, 405);
+  }
+
+  try {
+    const payload = await req.json();
+    const task = processGenerationPayload(payload);
+    return isPhotorealStreamingRequest(payload)
+      ? streamJsonResponse(task)
+      : await task;
+  } catch (error) {
+    return jsonResponse({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 400);
   }
 });

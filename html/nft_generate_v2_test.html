@@ -2815,7 +2815,9 @@
         const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
         console.log('sd photoreal intermediate response', data);
 
-        if (error) throw new Error(error.message || '実写化Functionの呼び出しに失敗しました。');
+        if (error) {
+          throw new Error(await getFunctionErrorMessage(error, '実写化Functionの呼び出しに失敗しました。'));
+        }
         if (!data?.ok && data?.status !== 'success') throw new Error(data?.error || '実写化に失敗しました。');
 
         renderPromptDebug(data, payload);
