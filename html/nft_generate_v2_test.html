@@ -766,6 +766,8 @@
     let currentGeneratedDataUrl = '';
     let currentGeneratedMimeType = '';
     let currentGeneratedMode = 'character';
+    let sdPhotorealIntermediateDataUrl = '';
+    let sdPhotorealIntermediateMimeType = '';
     let selectedReferenceAsset = null;
     let selectedBackgroundAsset = null;
     let referenceAssets = [];
@@ -1123,6 +1125,8 @@
       sdExtractionState = createInitialSdExtractionState();
       real2dParameterState = createInitialReal2dParameterState();
       sdDrawingState = createInitialSdDrawingState();
+      sdPhotorealIntermediateDataUrl = '';
+      sdPhotorealIntermediateMimeType = '';
       renderSdExtractionPanel();
     }
 
@@ -1177,9 +1181,12 @@
         `;
       }
       if (photorealActionArea) {
+        const hasIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
         photorealActionArea.innerHTML = hasReference ? `
           <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleSdToPhotorealIntermediate()">10頭身実写化を試す</button>
           <p class="muted" style="margin:8px 0 0;">${extractionReady ? '抽出済みです。10頭身の実写風イケメン/美女へ寄せ、その画像を次のリアル漫画風変換の元にできます。' : '先に抽出してください。抽出が完了すると10頭身実写化を試せます。'}</p>
+          <button class="btn btn-primary" type="button" style="margin-top:12px;" ${hasIntermediate ? '' : 'disabled'} onclick="handlePhotorealIntermediateToAnime2D()">2Dアニメ風に変換</button>
+          <p class="muted" style="margin:8px 0 0;">${hasIntermediate ? '生成済みの10頭身画像を直接基準にし、構図を変えず2Dアニメ風の美男美女へ変換します。' : '10頭身実写化が完了すると2Dアニメ風へ変換できます。'}</p>
         ` : '';
       }
     }
@@ -2859,7 +2866,10 @@
 
         currentGeneratedMimeType = generatedImage.mimeType || '';
         currentGeneratedDataUrl = generatedImage.source;
+        sdPhotorealIntermediateMimeType = currentGeneratedMimeType;
+        sdPhotorealIntermediateDataUrl = currentGeneratedDataUrl;
         renderPreview(currentGeneratedDataUrl);
+        renderSdExtractionPanel();
         if (isMobileControlWidth()) closeMobileControlPanel();
         if (saveButton) saveButton.disabled = false;
       } catch (err) {
@@ -2870,6 +2880,134 @@
         if (generateButton) generateButton.disabled = false;
       }
     }
+
+    async function handlePhotorealIntermediateToAnime2D() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!sdPhotorealIntermediateDataUrl) {
+        showMessage('先に10頭身実写化を完了してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      const saveButton = document.getElementById('saveBtn');
+      const generateButton = document.getElementById('generateBtn');
+      const actionArea = document.getElementById('sdPhotorealActionArea');
+      if (saveButton) saveButton.disabled = true;
+      if (generateButton) generateButton.disabled = true;
+      actionArea?.querySelectorAll('button').forEach((button) => {
+        button.disabled = true;
+      });
+      currentGeneratedMode = 'character';
+      renderPromptDebug(null);
+      showMessage('');
+      showProcessingOverlay('2Dアニメ風へ変換中...', '生成済みの10頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。');
+
+      try {
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from('profiles')
+          .select('np_balance')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
+        const currentNp = Number(profile.np_balance || 0);
+        if (currentNp < GENERATION_COST_NP) {
+          throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
+        }
+
+        const sourceBlob = await imageSourceToBlob(sdPhotorealIntermediateDataUrl);
+        const sourceBase64 = await blobToBase64(sourceBlob);
+        const sourceMimeType = sourceBlob.type || sdPhotorealIntermediateMimeType || 'image/png';
+        const payload = {
+          template_type: 'character',
+          source_page: 'nft_generate_v2_test',
+          generation_mode: 'reference',
+          sd_to_real_conversion_stage: 'anime_2d_final',
+          direct_image_edit: true,
+          tpl_character_mode_conversion: '10頭身映画3DCGから2Dアニメへ変換',
+          tpl_character_sd_to_real_gender: getFieldValue('tpl_character_sd_to_real_gender'),
+          reference_image_base64: sourceBase64,
+          reference_image_mime_type: sourceMimeType,
+          reference_image_role: 'generated_ten_heads_intermediate',
+          tpl_character_view: '生成済み10頭身画像のキャンバス、構図、カメラ、人物位置、背景配置を固定',
+          tpl_character_pose: '生成済み10頭身画像のポーズと全装備の持ち手、向き、角度、位置、状態を固定',
+          tpl_character_outfit: '生成済み10頭身画像の髪型、衣装、装備、配色、装飾を維持',
+          tpl_character_art_style: 'premium Japanese 2D anime key art; change rendering medium only'
+        };
+
+        console.log('cinematic to anime 2D payload', {
+          ...payload,
+          reference_image_base64: `[base64 ${sourceBase64.length} chars]`
+        });
+        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
+        console.log('cinematic to anime 2D response', data);
+
+        if (error) {
+          throw new Error(await getFunctionErrorMessage(error, '2Dアニメ変換Functionの呼び出しに失敗しました。'));
+        }
+        if (!data?.ok && data?.status !== 'success') {
+          throw new Error(data?.error || '2Dアニメ風への変換に失敗しました。');
+        }
+
+        renderPromptDebug(data, payload);
+        const generatedImage = extractGeneratedImageSource(data);
+        if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
+
+        const newNp = currentNp - GENERATION_COST_NP;
+        const { error: updateError } = await window.supabaseClient
+          .from('profiles')
+          .update({ np_balance: newNp })
+          .eq('id', currentUser.id);
+
+        if (updateError) {
+          throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+        }
+
+        currentNpBalance = newNp;
+        renderNpBalance();
+
+        const { error: txError } = await window.supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: currentUser.id,
+            tx_type: 'np_use',
+            type: 'ai_illustration_generation',
+            product_name: 'AIイラスト生成（10頭身中間画像→2Dアニメ変換）',
+            amount_nvt: 0,
+            amount_np: -GENERATION_COST_NP,
+            balance_before_np: currentNp,
+            balance_after_np: newNp,
+            related_table: 'profiles',
+            related_id: currentUser.id
+          });
+
+        if (txError) {
+          console.error('transactions insert error:', txError);
+          showMessage('2Dアニメ変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+        } else {
+          showMessage('生成済みの10頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
+        }
+
+        currentGeneratedMimeType = generatedImage.mimeType || '';
+        currentGeneratedDataUrl = generatedImage.source;
+        renderPreview(currentGeneratedDataUrl);
+        if (isMobileControlWidth()) closeMobileControlPanel();
+        if (saveButton) saveButton.disabled = false;
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message || '2Dアニメ風への変換に失敗しました。', 'error');
+        if (saveButton && currentGeneratedDataUrl) saveButton.disabled = false;
+      } finally {
+        hideProcessingOverlay();
+        if (generateButton) generateButton.disabled = false;
+        renderSdExtractionPanel();
+      }
+    }
+
     async function handleGenerate() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');

@@ -116,6 +116,14 @@ function isSdToPhotorealIntermediateMode(mode: string) {
   );
 }
 
+function isCinematicToAnime2DMode(mode: string) {
+  return Boolean(
+    mode &&
+      mode.includes("10頭身") &&
+      mode.includes("2Dアニメ"),
+  );
+}
+
 function getPhotorealGenderInstruction(gender: string) {
   if (gender === "男性") {
     return "a handsome and unmistakably masculine adult male hero with a sharp jawline, mature facial bone structure, and refined Korean-idol-style beauty";
@@ -124,6 +132,16 @@ function getPhotorealGenderInstruction(gender: string) {
     return "a beautiful and unmistakably adult female hero with mature facial bone structure and refined Korean-idol-style beauty";
   }
   return "a beautiful androgynous adult hero with mature facial bone structure and refined Korean-idol-style beauty";
+}
+
+function getAnime2DGenderInstruction(gender: string) {
+  if (gender === "男性") {
+    return "a strikingly handsome adult male anime hero with refined masculine facial structure";
+  }
+  if (gender === "女性") {
+    return "a strikingly beautiful adult female anime heroine with refined feminine facial structure";
+  }
+  return "a strikingly beautiful androgynous adult anime hero";
 }
 
 function buildSdPhotorealDirectEditPrompt(payload: any) {
@@ -177,6 +195,43 @@ DO NOT:
 FINAL CHECK BEFORE OUTPUT:
 Before finalizing, verify all four requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an unmistakable exactly ten-heads-tall fashion-model silhouette with very long legs and all SD proportions removed, (3) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (4) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item.
 ${userNote ? `\nAdditional user direction:\n${userNote}` : ""}
+`.trim();
+}
+
+function buildCinematicToAnime2DDirectEditPrompt(payload: any) {
+  const gender = pickString(payload.tpl_character_sd_to_real_gender) ||
+    pickString(payload.sd_to_real_gender) ||
+    pickString(payload.character_gender);
+  const genderInstruction = getAnime2DGenderInstruction(gender);
+
+  return `
+Use the attached generated cinematic character image as the sole primary image-to-image source. Directly redraw that same finished image as a premium 2D anime illustration.
+
+CHANGE ONLY THE VISUAL MEDIUM:
+- Convert the cinematic 3D CGI rendering into polished high-end Japanese 2D anime key art with clean intentional linework, refined cel shading, controlled painted accents, expressive eyes, and premium fantasy character-illustration finish.
+- Render the same adult character as ${genderInstruction}.
+- Beautify the face within the selected gender while preserving the character's recognizable identity, mature adult age, hairstyle, hair length, hair flow, hair color, facial accessories, expression meaning, gaze direction, and head direction.
+- Keep the existing tall model physique, adult anatomy, head-to-body ratio, long legs, shoulder width, waist position, and full-body silhouette. Do not recalculate or redesign the body proportions.
+
+COMPOSITION AND POSE ARE LOCKED:
+- Preserve the exact canvas orientation, crop, camera angle, perspective, framing, subject scale, subject placement, horizon, and background layout of the attached image.
+- Preserve the exact pose meaning, center of gravity, torso direction, head direction and tilt, arm and leg roles, joint bends, hand positions, and foot placement.
+- Treat every hand-held item and body-attached piece of equipment as part of the locked pose, regardless of its type or design.
+- For every held item, preserve the holding hand, contact point, screen-space axis, rotation, orientation, tilt, scale, and location of its distal or functional end relative to the character and frame.
+- Preserve each item's raised, lowered, open, closed, extended, folded, or resting state. Do not mirror, rotate, reverse, re-aim, replace, remove, or swap any equipment.
+
+CHARACTER AND SCENE DESIGN ARE LOCKED:
+- Preserve the exact hairstyle, outfit construction, cape, footwear, colors, color placement, trim, emblems, ornaments, accessories, equipment shapes, material boundaries, and left/right assignment.
+- Preserve the same environment, lighting direction, atmosphere, and visible effects, translating them into coherent 2D anime rendering without changing their layout.
+- Do not add, remove, relocate, simplify, or independently redesign visible character or scene elements.
+
+DO NOT:
+- Do not return photorealism, live action, cosplay photography, 3D CGI, a game render, chibi, SD proportions, a childlike character, or a different composition.
+- Do not create a new pose, new camera angle, new costume, new equipment design, new background, close-up, bust shot, or cropped body.
+- Do not depict or imitate a real celebrity, public figure, or specific private person.
+
+FINAL CHECK BEFORE OUTPUT:
+Verify independently that (1) the attached generated image, not the earlier SD source, is the direct visual basis, (2) composition and all pose/equipment orientations remain unchanged, (3) character, costume, equipment, and scene designs remain recognizable as the same finished image, and (4) only the rendering medium and selected-gender facial beautification changed into premium 2D anime art.
 `.trim();
 }
 
@@ -944,11 +999,18 @@ async function processGenerationPayload(payload: any) {
       payload.direct_image_edit === true &&
       isSdToPhotorealIntermediateMode(userModeConversion) &&
       Boolean(referenceImageBase64);
-    const generationImageModel = isPhotorealDirectEdit
+    const isAnime2DDirectEdit =
+      payload.direct_image_edit === true &&
+      isCinematicToAnime2DMode(userModeConversion) &&
+      Boolean(referenceImageBase64);
+    const isDedicatedDirectEdit = isPhotorealDirectEdit || isAnime2DDirectEdit;
+    const generationImageModel = isDedicatedDirectEdit
       ? GEMINI_PHOTOREAL_IMAGE_MODEL
       : GEMINI_IMAGE_MODEL;
     const useTextOnlySourceFeatures =
-      isSdToReal2DConversionMode(userModeConversion) && Boolean(referenceImageBase64);
+      !isAnime2DDirectEdit &&
+      isSdToReal2DConversionMode(userModeConversion) &&
+      Boolean(referenceImageBase64);
     let sourceCharacterFeaturesText = "";
     let rawSourceCharacterFeaturesText = "";
 
@@ -971,7 +1033,9 @@ async function processGenerationPayload(payload: any) {
 
     const hasReferenceImage = Boolean(referenceImageBase64);
     const hasBackgroundImage = Boolean(backgroundImageBase64);
-    const prompt = buildPrompt(payload, hasReferenceImage, hasBackgroundImage);
+    const prompt = isAnime2DDirectEdit
+      ? buildCinematicToAnime2DDirectEditPrompt(payload)
+      : buildPrompt(payload, hasReferenceImage, hasBackgroundImage);
     const result = await callGeminiImageModel({
       apiKey: GEMINI_API_KEY,
       model: generationImageModel,
@@ -981,7 +1045,7 @@ async function processGenerationPayload(payload: any) {
       backgroundImageBase64,
       backgroundImageMimeType,
       backgroundMode,
-      directReferenceEdit: isPhotorealDirectEdit,
+      directReferenceEdit: isDedicatedDirectEdit,
     });
     const dataUrl = `data:${result.mimeType};base64,${result.imageBase64}`;
 
@@ -1009,7 +1073,7 @@ async function processGenerationPayload(payload: any) {
   }
 }
 
-function isPhotorealStreamingRequest(payload: any) {
+function isLongRunningDirectEditRequest(payload: any) {
   const mode = pickString(payload?.tpl_character_mode_conversion) ||
     pickString(payload?.character_mode_conversion);
   const hasReference = Boolean(
@@ -1018,7 +1082,10 @@ function isPhotorealStreamingRequest(payload: any) {
       pickString(payload?.referenceImageUrl),
   );
   return payload?.direct_image_edit === true &&
-    isSdToPhotorealIntermediateMode(mode) &&
+    (
+      isSdToPhotorealIntermediateMode(mode) ||
+      isCinematicToAnime2DMode(mode)
+    ) &&
     hasReference;
 }
 
@@ -1083,7 +1150,7 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json();
     const task = processGenerationPayload(payload);
-    return isPhotorealStreamingRequest(payload)
+    return isLongRunningDirectEditRequest(payload)
       ? streamJsonResponse(task)
       : await task;
   } catch (error) {
