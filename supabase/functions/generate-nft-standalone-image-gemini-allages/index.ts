@@ -631,8 +631,9 @@ async function extractSourceCharacterFeatures(params: {
   referenceImageBase64: string;
   referenceImageMimeType: string;
 }) {
+  const apiVersion = params.directReferenceEdit ? "v1" : "v1beta";
   const endpoint =
-    `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
+    `https://generativelanguage.googleapis.com/${apiVersion}/models/${params.model}:generateContent?key=${params.apiKey}`;
   const extractionPrompt = `
 Analyze the provided SD/chibi character image and extract reusable character design information for a later text-to-image generation.
 
@@ -894,6 +895,9 @@ Deno.serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const GEMINI_IMAGE_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") ||
       "gemini-2.5-flash-image";
+    const GEMINI_PHOTOREAL_IMAGE_MODEL =
+      Deno.env.get("GEMINI_PHOTOREAL_IMAGE_MODEL") ||
+      "gemini-3.1-flash-image";
 
     if (!GEMINI_API_KEY) {
       return jsonResponse(
@@ -945,6 +949,9 @@ Deno.serve(async (req) => {
       payload.direct_image_edit === true &&
       isSdToPhotorealIntermediateMode(userModeConversion) &&
       Boolean(referenceImageBase64);
+    const generationImageModel = isPhotorealDirectEdit
+      ? GEMINI_PHOTOREAL_IMAGE_MODEL
+      : GEMINI_IMAGE_MODEL;
     const useTextOnlySourceFeatures =
       isSdToReal2DConversionMode(userModeConversion) && Boolean(referenceImageBase64);
     let sourceCharacterFeaturesText = "";
@@ -972,7 +979,7 @@ Deno.serve(async (req) => {
     const prompt = buildPrompt(payload, hasReferenceImage, hasBackgroundImage);
     const result = await callGeminiImageModel({
       apiKey: GEMINI_API_KEY,
-      model: GEMINI_IMAGE_MODEL,
+      model: generationImageModel,
       prompt,
       referenceImageBase64,
       referenceImageMimeType,
@@ -986,7 +993,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       ok: true,
       status: "success",
-      model: GEMINI_IMAGE_MODEL,
+      model: generationImageModel,
       prompt,
       hasReferenceImage,
       hasBackgroundImage,
