@@ -594,15 +594,6 @@ async function callGeminiImageModel(params: {
         responseModalities: params.directReferenceEdit
           ? ["IMAGE"]
           : ["TEXT", "IMAGE"],
-        ...(params.directReferenceEdit
-          ? {
-            responseFormat: {
-              image: {
-                aspectRatio: "9:16",
-              },
-            },
-          }
-          : {}),
       },
     }),
   });
