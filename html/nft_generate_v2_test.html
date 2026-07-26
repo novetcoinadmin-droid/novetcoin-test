@@ -2749,48 +2749,23 @@
 
     function buildSdToPhotorealIntermediatePayload() {
       const gender = getFieldValue('tpl_character_sd_to_real_gender');
-      const genderInstruction = gender === '男性'
-        ? '性別：男性。韓国風男性アイドルのような整った美男、シャープな顔立ち、大人っぽい表情の成人男性モデル。'
-        : gender === '女性'
-          ? '性別：女性。韓国風女性アイドルのような整った美女、上品で大人っぽい顔立ちの成人女性モデル。'
-          : '性別：その他。韓国風アイドルのような中性的で整った美形、大人っぽい顔立ちの成人モデル。';
       const userFreeText = getFieldValue('tpl_character_free_text');
-      const extractedFeaturesText = sdExtractionState.extractedParameters
-        ? JSON.stringify(sdExtractionState.extractedParameters, null, 2)
-        : '';
-      const promptLines = [
-        '添付画像をImage-to-Imageで直接変換してください。',
-        '【維持するもの】参照画像と同じポーズ、同じ構図、同じカメラアングルを維持。参考画像の髪型、髪色、髪飾りを維持。参考画像の衣装デザイン、衣装の色、装飾、マントを維持。右手と左手の持ち物、小物の位置、角度、左右を維持。',
-        '【変更するもの】SDキャラを、25歳以上の長身成人モデル体型の実写人物に変換。高精細な実写・コスプレ撮影風、4K、フォトリアル。顔立ちは、選択された性別に合わせた韓国風アイドルのような整った美男美女。子供体型ではなく、大人の骨格。小さい頭、長い脚、高い腰位置、長い首、広めの肩幅。肌、布、金属、革、装飾はリアルな質感。',
-        genderInstruction,
-        '【禁止】SDキャラのままにしない。ちびキャラにしない。アニメ絵にしない。元画像の単なる高画質化にしない。大きな頭、短い手足、低い腰位置、幼い顔、子供体型にしない。',
-        userFreeText ? `追加メモ: ${userFreeText}` : ''
-      ].filter(Boolean).join('\n');
 
       return {
         template_type: 'character',
         source_page: 'nft_generate_v2_test',
         generation_mode: 'reference',
         sd_to_real_conversion_stage: 'photoreal_intermediate',
+        direct_image_edit: true,
         tpl_character_mode_conversion: 'SDキャラから10頭身実写へ変換',
         tpl_character_sd_to_real_gender: gender,
-        tpl_character_free_text: promptLines,
-        source_character_features_text: extractedFeaturesText,
-        sd_extracted_parameters: sdExtractionState.extractedParameters || null,
-        tpl_character_view: '元画像と同じ構図・同じアングル、ただし25歳以上の長身成人モデルの実写写真',
+        photoreal_user_note: userFreeText,
+        tpl_character_view: '元画像の姿勢・向き・重心・全身縦構図を維持。ただしSD体型の画素位置とシルエットは維持しない',
         tpl_character_age: '25歳以上の成人。子供っぽさなし。',
-        tpl_character_pose: '参照SDキャラと同じポーズ・同じ構図・同じアングルを維持し、身体は長身成人モデル体型へ変更',
-        tpl_character_outfit: '参照SDキャラの衣装・装備モチーフを実写映画風に維持',
-        tpl_character_lighting: '自然で立体感のあるフォトリアル照明',
-        tpl_character_art_style: 'photorealistic live-action cosplay photograph, realistic human anatomy, cinematic fantasy costume texture, not anime illustration, not 3D game render',
-        editable_fields_japanese: {
-          '画風': '実写風フォトリアル。リアル漫画風へ変換する前段階の中間画像。',
-          'キャラモード変換': 'SDキャラから10頭身実写へ変換',
-          'SD→リアル2Dの性別': gender || '指定なし',
-          '体型': '25歳以上の長身成人モデル体型。小さい頭、長い脚、高い腰位置、長い首、広めの肩幅、大人の骨格。SD体型・短い脚・低い腰位置・子供体型・SDシルエットは残さない。',
-          'ポーズ': '参照SDキャラと同じポーズ、同じ構図、同じアングル、左右の手持ち装備を維持。ただしSD頭身とSDシルエットは維持しない。',
-          '髪型': '参考画像の髪型を維持。髪の長さ、前髪、横髪、後ろ髪、毛流れ、髪のボリューム、髪色、髪飾りの位置を参考画像に合わせる。'
-        },
+        tpl_character_pose: '元画像と同じ姿勢、重心、体と顔の向き、腕と脚の役割、左右の手と装備の対応、装備の角度を維持',
+        tpl_character_outfit: '参照画像の衣装・装備・配色・装飾・髪型を再設計せず実写素材として維持',
+        tpl_character_lighting: '高予算の実写ファンタジー映画のシネマティック照明',
+        tpl_character_art_style: 'photorealistic high-budget live-action fantasy film still, realistic adult anatomy, not anime, not 3D game art, not cosplay photography',
         reference_image_url: selectedReferenceAsset?.file_url || '',
         reference_asset_id: selectedReferenceAsset?.id || null
       };

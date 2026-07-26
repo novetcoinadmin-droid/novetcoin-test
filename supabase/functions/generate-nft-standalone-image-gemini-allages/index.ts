@@ -116,6 +116,66 @@ function isSdToPhotorealIntermediateMode(mode: string) {
   );
 }
 
+function getPhotorealGenderInstruction(gender: string) {
+  if (gender === "男性") {
+    return "a handsome adult man with refined Korean-idol-style facial beauty";
+  }
+  if (gender === "女性") {
+    return "a beautiful adult woman with refined Korean-idol-style facial beauty";
+  }
+  return "an androgynous beautiful adult with refined Korean-idol-style facial beauty";
+}
+
+function buildSdPhotorealDirectEditPrompt(payload: any) {
+  const gender = pickString(payload.tpl_character_sd_to_real_gender) ||
+    pickString(payload.sd_to_real_gender) ||
+    pickString(payload.character_gender);
+  const userNote = pickString(payload.photoreal_user_note);
+  const genderInstruction = getPhotorealGenderInstruction(gender);
+
+  return `
+Use the attached image as the primary character, design, equipment, pose, and framing reference. Directly edit the attached image into a new photorealistic image.
+
+MANDATORY TRANSFORMATION:
+- Transform the SD/chibi 3D fantasy character into ${genderInstruction}, age 25 or older.
+- The result must have realistic adult human anatomy and a tall fashion-model physique with approximately ten-heads-tall heroic proportions.
+- Use a small realistically proportioned adult head, mature adult bone structure, a long neck, adult shoulders, a high waist, long arms, and very long legs.
+- The result must look like a real person in a high-budget live-action fantasy movie still.
+- Render realistic skin, hair, embroidered fabric, polished metal, leather, feathers, and other physical materials.
+
+POSE PRESERVATION IS THE HIGHEST PRIORITY:
+- Preserve the same standing posture and center of gravity.
+- Preserve the direction of the torso and the direction and tilt of the head.
+- Preserve the role, bend, and direction of both arms and both legs.
+- Preserve which hand holds each item and never swap the left and right equipment.
+- Preserve each hand-held item's direction, angle, and relationship to the body.
+- Preserve the overall camera angle and full-body vertical framing.
+- Adapt joint positions naturally to the new adult anatomy. Do not preserve the SD body's exact pixel coordinates, limb lengths, head size, or silhouette.
+
+PRESERVE THE ORIGINAL CHARACTER DESIGN:
+- Preserve the reference hairstyle exactly: hair length, bangs, side hair, back hair, flow, volume, color, and all hair ornaments.
+- Preserve the outfit category, garment shapes, color placement, trim, cape, gloves, trousers, boots, medals, emblems, and visible decorations.
+- Preserve all visible weapons, shields, bags, ornaments, and accessories, including their distinctive shape, colors, motifs, size relationships, placement, and left/right assignment.
+- Convert those designs into believable real-world materials without simplifying, replacing, or independently redesigning them.
+- Keep visible face coverings, eyepatches, headpieces, feathers, ribbons, flowers, and other identity details in their original positions.
+
+BACKGROUND AND CLEANUP:
+- Remove all game UI, text, buttons, icons, level indicators, borders, and screenshot interface elements.
+- Recreate the visible environment as a cinematic photorealistic fantasy setting inspired by the reference, while keeping the character as the clear full-body subject.
+
+DO NOT:
+- Do not return an SD character, chibi character, anime illustration, manga illustration, 3D game render, figurine, doll, mascot, or an upscaled/repainted copy of the source.
+- Do not produce a child, teenager, childlike face, oversized head, short limbs, short legs, low waist, round SD torso, or compact SD silhouette.
+- Do not make the image look like a cosplay photograph or costume snapshot.
+- Do not redesign the costume, shorten or otherwise change the hairstyle, remove equipment, swap hands, or change the pose meaning.
+- Do not depict or imitate a real celebrity, public figure, or specific private person.
+
+FINAL CHECK BEFORE OUTPUT:
+The output must visibly satisfy all three requirements at once: (1) an unmistakably photorealistic live-action adult age 25+, (2) a tall approximately ten-heads-tall model physique with the SD proportions completely removed, and (3) the same recognizable character design, pose meaning, hairstyle, costume, and equipment layout as the attached image.
+${userNote ? `\nAdditional user direction:\n${userNote}` : ""}
+`.trim();
+}
+
 function getCharacterModeConversionInstructions(mode: string) {
   if (!mode) {
     return {
@@ -311,6 +371,13 @@ function buildPrompt(
   const sourceCharacterFeaturesText = pickString(
     payload.source_character_features_text,
   );
+  if (
+    payload.direct_image_edit === true &&
+    hasReferenceImage &&
+    isSdToPhotorealIntermediateMode(userModeConversion)
+  ) {
+    return buildSdPhotorealDirectEditPrompt(payload);
+  }
   const modeConversion = getCharacterModeConversionInstructions(
     userModeConversion,
   );
@@ -467,6 +534,7 @@ async function callGeminiImageModel(params: {
   backgroundImageBase64: string;
   backgroundImageMimeType: string;
   backgroundMode: string;
+  directReferenceEdit: boolean;
 }) {
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.apiKey}`;
@@ -474,7 +542,15 @@ async function callGeminiImageModel(params: {
     { inlineData?: { mimeType: string; data: string }; text?: string }
   > = [];
 
-  if (params.referenceImageBase64) {
+  if (params.directReferenceEdit && params.referenceImageBase64) {
+    parts.push({ text: params.prompt });
+    parts.push({
+      inlineData: {
+        mimeType: params.referenceImageMimeType || "image/png",
+        data: params.referenceImageBase64,
+      },
+    });
+  } else if (params.referenceImageBase64) {
     parts.push({
       text:
         "Reference image for Image-to-Image transformation. Use this image to preserve pose, composition, camera angle, hairstyle, outfit design, cape, hand-held items, item positions, item angles, left/right assignment, motif placement, and character identity. Change SD/chibi/anime rendering into a photorealistic adult cosplay photograph. Do not copy screenshot UI, text, buttons, dates, or icons.",
@@ -500,7 +576,9 @@ async function callGeminiImageModel(params: {
     });
   }
 
-  parts.push({ text: params.prompt });
+  if (!params.directReferenceEdit) {
+    parts.push({ text: params.prompt });
+  }
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -513,7 +591,18 @@ async function callGeminiImageModel(params: {
         },
       ],
       generationConfig: {
-        responseModalities: ["TEXT", "IMAGE"],
+        responseModalities: params.directReferenceEdit
+          ? ["IMAGE"]
+          : ["TEXT", "IMAGE"],
+        ...(params.directReferenceEdit
+          ? {
+            responseFormat: {
+              image: {
+                aspectRatio: "9:16",
+              },
+            },
+          }
+          : {}),
       },
     }),
   });
@@ -861,6 +950,10 @@ Deno.serve(async (req) => {
 
     const userModeConversion = pickString(payload.tpl_character_mode_conversion) ||
       pickString(payload.character_mode_conversion);
+    const isPhotorealDirectEdit =
+      payload.direct_image_edit === true &&
+      isSdToPhotorealIntermediateMode(userModeConversion) &&
+      Boolean(referenceImageBase64);
     const useTextOnlySourceFeatures =
       isSdToReal2DConversionMode(userModeConversion) && Boolean(referenceImageBase64);
     let sourceCharacterFeaturesText = "";
@@ -895,6 +988,7 @@ Deno.serve(async (req) => {
       backgroundImageBase64,
       backgroundImageMimeType,
       backgroundMode,
+      directReferenceEdit: isPhotorealDirectEdit,
     });
     const dataUrl = `data:${result.mimeType};base64,${result.imageBase64}`;
 
