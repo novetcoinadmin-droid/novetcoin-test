@@ -156,28 +156,34 @@ Use the attached image as the primary character, design, equipment, pose, and fr
 
 BODY RECONSTRUCTION IS THE FIRST AND NON-NEGOTIABLE STEP:
 - Before rendering the face, hair, costume, or materials, discard the source SD/chibi skeleton, compact torso, short limb lengths, oversized-head ratio, and original body silhouette.
-- Rebuild a completely new full-body adult fashion-model skeleton first, then transfer the source character's pose meaning, design, costume, and equipment onto that new skeleton.
+- First infer the source pose as an articulated 3D skeleton: one head, neck, shoulder line, ribcage, spine, pelvis, two upper arms, two elbows, two forearms, two hands, two thighs, two knees, two lower legs, two ankles, and two feet. Preserve any intentional non-human appendages separately; never mistake wings, tails, capes, armor, or equipment for human limbs.
+- Rebuild a completely new, connected, anatomically coherent adult fashion-model skeleton in that same pose, then transfer the source character's design, costume, and equipment onto it.
 - If preserving the source silhouette or exact joint coordinates conflicts with the required body proportions, the new twelve-heads-tall adult anatomy must win.
 - A realistic face on an SD, chibi, short-legged, compact, or only slightly stretched body is an invalid result.
+- Keep left and right limbs distinct through every occlusion. The pelvis must connect clearly to two separate thighs; each thigh must connect to one knee, one lower leg, one ankle, and one foot. Never merge, duplicate, detach, cross-connect, or hide a required joint inside armor or equipment.
+- Build the complete unclothed anatomical body mentally first. Add clothing, armor, cape, wings, accessories, and held items only after the body structure is valid. Garments and equipment may cover anatomy visually, but must never replace, deform, or fuse with it.
 
 MANDATORY CHARACTER AND RENDERING TRANSFORMATION:
 - Transform the SD/chibi 3D fantasy character into ${genderInstruction}, age 25 or older.
 - Render the result as a premium protagonist from a high-budget cinematic 3D CGI fantasy feature film, with physically based rendering, realistic materials, cinematic lighting, and polished hero-character quality.
 - Use idealized but believable adult anatomy and a tall international fashion-model physique.
-- Deliberately exaggerated strict proportion target: exactly twelve head units from the top of the skull to the soles of the feet. Measure head height from chin to skull crown, excluding hair volume, hats, feathers, horns, and other ornaments.
-- The anatomical head must be approximately one twelfth of the total body height. The legs from hip joint to sole must occupy approximately 65 to 70 percent of the total body height.
+- Deliberately exaggerated strict proportion target: a canonical standing anatomy of exactly twelve head units from the top of the skull to the soles of the feet. Measure head height from chin to skull crown, excluding hair volume, hats, feathers, horns, and other ornaments.
+- Twelve-heads-tall describes the character's underlying anatomy when hypothetically standing upright. It does not mean the visible top-to-bottom height in the current projected pose must measure twelve heads. Bent knees, crouching, sitting, lunging, foreshortening, camera perspective, and overlapping limbs naturally reduce projected image height; preserve those pose effects without stretching individual bones.
+- The anatomical head must be approximately one twelfth of canonical standing body height. The legs from hip joint to sole should occupy approximately 58 to 62 percent of canonical standing height, distributed coherently between thighs and lower legs.
 - Use a small adult head, long neck, mature shoulders, elongated torso, high waist and crotch position, long arms, very long thighs, and very long lower legs.
-- Make the twelve-heads-tall silhouette immediately obvious before adding costume detail. Leave clear visual separation between torso, high hip/crotch position, thighs, knees, lower legs, and feet. Do not let clothing, cape, boots, or equipment visually shorten or conceal the leg length.
+- Make the elegant twelve-heads-tall model anatomy recognizable through consistent bone-length relationships, not by locally stretching legs or shrinking the torso. Leave readable separation between torso, pelvis, thighs, knees, lower legs, ankles, and feet wherever the pose and occlusion allow.
+- Use equal corresponding bone lengths on the left and right sides unless perspective foreshortening explains the visible difference. Keep knees at anatomically corresponding locations and feet at plausible size, orientation, and ground contact.
 
 AFTER BODY RECONSTRUCTION, PRESERVE POSE MEANING AND EQUIPMENT ORIENTATION:
-- Preserve the same standing posture and center of gravity.
+- Preserve the same pose category, stance or action, center of gravity, balance, and support points, whether the character is standing, crouching, kneeling, sitting, lunging, leaning, airborne, or otherwise posed.
 - Preserve the direction of the torso and the direction and tilt of the head.
 - Preserve the role, bend, and direction of both arms and both legs.
 - Treat every hand-held item and body-attached piece of equipment as part of the pose, regardless of its type or design.
 - For every held item, preserve the holding hand, contact point, dominant screen-space axis, rotation, orientation, tilt, and the location of its distal or functional end relative to the character and image frame.
 - Preserve whether each item is raised, lowered, open, closed, extended, folded, or resting. Never rotate, reverse, mirror, raise, lower, open, close, or re-aim an item unless the reference image already shows that state.
 - Never swap left-hand and right-hand equipment. Never replace a visible item with a more common or easier design.
-- Preserve the overall camera angle and full-body vertical framing.
+- Preserve the overall camera angle, perspective, canvas orientation, pose meaning, and scene arrangement. The reference may use a vertical, square, or horizontal composition.
+- Permit only the minimum zoom-out, subject downscaling, or surrounding-canvas extension needed to fit the reconstructed full body and existing equipment without cropping or compressing anatomy. Do not otherwise redesign the composition.
 - Adapt joint positions naturally to the new adult anatomy. Do not preserve the SD body's exact pixel coordinates, limb lengths, head size, or silhouette.
 
 PRESERVE THE ORIGINAL CHARACTER DESIGN:
@@ -195,11 +201,13 @@ DO NOT:
 - Do not return an SD character, chibi character, anime illustration, manga illustration, low-quality game render, game screenshot, figurine, plastic doll, mascot, cosplay photograph, or an upscaled/repainted copy of the source.
 - Do not produce a child, teenager, childlike face, oversized head, short limbs, short legs, low waist, round SD torso, or compact SD silhouette.
 - Do not use ordinary seven-to-eight-head adult proportions. Do not use average-length legs, a long head, a low crotch, oversized boots, or a costume silhouette that hides the required model proportions.
+- Do not force twelve visible head units into a crouched, bent, seated, lunging, or foreshortened projected pose. Do not stretch only one limb segment, create uneven femurs, displace knees, shrink feet, float feet, or break ground contact merely to increase visible height.
+- Do not merge the pelvis, thighs, knees, lower legs, feet, hands, armor, shield, weapon, cape, wings, or other equipment into an ambiguous combined shape.
 - Do not redesign the costume, shorten or otherwise change the hairstyle, remove equipment, swap hands, change any equipment's orientation, or change the pose meaning.
 - Do not depict or imitate a real celebrity, public figure, or specific private person.
 
 FINAL CHECK BEFORE OUTPUT:
-Before finalizing, verify all four requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an unmistakable exactly twelve-heads-tall fashion-model silhouette with the head near 1/12 of total height, legs near 65 to 70 percent of total height, and all SD proportions removed, (3) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (4) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item. Reject the result internally and reconstruct the body if only the face changed while the source body proportions remained.
+Before finalizing, verify all five requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an underlying canonical twelve-heads-tall fashion-model anatomy with the head near 1/12 and legs near 58 to 62 percent of canonical standing height, without forcing the projected pose to appear twelve heads high, (3) one coherent pelvis, two distinct anatomically connected legs, two distinct arms, plausible joints, feet, occlusion order, balance, and ground contact with no body-equipment fusion, (4) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (5) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item. Reject the result internally and reconstruct the skeleton if only the face changed, SD proportions remained, or any anatomy became ambiguous.
 ${userNote ? `\nAdditional user direction:\n${userNote}` : ""}
 `.trim();
 }

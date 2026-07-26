@@ -2767,12 +2767,12 @@
         tpl_character_mode_conversion: 'SDキャラから12頭身実写へ変換',
         tpl_character_sd_to_real_gender: gender,
         photoreal_user_note: userFreeText,
-        tpl_character_view: '元画像の姿勢・向き・重心・全身縦構図を維持。ただしSD体型の画素位置とシルエットは維持しない',
+        tpl_character_view: '元画像のキャンバス方向、カメラ、遠近、ポーズの意味、重心、場面配置を維持。再構築した全身と装備を収めるための最小限のズームアウトは許可し、SD体型の画素位置とシルエットは維持しない',
         tpl_character_age: '25歳以上の成人。子供っぽさなし。',
-        tpl_character_pose: '元画像と同じ姿勢、重心、体と顔の向き、腕と脚の役割を維持。すべての手持ち装備について、持つ手、握る位置、画面上の主軸、回転、向き、傾き、機能する側の位置、開閉・展開状態を参照画像どおりに維持',
+        tpl_character_pose: '直立・屈伸・座位・突進・空中など元画像のポーズ種別、重心、支持点、体と顔の向き、腕と脚の役割を維持。12頭身は直立時の基準骨格として適用し、曲げた脚を局所的に引き伸ばさない。すべての手持ち装備について、持つ手、握る位置、画面上の主軸、回転、向き、傾き、機能する側の位置、開閉・展開状態を維持',
         tpl_character_outfit: '参照画像の髪型、衣装、装備、配色、装飾を再設計せず、物理的に説得力のある映画3DCG素材として維持',
         tpl_character_lighting: '高予算の映画3DCGファンタジー作品のシネマティック照明',
-        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, exactly twelve-heads-tall adult fashion-model anatomy, head approximately 1/12 of total height, legs occupying 65 to 70 percent of total height, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
+        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, canonical standing anatomy exactly twelve-heads-tall, head approximately 1/12 and legs 58 to 62 percent of canonical standing height, coherent articulated skeleton in any pose, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
         reference_image_url: selectedReferenceAsset?.file_url || '',
         reference_asset_id: selectedReferenceAsset?.id || null
       };
