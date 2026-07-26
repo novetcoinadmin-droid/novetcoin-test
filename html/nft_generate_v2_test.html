@@ -1183,10 +1183,10 @@
       if (photorealActionArea) {
         const hasIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
         photorealActionArea.innerHTML = hasReference ? `
-          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleSdToPhotorealIntermediate()">10頭身実写化を試す</button>
-          <p class="muted" style="margin:8px 0 0;">${extractionReady ? '抽出済みです。10頭身の実写風イケメン/美女へ寄せ、その画像を次のリアル漫画風変換の元にできます。' : '先に抽出してください。抽出が完了すると10頭身実写化を試せます。'}</p>
+          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleSdToPhotorealIntermediate()">12頭身実写化を試す</button>
+          <p class="muted" style="margin:8px 0 0;">${extractionReady ? '抽出済みです。SD骨格を12頭身の成人モデル骨格へ再構築し、その画像を次の2Dアニメ変換の元にできます。' : '先に抽出してください。抽出が完了すると12頭身実写化を試せます。'}</p>
           <button class="btn btn-primary" type="button" style="margin-top:12px;" ${hasIntermediate ? '' : 'disabled'} onclick="handlePhotorealIntermediateToAnime2D()">2Dアニメ風に変換</button>
-          <p class="muted" style="margin:8px 0 0;">${hasIntermediate ? '生成済みの10頭身画像を直接基準にし、構図を変えず2Dアニメ風の美男美女へ変換します。' : '10頭身実写化が完了すると2Dアニメ風へ変換できます。'}</p>
+          <p class="muted" style="margin:8px 0 0;">${hasIntermediate ? '生成済みの12頭身画像を直接基準にし、構図を変えず2Dアニメ風の美男美女へ変換します。' : '12頭身実写化が完了すると2Dアニメ風へ変換できます。'}</p>
         ` : '';
       }
     }
@@ -1400,7 +1400,7 @@
           modelText: data.model_text || data.modelText || '',
           warnings: data.warnings || []
         };
-        showMessage('SDキャラ抽出が完了しました。10頭身実写化を試せます。');
+        showMessage('SDキャラ抽出が完了しました。12頭身実写化を試せます。');
       } catch (err) {
         sdExtractionState = {
           ...sdExtractionState,
@@ -2764,7 +2764,7 @@
         generation_mode: 'reference',
         sd_to_real_conversion_stage: 'photoreal_intermediate',
         direct_image_edit: true,
-        tpl_character_mode_conversion: 'SDキャラから10頭身実写へ変換',
+        tpl_character_mode_conversion: 'SDキャラから12頭身実写へ変換',
         tpl_character_sd_to_real_gender: gender,
         photoreal_user_note: userFreeText,
         tpl_character_view: '元画像の姿勢・向き・重心・全身縦構図を維持。ただしSD体型の画素位置とシルエットは維持しない',
@@ -2772,7 +2772,7 @@
         tpl_character_pose: '元画像と同じ姿勢、重心、体と顔の向き、腕と脚の役割を維持。すべての手持ち装備について、持つ手、握る位置、画面上の主軸、回転、向き、傾き、機能する側の位置、開閉・展開状態を参照画像どおりに維持',
         tpl_character_outfit: '参照画像の髪型、衣装、装備、配色、装飾を再設計せず、物理的に説得力のある映画3DCG素材として維持',
         tpl_character_lighting: '高予算の映画3DCGファンタジー作品のシネマティック照明',
-        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, exactly ten-heads-tall adult fashion-model anatomy, legs occupying 60 to 65 percent of total height, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
+        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, exactly twelve-heads-tall adult fashion-model anatomy, head approximately 1/12 of total height, legs occupying 65 to 70 percent of total height, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
         reference_image_url: selectedReferenceAsset?.file_url || '',
         reference_asset_id: selectedReferenceAsset?.id || null
       };
@@ -2790,7 +2790,7 @@
         return;
       }
       if (!sdExtractionState.extractedParameters) {
-        showMessage('先に抽出してください。抽出完了後に10頭身実写化を試せます。', 'error');
+        showMessage('先に抽出してください。抽出完了後に12頭身実写化を試せます。', 'error');
         renderSdExtractionPanel();
         return;
       }
@@ -2804,7 +2804,7 @@
       currentGeneratedMode = 'character';
       renderPromptDebug(null);
       showMessage('');
-      showProcessingOverlay('10頭身実写化中...', 'SDキャラのポーズを保ちながら、実写風の中間画像を生成しています。');
+      showProcessingOverlay('12頭身実写化中...', 'SD骨格を成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。');
 
       try {
         const { data: profile, error: profileError } = await window.supabaseClient
@@ -2848,7 +2848,7 @@
             user_id: currentUser.id,
             tx_type: 'np_use',
             type: 'ai_illustration_generation',
-            product_name: 'AIイラスト生成（SD→10頭身実写化テスト）',
+            product_name: 'AIイラスト生成（SD→12頭身実写化テスト）',
             amount_nvt: 0,
             amount_np: -GENERATION_COST_NP,
             balance_before_np: currentNp,
@@ -2859,9 +2859,9 @@
 
         if (txError) {
           console.error('transactions insert error:', txError);
-          showMessage('10頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+          showMessage('12頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
         } else {
-          showMessage('10頭身実写化が完了しました。次はこの画像を参照画像としてリアル漫画風へ変換できます。');
+          showMessage('12頭身実写化が完了しました。次はこの画像を参照画像として2Dアニメ風へ変換できます。');
         }
 
         currentGeneratedMimeType = generatedImage.mimeType || '';
@@ -2874,7 +2874,7 @@
         if (saveButton) saveButton.disabled = false;
       } catch (err) {
         console.error(err);
-        showMessage(err.message || '10頭身実写化に失敗しました。', 'error');
+        showMessage(err.message || '12頭身実写化に失敗しました。', 'error');
       } finally {
         hideProcessingOverlay();
         if (generateButton) generateButton.disabled = false;
@@ -2888,7 +2888,7 @@
       }
       if (!isSdToReal2DConversionSelected()) return;
       if (!sdPhotorealIntermediateDataUrl) {
-        showMessage('先に10頭身実写化を完了してください。', 'error');
+        showMessage('先に12頭身実写化を完了してください。', 'error');
         renderSdExtractionPanel();
         return;
       }
@@ -2904,7 +2904,7 @@
       currentGeneratedMode = 'character';
       renderPromptDebug(null);
       showMessage('');
-      showProcessingOverlay('2Dアニメ風へ変換中...', '生成済みの10頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。');
+      showProcessingOverlay('2Dアニメ風へ変換中...', '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。');
 
       try {
         const { data: profile, error: profileError } = await window.supabaseClient
@@ -2928,14 +2928,14 @@
           generation_mode: 'reference',
           sd_to_real_conversion_stage: 'anime_2d_final',
           direct_image_edit: true,
-          tpl_character_mode_conversion: '10頭身映画3DCGから2Dアニメへ変換',
+          tpl_character_mode_conversion: '12頭身映画3DCGから2Dアニメへ変換',
           tpl_character_sd_to_real_gender: getFieldValue('tpl_character_sd_to_real_gender'),
           reference_image_base64: sourceBase64,
           reference_image_mime_type: sourceMimeType,
           reference_image_role: 'generated_ten_heads_intermediate',
-          tpl_character_view: '生成済み10頭身画像のキャンバス、構図、カメラ、人物位置、背景配置を固定',
-          tpl_character_pose: '生成済み10頭身画像のポーズと全装備の持ち手、向き、角度、位置、状態を固定',
-          tpl_character_outfit: '生成済み10頭身画像の髪型、衣装、装備、配色、装飾を維持',
+          tpl_character_view: '生成済み12頭身画像のキャンバス、構図、カメラ、人物位置、背景配置を固定',
+          tpl_character_pose: '生成済み12頭身画像のポーズと全装備の持ち手、向き、角度、位置、状態を固定',
+          tpl_character_outfit: '生成済み12頭身画像の髪型、衣装、装備、配色、装飾を維持',
           tpl_character_art_style: 'premium Japanese 2D anime key art; change rendering medium only'
         };
 
@@ -2976,7 +2976,7 @@
             user_id: currentUser.id,
             tx_type: 'np_use',
             type: 'ai_illustration_generation',
-            product_name: 'AIイラスト生成（10頭身中間画像→2Dアニメ変換）',
+            product_name: 'AIイラスト生成（12頭身中間画像→2Dアニメ変換）',
             amount_nvt: 0,
             amount_np: -GENERATION_COST_NP,
             balance_before_np: currentNp,
@@ -2989,7 +2989,7 @@
           console.error('transactions insert error:', txError);
           showMessage('2Dアニメ変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
         } else {
-          showMessage('生成済みの10頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
+          showMessage('生成済みの12頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
         }
 
         currentGeneratedMimeType = generatedImage.mimeType || '';

@@ -111,7 +111,7 @@ function isSdToReal2DConversionMode(mode: string) {
 function isSdToPhotorealIntermediateMode(mode: string) {
   return Boolean(
     mode &&
-      mode.includes("10頭身") &&
+      (mode.includes("10頭身") || mode.includes("12頭身")) &&
       (mode.includes("実写") || mode.includes("フォトリアル")),
   );
 }
@@ -119,7 +119,7 @@ function isSdToPhotorealIntermediateMode(mode: string) {
 function isCinematicToAnime2DMode(mode: string) {
   return Boolean(
     mode &&
-      mode.includes("10頭身") &&
+      (mode.includes("10頭身") || mode.includes("12頭身")) &&
       mode.includes("2Dアニメ"),
   );
 }
@@ -154,16 +154,22 @@ function buildSdPhotorealDirectEditPrompt(payload: any) {
   return `
 Use the attached image as the primary character, design, equipment, pose, and framing reference. Directly transform the attached 3D/SD character image into a new cinematic full-body character image.
 
-MANDATORY TRANSFORMATION:
+BODY RECONSTRUCTION IS THE FIRST AND NON-NEGOTIABLE STEP:
+- Before rendering the face, hair, costume, or materials, discard the source SD/chibi skeleton, compact torso, short limb lengths, oversized-head ratio, and original body silhouette.
+- Rebuild a completely new full-body adult fashion-model skeleton first, then transfer the source character's pose meaning, design, costume, and equipment onto that new skeleton.
+- If preserving the source silhouette or exact joint coordinates conflicts with the required body proportions, the new twelve-heads-tall adult anatomy must win.
+- A realistic face on an SD, chibi, short-legged, compact, or only slightly stretched body is an invalid result.
+
+MANDATORY CHARACTER AND RENDERING TRANSFORMATION:
 - Transform the SD/chibi 3D fantasy character into ${genderInstruction}, age 25 or older.
 - Render the result as a premium protagonist from a high-budget cinematic 3D CGI fantasy feature film, with physically based rendering, realistic materials, cinematic lighting, and polished hero-character quality.
 - Use idealized but believable adult anatomy and a tall international fashion-model physique.
-- Strict proportion target: exactly ten head units from the top of the skull to the soles of the feet. Measure head height from chin to skull crown, excluding hair volume, hats, feathers, horns, and other ornaments.
-- The anatomical head must be approximately one tenth of the total body height. The legs from hip joint to sole must occupy approximately 60 to 65 percent of the total body height.
+- Deliberately exaggerated strict proportion target: exactly twelve head units from the top of the skull to the soles of the feet. Measure head height from chin to skull crown, excluding hair volume, hats, feathers, horns, and other ornaments.
+- The anatomical head must be approximately one twelfth of the total body height. The legs from hip joint to sole must occupy approximately 65 to 70 percent of the total body height.
 - Use a small adult head, long neck, mature shoulders, elongated torso, high waist and crotch position, long arms, very long thighs, and very long lower legs.
-- Make the ten-heads-tall silhouette immediately obvious before adding costume detail. Do not let clothing, cape, boots, or equipment visually shorten the legs.
+- Make the twelve-heads-tall silhouette immediately obvious before adding costume detail. Leave clear visual separation between torso, high hip/crotch position, thighs, knees, lower legs, and feet. Do not let clothing, cape, boots, or equipment visually shorten or conceal the leg length.
 
-POSE AND EQUIPMENT ORIENTATION PRESERVATION ARE THE HIGHEST PRIORITY:
+AFTER BODY RECONSTRUCTION, PRESERVE POSE MEANING AND EQUIPMENT ORIENTATION:
 - Preserve the same standing posture and center of gravity.
 - Preserve the direction of the torso and the direction and tilt of the head.
 - Preserve the role, bend, and direction of both arms and both legs.
@@ -193,7 +199,7 @@ DO NOT:
 - Do not depict or imitate a real celebrity, public figure, or specific private person.
 
 FINAL CHECK BEFORE OUTPUT:
-Before finalizing, verify all four requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an unmistakable exactly ten-heads-tall fashion-model silhouette with very long legs and all SD proportions removed, (3) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (4) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item.
+Before finalizing, verify all four requirements independently: (1) a premium high-budget feature-film 3D CGI protagonist age 25+, (2) an unmistakable exactly twelve-heads-tall fashion-model silhouette with the head near 1/12 of total height, legs near 65 to 70 percent of total height, and all SD proportions removed, (3) the same recognizable hairstyle, costume, colors, ornaments, and equipment designs, and (4) the same pose meaning plus the same screen-space direction, angle, state, and left/right assignment for every held item. Reject the result internally and reconstruct the body if only the face changed while the source body proportions remained.
 ${userNote ? `\nAdditional user direction:\n${userNote}` : ""}
 `.trim();
 }
