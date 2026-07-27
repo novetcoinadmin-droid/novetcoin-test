@@ -1183,10 +1183,12 @@
       if (photorealActionArea) {
         const hasIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
         photorealActionArea.innerHTML = hasReference ? `
-          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleSdToPhotorealIntermediate()">12頭身実写化を試す</button>
-          <p class="muted" style="margin:8px 0 0;">${extractionReady ? '抽出済みです。SD骨格を12頭身の成人モデル骨格へ再構築し、その画像を次の2Dアニメ変換の元にできます。' : '先に抽出してください。抽出が完了すると12頭身実写化を試せます。'}</p>
-          <button class="btn btn-primary" type="button" style="margin-top:12px;" ${hasIntermediate ? '' : 'disabled'} onclick="handlePhotorealIntermediateToAnime2D()">2Dアニメ風に変換</button>
-          <p class="muted" style="margin:8px 0 0;">${hasIntermediate ? '生成済みの12頭身画像を直接基準にし、構図を変えず2Dアニメ風の美男美女へ変換します。' : '12頭身実写化が完了すると2Dアニメ風へ変換できます。'}</p>
+          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleRealAnimeConversionWorkflow()">リアルアニメ風に変換</button>
+          <p class="muted" style="margin:8px 0 0;">${extractionReady
+            ? (hasIntermediate
+              ? '12頭身の中間画像を保持しています。2Dアニメ変換から再開します。'
+              : '内部で12頭身実写化、続けて2Dアニメ化を行い、完成画像を表示します。')
+            : '先に抽出してください。抽出が完了するとリアルアニメ風へ変換できます。'}</p>
         ` : '';
       }
     }
@@ -2778,7 +2780,71 @@
       };
     }
 
-    async function handleSdToPhotorealIntermediate() {
+    async function handleRealAnimeConversionWorkflow() {
+      if (!currentUser) {
+        showMessage('ログインが必要です。', 'error');
+        return;
+      }
+      if (!isSdToReal2DConversionSelected()) return;
+      if (!selectedReferenceAsset?.file_url) {
+        showMessage('リアルアニメ風変換では参照画像を選択してください。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+      if (!sdExtractionState.extractedParameters) {
+        showMessage('先に抽出してください。抽出完了後にリアルアニメ風へ変換できます。', 'error');
+        renderSdExtractionPanel();
+        return;
+      }
+
+      const resumeFromIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
+      const requiredNp = GENERATION_COST_NP * (resumeFromIntermediate ? 1 : 2);
+      const saveButton = document.getElementById('saveBtn');
+      const generateButton = document.getElementById('generateBtn');
+      const actionArea = document.getElementById('sdPhotorealActionArea');
+
+      try {
+        const { data: profile, error: profileError } = await window.supabaseClient
+          .from('profiles')
+          .select('np_balance')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
+        const currentNp = Number(profile.np_balance || 0);
+        if (currentNp < requiredNp) {
+          throw new Error(`NP残高が不足しています（今回の処理に必要: ${requiredNp} NP）。`);
+        }
+
+        if (saveButton) saveButton.disabled = true;
+        if (generateButton) generateButton.disabled = true;
+        actionArea?.querySelectorAll('button').forEach((button) => {
+          button.disabled = true;
+        });
+
+        if (!resumeFromIntermediate) {
+          const photorealSucceeded = await handleSdToPhotorealIntermediate({
+            continueWorkflow: true
+          });
+          if (!photorealSucceeded) return;
+        }
+
+        const animeSucceeded = await handlePhotorealIntermediateToAnime2D({
+          continueWorkflow: true
+        });
+        if (animeSucceeded && isMobileControlWidth()) closeMobileControlPanel();
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message || 'リアルアニメ風への変換に失敗しました。', 'error');
+      } finally {
+        hideProcessingOverlay();
+        if (generateButton) generateButton.disabled = false;
+        if (saveButton) saveButton.disabled = !currentGeneratedDataUrl;
+        renderSdExtractionPanel();
+      }
+    }
+
+    async function handleSdToPhotorealIntermediate({ continueWorkflow = false } = {}) {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
         return;
@@ -2804,8 +2870,12 @@
       currentGeneratedMode = 'character';
       renderPromptDebug(null);
       showMessage('');
-      showProcessingOverlay('12頭身実写化中...', 'SD骨格を成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。');
+      showProcessingOverlay(
+        continueWorkflow ? 'リアルアニメ風に変換中（1/2）' : '12頭身実写化中...',
+        'SD骨格を12頭身の成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。'
+      );
 
+      let succeeded = false;
       try {
         const { data: profile, error: profileError } = await window.supabaseClient
           .from('profiles')
@@ -2870,18 +2940,22 @@
         sdPhotorealIntermediateDataUrl = currentGeneratedDataUrl;
         renderPreview(currentGeneratedDataUrl);
         renderSdExtractionPanel();
-        if (isMobileControlWidth()) closeMobileControlPanel();
-        if (saveButton) saveButton.disabled = false;
+        if (!continueWorkflow && isMobileControlWidth()) closeMobileControlPanel();
+        if (!continueWorkflow && saveButton) saveButton.disabled = false;
+        succeeded = true;
       } catch (err) {
         console.error(err);
         showMessage(err.message || '12頭身実写化に失敗しました。', 'error');
       } finally {
-        hideProcessingOverlay();
-        if (generateButton) generateButton.disabled = false;
+        if (!continueWorkflow) {
+          hideProcessingOverlay();
+          if (generateButton) generateButton.disabled = false;
+        }
       }
+      return succeeded;
     }
 
-    async function handlePhotorealIntermediateToAnime2D() {
+    async function handlePhotorealIntermediateToAnime2D({ continueWorkflow = false } = {}) {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
         return;
@@ -2904,8 +2978,12 @@
       currentGeneratedMode = 'character';
       renderPromptDebug(null);
       showMessage('');
-      showProcessingOverlay('2Dアニメ風へ変換中...', '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。');
+      showProcessingOverlay(
+        continueWorkflow ? 'リアルアニメ風に変換中（2/2）' : '2Dアニメ風へ変換中...',
+        '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。'
+      );
 
+      let succeeded = false;
       try {
         const { data: profile, error: profileError } = await window.supabaseClient
           .from('profiles')
@@ -2995,17 +3073,21 @@
         currentGeneratedMimeType = generatedImage.mimeType || '';
         currentGeneratedDataUrl = generatedImage.source;
         renderPreview(currentGeneratedDataUrl);
-        if (isMobileControlWidth()) closeMobileControlPanel();
-        if (saveButton) saveButton.disabled = false;
+        if (!continueWorkflow && isMobileControlWidth()) closeMobileControlPanel();
+        if (!continueWorkflow && saveButton) saveButton.disabled = false;
+        succeeded = true;
       } catch (err) {
         console.error(err);
         showMessage(err.message || '2Dアニメ風への変換に失敗しました。', 'error');
-        if (saveButton && currentGeneratedDataUrl) saveButton.disabled = false;
+        if (!continueWorkflow && saveButton && currentGeneratedDataUrl) saveButton.disabled = false;
       } finally {
-        hideProcessingOverlay();
-        if (generateButton) generateButton.disabled = false;
-        renderSdExtractionPanel();
+        if (!continueWorkflow) {
+          hideProcessingOverlay();
+          if (generateButton) generateButton.disabled = false;
+          renderSdExtractionPanel();
+        }
       }
+      return succeeded;
     }
 
     async function handleGenerate() {
