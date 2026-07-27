@@ -2780,6 +2780,51 @@
       };
     }
 
+    async function chargeRealAnimeConversion() {
+      const { data: profile, error: profileError } = await window.supabaseClient
+        .from('profiles')
+        .select('np_balance')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
+      const currentNp = Number(profile.np_balance || 0);
+      if (currentNp < GENERATION_COST_NP) {
+        throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
+      }
+
+      const newNp = currentNp - GENERATION_COST_NP;
+      const { error: updateError } = await window.supabaseClient
+        .from('profiles')
+        .update({ np_balance: newNp })
+        .eq('id', currentUser.id);
+
+      if (updateError) {
+        throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+      }
+
+      currentNpBalance = newNp;
+      renderNpBalance();
+
+      const { error: txError } = await window.supabaseClient
+        .from('transactions')
+        .insert({
+          user_id: currentUser.id,
+          tx_type: 'np_use',
+          type: 'ai_illustration_generation',
+          product_name: 'AIイラスト生成（リアルアニメ風2段階変換）',
+          amount_nvt: 0,
+          amount_np: -GENERATION_COST_NP,
+          balance_before_np: currentNp,
+          balance_after_np: newNp,
+          related_table: 'profiles',
+          related_id: currentUser.id
+        });
+
+      if (txError) console.error('transactions insert error:', txError);
+      return { transactionRecorded: !txError };
+    }
+
     async function handleRealAnimeConversionWorkflow() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
@@ -2798,10 +2843,18 @@
       }
 
       const resumeFromIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
-      const requiredNp = GENERATION_COST_NP * (resumeFromIntermediate ? 1 : 2);
+      const requiredNp = GENERATION_COST_NP;
       const saveButton = document.getElementById('saveBtn');
       const generateButton = document.getElementById('generateBtn');
       const actionArea = document.getElementById('sdPhotorealActionArea');
+      const hasPreviousCompletedImage = Boolean(
+        currentGeneratedDataUrl &&
+        currentGeneratedDataUrl !== sdPhotorealIntermediateDataUrl
+      );
+      const previousGeneratedDataUrl = hasPreviousCompletedImage ? currentGeneratedDataUrl : '';
+      const previousGeneratedMimeType = hasPreviousCompletedImage ? currentGeneratedMimeType : '';
+      const previousGeneratedMode = hasPreviousCompletedImage ? currentGeneratedMode : 'character';
+      let workflowCompleted = false;
 
       try {
         const { data: profile, error: profileError } = await window.supabaseClient
@@ -2832,14 +2885,30 @@
         const animeSucceeded = await handlePhotorealIntermediateToAnime2D({
           continueWorkflow: true
         });
-        if (animeSucceeded && isMobileControlWidth()) closeMobileControlPanel();
+        if (!animeSucceeded) return;
+
+        const { transactionRecorded } = await chargeRealAnimeConversion();
+        workflowCompleted = true;
+        if (transactionRecorded) {
+          showMessage('リアルアニメ風への変換が完了しました。');
+        } else {
+          showMessage('リアルアニメ風への変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+        }
+        if (isMobileControlWidth()) closeMobileControlPanel();
       } catch (err) {
         console.error(err);
         showMessage(err.message || 'リアルアニメ風への変換に失敗しました。', 'error');
       } finally {
+        if (!workflowCompleted) {
+          currentGeneratedDataUrl = previousGeneratedDataUrl;
+          currentGeneratedMimeType = previousGeneratedMimeType;
+          currentGeneratedMode = previousGeneratedMode;
+          renderPreview(currentGeneratedDataUrl);
+          renderPromptDebug(null);
+        }
         hideProcessingOverlay();
         if (generateButton) generateButton.disabled = false;
-        if (saveButton) saveButton.disabled = !currentGeneratedDataUrl;
+        if (saveButton) saveButton.disabled = !workflowCompleted && !previousGeneratedDataUrl;
         renderSdExtractionPanel();
       }
     }
@@ -2901,37 +2970,39 @@
         const generatedImage = extractGeneratedImageSource(data);
         if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
 
-        const newNp = currentNp - GENERATION_COST_NP;
-        const { error: updateError } = await window.supabaseClient
-          .from('profiles')
-          .update({ np_balance: newNp })
-          .eq('id', currentUser.id);
+        if (!continueWorkflow) {
+          const newNp = currentNp - GENERATION_COST_NP;
+          const { error: updateError } = await window.supabaseClient
+            .from('profiles')
+            .update({ np_balance: newNp })
+            .eq('id', currentUser.id);
 
-        if (updateError) throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+          if (updateError) throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
 
-        currentNpBalance = newNp;
-        renderNpBalance();
+          currentNpBalance = newNp;
+          renderNpBalance();
 
-        const { error: txError } = await window.supabaseClient
-          .from('transactions')
-          .insert({
-            user_id: currentUser.id,
-            tx_type: 'np_use',
-            type: 'ai_illustration_generation',
-            product_name: 'AIイラスト生成（SD→12頭身実写化テスト）',
-            amount_nvt: 0,
-            amount_np: -GENERATION_COST_NP,
-            balance_before_np: currentNp,
-            balance_after_np: newNp,
-            related_table: 'profiles',
-            related_id: currentUser.id
-          });
+          const { error: txError } = await window.supabaseClient
+            .from('transactions')
+            .insert({
+              user_id: currentUser.id,
+              tx_type: 'np_use',
+              type: 'ai_illustration_generation',
+              product_name: 'AIイラスト生成（SD→12頭身実写化テスト）',
+              amount_nvt: 0,
+              amount_np: -GENERATION_COST_NP,
+              balance_before_np: currentNp,
+              balance_after_np: newNp,
+              related_table: 'profiles',
+              related_id: currentUser.id
+            });
 
-        if (txError) {
-          console.error('transactions insert error:', txError);
-          showMessage('12頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
-        } else {
-          showMessage('12頭身実写化が完了しました。次はこの画像を参照画像として2Dアニメ風へ変換できます。');
+          if (txError) {
+            console.error('transactions insert error:', txError);
+            showMessage('12頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+          } else {
+            showMessage('12頭身実写化が完了しました。次はこの画像を参照画像として2Dアニメ風へ変換できます。');
+          }
         }
 
         currentGeneratedMimeType = generatedImage.mimeType || '';
@@ -3035,39 +3106,41 @@
         const generatedImage = extractGeneratedImageSource(data);
         if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
 
-        const newNp = currentNp - GENERATION_COST_NP;
-        const { error: updateError } = await window.supabaseClient
-          .from('profiles')
-          .update({ np_balance: newNp })
-          .eq('id', currentUser.id);
+        if (!continueWorkflow) {
+          const newNp = currentNp - GENERATION_COST_NP;
+          const { error: updateError } = await window.supabaseClient
+            .from('profiles')
+            .update({ np_balance: newNp })
+            .eq('id', currentUser.id);
 
-        if (updateError) {
-          throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
-        }
+          if (updateError) {
+            throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
+          }
 
-        currentNpBalance = newNp;
-        renderNpBalance();
+          currentNpBalance = newNp;
+          renderNpBalance();
 
-        const { error: txError } = await window.supabaseClient
-          .from('transactions')
-          .insert({
-            user_id: currentUser.id,
-            tx_type: 'np_use',
-            type: 'ai_illustration_generation',
-            product_name: 'AIイラスト生成（12頭身中間画像→2Dアニメ変換）',
-            amount_nvt: 0,
-            amount_np: -GENERATION_COST_NP,
-            balance_before_np: currentNp,
-            balance_after_np: newNp,
-            related_table: 'profiles',
-            related_id: currentUser.id
-          });
+          const { error: txError } = await window.supabaseClient
+            .from('transactions')
+            .insert({
+              user_id: currentUser.id,
+              tx_type: 'np_use',
+              type: 'ai_illustration_generation',
+              product_name: 'AIイラスト生成（12頭身中間画像→2Dアニメ変換）',
+              amount_nvt: 0,
+              amount_np: -GENERATION_COST_NP,
+              balance_before_np: currentNp,
+              balance_after_np: newNp,
+              related_table: 'profiles',
+              related_id: currentUser.id
+            });
 
-        if (txError) {
-          console.error('transactions insert error:', txError);
-          showMessage('2Dアニメ変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
-        } else {
-          showMessage('生成済みの12頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
+          if (txError) {
+            console.error('transactions insert error:', txError);
+            showMessage('2Dアニメ変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
+          } else {
+            showMessage('生成済みの12頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
+          }
         }
 
         currentGeneratedMimeType = generatedImage.mimeType || '';
@@ -3265,6 +3338,15 @@
 
     function renderPreview(dataUrl) {
       const previewArea = document.getElementById('previewArea');
+      if (!dataUrl) {
+        previewArea.innerHTML = `
+          <div class="preview-placeholder">
+            <p style="font-size:16px; margin:0 0 8px;">ここに生成した画像が表示されます。</p>
+            <p class="muted" style="margin:0;">右側の設定からキャライラストを生成してください。</p>
+          </div>
+        `;
+        return;
+      }
       previewArea.innerHTML = `<img class="preview-image" src="${escapeAttr(dataUrl)}" alt="生成画像" />`;
     }
 
