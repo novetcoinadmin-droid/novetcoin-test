@@ -281,18 +281,6 @@
       font-size: 12px;
       line-height: 1.45;
     }
-    .sd-drawing-box {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid #e5d7f5;
-      border-radius: 8px;
-      background: #fbf8ff;
-    }
-    .sd-drawing-status {
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--main-purple);
-    }
     .reference-modal {
       position: fixed;
       inset: 0;
@@ -589,11 +577,12 @@
           <p id="sdExtractionHelpText" class="muted" style="margin:0 0 10px;">
             SD→リアル2D変換では、参照画像から顔・髪・装備・左右の持ち物・ポーズを抽出してから生成します。
           </p>
-          <div id="sdExtractionReferenceArea"></div>
           <button id="sdExtractBtn" class="btn btn-secondary" type="button" onclick="handleSdToRealExtraction()">抽出する</button>
           <button id="sdReextractBtn" class="btn btn-secondary hidden" type="button" style="margin-top:8px;" onclick="handleSdToRealExtraction()">再抽出する</button>
           <div id="sdExtractionError" class="message error" style="margin-top:10px;"></div>
-          <div id="sdPhotorealActionArea"></div>
+          <div id="sdExtractionReferenceArea"></div>
+          <div id="sdExtractionParametersArea"></div>
+          <div id="real2dParametersArea"></div>
         </div>
       </div>
 
@@ -755,7 +744,6 @@
     const GENERATION_COST_NP = 10;
     const FUNCTION_NAME = 'generate-nft-standalone-image-gemini-allages';
     const SD_TO_REAL_EXTRACT_FUNCTION_NAME = 'extract-sd-character-parameters-for-real2d';
-    const SD_TO_REAL_DRAWING_FUNCTION_NAME = 'generate-sd-to-real2d-drawing-data';
     const SCENE_GEMINI_FUNCTION_NAME = 'generate-nft-scene-image-gemini-allages';
     const SCENE_LEONARDO_FUNCTION_NAME = 'generate-nft-scene-image-leonardo';
     const OTHER_LEONARDO_FUNCTION_NAME = 'generate-nft-other-image-leonardo';
@@ -766,8 +754,6 @@
     let currentGeneratedDataUrl = '';
     let currentGeneratedMimeType = '';
     let currentGeneratedMode = 'character';
-    let sdPhotorealIntermediateDataUrl = '';
-    let sdPhotorealIntermediateMimeType = '';
     let selectedReferenceAsset = null;
     let selectedBackgroundAsset = null;
     let referenceAssets = [];
@@ -776,7 +762,6 @@
     let currentLastPromptDebug = '';
     let sdExtractionState = createInitialSdExtractionState();
     let real2dParameterState = createInitialReal2dParameterState();
-    let sdDrawingState = createInitialSdDrawingState();
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -916,7 +901,6 @@
 
       titleEl.textContent = title;
       textEl.textContent = text;
-      textEl.style.display = text ? '' : 'none';
       overlay.classList.add('open');
       overlay.setAttribute('aria-hidden', 'false');
     }
@@ -1006,19 +990,6 @@
       };
     }
 
-    function createInitialSdDrawingState() {
-      return {
-        status: 'idle',
-        drawingData: null,
-        dataUrl: '',
-        model: '',
-        prompt: '',
-        modelText: '',
-        error: '',
-        warnings: []
-      };
-    }
-
     const SD_EXTRACTION_SECTIONS = [
       ['face', '顔'],
       ['hair', '髪'],
@@ -1031,22 +1002,9 @@
       ['left_hand_equipment', '左手装備'],
       ['pose', 'ポーズ'],
       ['colors_and_motifs', '色・モチーフ'],
-      ['advanced_drawing_hints', '描画用詳細ヒント'],
       ['background_and_ui_exclusion', '背景・UI除外']
     ];
 
-    async function getFunctionErrorMessage(error, fallbackMessage) {
-      const baseMessage = error?.message || fallbackMessage;
-      const response = error?.context || error?.response;
-      if (!response || typeof response.json !== 'function') return baseMessage;
-      try {
-        const body = await response.json();
-        const detail = body?.message || body?.error || body?.details || body?.raw_text;
-        return detail ? `${baseMessage}: ${detail}` : baseMessage;
-      } catch (_) {
-        return baseMessage;
-      }
-    }
     function getSdExtractionStatusLabel(status = sdExtractionState.status) {
       const labels = {
         idle: '未抽出',
@@ -1108,16 +1066,16 @@
       const statusEl = document.getElementById(`sd_status_${sectionKey}`);
       if (statusEl && statusEl.value === '未確認') statusEl.value = '修正あり';
       real2dParameterState = createInitialReal2dParameterState();
-      sdDrawingState = createInitialSdDrawingState();
       const statusBadge = document.getElementById('sdExtractionStatusBadge');
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
+      const real2dArea = document.getElementById('real2dParametersArea');
+      if (real2dArea) real2dArea.innerHTML = '';
     }
 
     function markReal2dParametersEdited() {
       if (real2dParameterState.status === 'generated' || real2dParameterState.status === 'confirmed') {
         real2dParameterState.status = 'edited';
       }
-      sdDrawingState = createInitialSdDrawingState();
       const statusBadge = document.getElementById('sdExtractionStatusBadge');
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
     }
@@ -1125,9 +1083,6 @@
     function resetSdExtractionForReferenceChange() {
       sdExtractionState = createInitialSdExtractionState();
       real2dParameterState = createInitialReal2dParameterState();
-      sdDrawingState = createInitialSdDrawingState();
-      sdPhotorealIntermediateDataUrl = '';
-      sdPhotorealIntermediateMimeType = '';
       renderSdExtractionPanel();
     }
 
@@ -1141,10 +1096,10 @@
       const reextractBtn = document.getElementById('sdReextractBtn');
       const errorBox = document.getElementById('sdExtractionError');
       const referenceArea = document.getElementById('sdExtractionReferenceArea');
-      const photorealActionArea = document.getElementById('sdPhotorealActionArea');
+      const paramsArea = document.getElementById('sdExtractionParametersArea');
+      const real2dArea = document.getElementById('real2dParametersArea');
       const hasReference = Boolean(selectedReferenceAsset?.file_url);
       const isExtracting = sdExtractionState.status === 'extracting';
-      const extractionReady = Boolean(sdExtractionState.extractedParameters) && !isExtracting;
 
       if (statusBadge) statusBadge.textContent = getSdExtractionStatusLabel();
       if (helpText) {
@@ -1181,16 +1136,11 @@
           </div>
         `;
       }
-      if (photorealActionArea) {
-        const hasIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
-        photorealActionArea.innerHTML = hasReference ? `
-          <button class="btn btn-primary" type="button" style="margin-top:8px;" ${extractionReady ? '' : 'disabled'} onclick="handleRealAnimeConversionWorkflow()">リアルアニメ風に変換</button>
-          <p class="muted" style="margin:8px 0 0;">${extractionReady
-            ? (hasIntermediate
-              ? '12頭身の中間画像を保持しています。2Dアニメ変換から再開します。'
-              : '内部で12頭身実写化、続けて2Dアニメ化を行い、完成画像を表示します。')
-            : '先に抽出してください。抽出が完了するとリアルアニメ風へ変換できます。'}</p>
-        ` : '';
+      if (paramsArea) {
+        paramsArea.innerHTML = sdExtractionState.extractedParameters ? renderSdExtractionParameters() : '';
+      }
+      if (real2dArea) {
+        real2dArea.innerHTML = real2dParameterState.parameters ? renderReal2dParameters() : '';
       }
     }
 
@@ -1259,26 +1209,12 @@
 
     function renderReal2dParameters() {
       const value = real2dParameterState.userEditedParameters || JSON.stringify(real2dParameterState.parameters, null, 2);
-      const canDraw = real2dParameterState.status === 'confirmed' && real2dParameterState.parameters;
-      const drawingStatus = sdDrawingState.status === 'generated'
-        ? '描画PNG作成済み'
-        : sdDrawingState.status === 'generating'
-          ? '描画データ作成中'
-          : sdDrawingState.status === 'error'
-            ? '描画エラー'
-            : '未描画';
       return `
         <div class="sd-param-list">
           <div class="sd-param-card">
             <h4>リアル2D生成用パラメータ（${escapeHtml(getReal2dStatusLabel())}）</h4>
             <textarea id="real2dParametersEditor" class="sd-json-editor" oninput="markReal2dParametersEdited()">${escapeHtml(value)}</textarea>
             <button class="btn btn-primary" type="button" style="margin-top:8px;" onclick="confirmReal2dParameters()">リアル2D生成用パラメータを確定</button>
-            <div class="sd-drawing-box">
-              <div class="sd-drawing-status">${escapeHtml(drawingStatus)}</div>
-              <button class="btn btn-secondary" type="button" style="margin-top:8px;" onclick="handleSdToRealDrawingMvp()" ${canDraw ? '' : 'disabled'}>描画方式MVPで変換</button>
-              <p class="muted" style="margin:8px 0 0;">Canvasで14頭身の変換ラフをPNG化します。生成画像保存ボタンで保管庫へ保存できます。</p>
-              ${sdDrawingState.error ? `<div class="message error" style="margin-top:8px;">${escapeHtml(sdDrawingState.error)}</div>` : ''}
-            </div>
           </div>
         </div>
       `;
@@ -1384,7 +1320,7 @@
         });
 
         if (error) {
-          throw new Error(await getFunctionErrorMessage(error, 'SDキャラ抽出Functionの呼び出しに失敗しました。'));
+          throw new Error(error.message || 'SDキャラ抽出Functionの呼び出しに失敗しました。');
         }
         if (!data?.ok) {
           throw new Error(data?.message || data?.error || 'SDキャラ抽出に失敗しました。');
@@ -1403,7 +1339,7 @@
           modelText: data.model_text || data.modelText || '',
           warnings: data.warnings || []
         };
-        showMessage('SDキャラ抽出が完了しました。12頭身実写化を試せます。');
+        showMessage('SDキャラ抽出が完了しました。内容を確認・修正して確定してください。');
       } catch (err) {
         sdExtractionState = {
           ...sdExtractionState,
@@ -1447,7 +1383,6 @@
         userEditedParameters: '',
         confirmedAt: null
       };
-      sdDrawingState = createInitialSdDrawingState();
       showMessage('抽出結果を確定し、リアル2D生成用パラメータを作成しました。');
       renderSdExtractionPanel();
     }
@@ -1463,601 +1398,10 @@
           userEditedParameters: text,
           confirmedAt: new Date().toISOString()
         };
-        sdDrawingState = createInitialSdDrawingState();
         showMessage('リアル2D生成用パラメータを確定しました。生成に進めます。');
         renderSdExtractionPanel();
       } catch (err) {
         showMessage('リアル2D生成用パラメータはJSONとして修正してください。', 'error');
-      }
-    }
-
-    function getDrawingColor(drawingData, key, fallback) {
-      const value = drawingData?.colors?.[key];
-      return /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
-    }
-
-    function drawEllipsePath(ctx, x, y, rx, ry) {
-      ctx.beginPath();
-      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-    }
-
-    function drawRoundedDiamond(ctx, x, y, width, height) {
-      ctx.beginPath();
-      ctx.moveTo(x, y - height / 2);
-      ctx.quadraticCurveTo(x + width / 2, y - height / 4, x + width / 2, y);
-      ctx.quadraticCurveTo(x + width / 2, y + height / 4, x, y + height / 2);
-      ctx.quadraticCurveTo(x - width / 2, y + height / 4, x - width / 2, y);
-      ctx.quadraticCurveTo(x - width / 2, y - height / 4, x, y - height / 2);
-      ctx.closePath();
-    }
-
-    function drawStarPath(ctx, cx, cy, outer, inner, points = 8) {
-      ctx.beginPath();
-      for (let i = 0; i < points * 2; i++) {
-        const angle = -Math.PI / 2 + (Math.PI * i) / points;
-        const radius = i % 2 === 0 ? outer : inner;
-        const x = cx + Math.cos(angle) * radius;
-        const y = cy + Math.sin(angle) * radius;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    }
-
-    function drawPolygonPath(ctx, cx, cy, radius, sides = 8, rotation = -Math.PI / 2) {
-      ctx.beginPath();
-      for (let i = 0; i < sides; i++) {
-        const angle = rotation + (Math.PI * 2 * i) / sides;
-        const x = cx + Math.cos(angle) * radius;
-        const y = cy + Math.sin(angle) * radius;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    }
-
-    function escapeSvgValue(value) {
-      return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    }
-
-    function getSvgPaint(value, fallback) {
-      if (String(value || '').toLowerCase() === 'none') return 'none';
-      return /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
-    }
-
-    function buildSvgElementMarkup(element) {
-      const type = element?.type || '';
-      const fill = getSvgPaint(element?.fill, 'none');
-      const stroke = getSvgPaint(element?.stroke, '#2a2530');
-      const strokeWidth = Number.isFinite(Number(element?.strokeWidth)) ? Number(element.strokeWidth) : 3;
-      const opacity = Number.isFinite(Number(element?.opacity)) ? Math.max(0, Math.min(1, Number(element.opacity))) : 1;
-      const common = `fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}"`;
-      if (type === 'path' && element.d) {
-        return `<path d="${escapeSvgValue(element.d)}" ${common}/>`;
-      }
-      if ((type === 'polygon' || type === 'polyline') && element.points) {
-        return `<${type} points="${escapeSvgValue(element.points)}" ${common}/>`;
-      }
-      if (type === 'ellipse') {
-        return `<ellipse cx="${Number(element.cx) || 0}" cy="${Number(element.cy) || 0}" rx="${Number(element.rx) || 1}" ry="${Number(element.ry) || 1}" ${common}/>`;
-      }
-      if (type === 'circle') {
-        return `<circle cx="${Number(element.cx) || 0}" cy="${Number(element.cy) || 0}" r="${Number(element.r) || 1}" ${common}/>`;
-      }
-      if (type === 'line') {
-        return `<line x1="${Number(element.x1) || 0}" y1="${Number(element.y1) || 0}" x2="${Number(element.x2) || 0}" y2="${Number(element.y2) || 0}" ${common}/>`;
-      }
-      if (type === 'rect') {
-        return `<rect x="${Number(element.x) || 0}" y="${Number(element.y) || 0}" width="${Number(element.width) || 1}" height="${Number(element.height) || 1}" rx="${Number(element.rx) || 0}" ${common}/>`;
-      }
-      return '';
-    }
-
-    function buildSvgFromGeminiLayers(drawingData) {
-      const svg = drawingData?.svg || {};
-      const layers = Array.isArray(svg.layers) ? svg.layers : [];
-      if (!layers.length) return '';
-      const canvas = drawingData?.canvas || {};
-      const width = Number(canvas.width) || 1024;
-      const height = Number(canvas.height) || 1536;
-      const background = /^#[0-9a-f]{6}$/i.test(canvas.background || '') ? canvas.background : '#f8f6fb';
-      const viewBox = String(svg.viewBox || `0 0 ${width} ${height}`).replace(/[^0-9,.\-\s]/g, '') || `0 0 ${width} ${height}`;
-      const layerMarkup = layers.map((layer) => {
-        const elements = Array.isArray(layer.elements) ? layer.elements.map(buildSvgElementMarkup).join('') : '';
-        if (!elements) return '';
-        return `<g id="${escapeSvgValue(layer.id || 'layer')}">${elements}</g>`;
-      }).join('');
-      if (!layerMarkup) return '';
-      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}"><rect width="100%" height="100%" fill="${background}"/>${layerMarkup}</svg>`;
-    }
-
-    function buildFallbackSvgDrawing(drawingData) {
-      const canvas = drawingData?.canvas || {};
-      const width = Number(canvas.width) || 1024;
-      const height = Number(canvas.height) || 1536;
-      const bg = /^#[0-9a-f]{6}$/i.test(canvas.background || '') ? canvas.background : '#f8f6fb';
-      const line = getDrawingColor(drawingData, 'line', '#2a2530');
-      const skin = getDrawingColor(drawingData, 'skin', '#f2c9b8');
-      const hair = getDrawingColor(drawingData, 'hair', '#5b4a68');
-      const main = getDrawingColor(drawingData, 'main', '#263896');
-      const accent = getDrawingColor(drawingData, 'accent', '#d6ad4f');
-      const cape = drawingData?.cape || {};
-      const capeColor = /^#[0-9a-f]{6}$/i.test(cape.color || '') ? cape.color : '#263896';
-      const capeLining = /^#[0-9a-f]{6}$/i.test(cape.lining || '') ? cape.lining : '#d8caa4';
-      const accessories = drawingData?.accessories || {};
-      const featherColor = /^#[0-9a-f]{6}$/i.test(accessories.featherColor || '') ? accessories.featherColor : '#dfe6f2';
-      const flowerColor = /^#[0-9a-f]{6}$/i.test(accessories.flowerColor || '') ? accessories.flowerColor : '#b23a32';
-      const head = drawingData?.head || {};
-      const eyeColor = /^#[0-9a-f]{6}$/i.test(head.visibleEyeColor || '') ? head.visibleEyeColor : '#7fa6d9';
-      const right = drawingData?.equipment?.rightHand || {};
-      const left = drawingData?.equipment?.leftHand || {};
-      const rightColor = /^#[0-9a-f]{6}$/i.test(right.color || '') ? right.color : '#2b2a28';
-      const rightAccent = /^#[0-9a-f]{6}$/i.test(right.accent || '') ? right.accent : '#b99a45';
-      const shieldColor = /^#[0-9a-f]{6}$/i.test(left.color || '') ? left.color : '#f8f5ee';
-      const emblemColor = /^#[0-9a-f]{6}$/i.test(left.emblemColor || '') ? left.emblemColor : '#b94b35';
-      const cx = 512;
-      const top = 108;
-      const unit = 94;
-      const shoulderY = top + unit * 1.55;
-      const waistY = top + unit * 4.1;
-      const hipY = top + unit * 5;
-      const footY = top + unit * 14;
-      const headCx = cx;
-      const headCy = top + unit * 0.55;
-      return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 1024 1536">
-        <rect width="100%" height="100%" fill="${bg}"/>
-        <g stroke="#e4e6f0" stroke-width="4" opacity="0.7">${Array.from({ length: 15 }, (_, i) => `<line x1="330" y1="${top + unit * i}" x2="694" y2="${top + unit * i}"/>`).join('')}</g>
-        <path d="M410 ${shoulderY} C330 520 350 940 430 ${footY - 110} L600 ${footY - 90} C760 880 745 520 615 ${shoulderY + 10} Z" fill="${capeColor}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
-        <path d="M622 ${shoulderY + 40} C710 600 690 930 595 ${footY - 110}" fill="none" stroke="${capeLining}" stroke-width="8" stroke-linecap="round"/>
-        <path d="M412 ${shoulderY} L612 ${shoulderY} L560 ${waistY} L592 ${hipY} L558 ${footY - 35} L520 ${footY - 10} L512 ${hipY + 12} L504 ${footY - 10} L466 ${footY - 35} L432 ${hipY} L464 ${waistY} Z" fill="${main}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
-        <path d="M470 340 Q512 380 554 340 M455 610 Q512 635 569 610" fill="none" stroke="${accent}" stroke-width="7" stroke-linecap="round"/>
-        <path d="M512 330 L532 360 L512 392 L492 360 Z" fill="${accent}" stroke="${line}" stroke-width="4"/>
-        <ellipse cx="${headCx}" cy="${headCy}" rx="34" ry="45" fill="${skin}" stroke="${line}" stroke-width="5"/>
-        <path d="M468 140 C458 72 575 74 562 154 C564 288 530 344 492 265 C468 215 470 175 468 140 Z" fill="${hair}" stroke="${line}" stroke-width="5"/>
-        <path d="M466 170 L558 168 L550 212 L460 213 Z" fill="${main}" stroke="${line}" stroke-width="5"/>
-        <ellipse cx="532" cy="165" rx="9" ry="12" fill="${eyeColor}" stroke="${line}" stroke-width="3"/>
-        <path d="M480 118 L512 82 L552 118 L542 146 L490 146 Z" fill="${main}" stroke="${line}" stroke-width="5"/>
-        <path d="M493 121 Q512 96 533 121 M500 134 Q512 121 526 134" fill="none" stroke="${accent}" stroke-width="4" stroke-linecap="round"/>
-        <path d="M550 94 C618 -60 610 -120 580 -190 C570 -90 532 20 550 94 Z" fill="${featherColor}" stroke="${line}" stroke-width="5"/>
-        <g fill="${flowerColor}" stroke="none">${Array.from({ length: 8 }, (_, i) => {
-          const a = Math.PI * 2 * i / 8;
-          return `<ellipse cx="${560 + Math.cos(a) * 13}" cy="${92 + Math.sin(a) * 13}" rx="9" ry="5" transform="rotate(${i * 45} ${560 + Math.cos(a) * 13} ${92 + Math.sin(a) * 13})"/>`;
-        }).join('')}<circle cx="560" cy="92" r="6" fill="${accent}"/></g>
-        <line x1="420" y1="390" x2="320" y2="610" stroke="${line}" stroke-width="8" stroke-linecap="round"/>
-        <line x1="604" y1="390" x2="682" y2="530" stroke="${line}" stroke-width="8" stroke-linecap="round"/>
-        <line x1="320" y1="610" x2="205" y2="315" stroke="${rightColor}" stroke-width="10" stroke-linecap="round"/>
-        <path d="M135 260 L298 350 L210 410 L180 392 L118 468 L132 350 L88 302 Z" fill="${rightColor}" stroke="${line}" stroke-width="6" stroke-linejoin="round"/>
-        <path d="M150 275 L274 342 M145 342 L214 385" fill="none" stroke="${rightAccent}" stroke-width="7" stroke-linecap="round"/>
-        <polygon points="690,472 728,490 748,528 730,568 690,588 650,568 632,528 652,490" fill="${shieldColor}" stroke="${line}" stroke-width="6"/>
-        <polygon points="690,485 718,498 733,528 718,558 690,572 662,558 648,528 662,498" fill="none" stroke="${accent}" stroke-width="6"/>
-        <path d="M690 498 L700 522 L725 514 L704 532 L724 552 L698 542 L690 570 L682 542 L656 552 L676 532 L655 514 L680 522 Z" fill="${emblemColor}" stroke="none"/>
-      </svg>`;
-    }
-
-    async function svgToPngDataUrl(svgText, width = 1024, height = 1536) {
-      return new Promise((resolve, reject) => {
-        const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            URL.revokeObjectURL(url);
-            resolve(canvas.toDataURL('image/png'));
-          } catch (err) {
-            URL.revokeObjectURL(url);
-            reject(err);
-          }
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('SVGのPNG変換に失敗しました。'));
-        };
-        img.src = url;
-      });
-    }
-
-    async function renderSdToRealDrawingSvg(drawingData) {
-      const svgText = buildSvgFromGeminiLayers(drawingData) || buildFallbackSvgDrawing(drawingData);
-      const canvas = drawingData?.canvas || {};
-      const width = Number(canvas.width) || 1024;
-      const height = Number(canvas.height) || 1536;
-      return {
-        svgText,
-        dataUrl: await svgToPngDataUrl(svgText, width, height)
-      };
-    }
-
-    function renderSdToRealDrawingCanvas(drawingData) {
-      const canvasInfo = drawingData?.canvas || {};
-      const width = Number(canvasInfo.width) || 1024;
-      const height = Number(canvasInfo.height) || 1536;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-
-      const line = getDrawingColor(drawingData, 'line', '#2a2530');
-      const skin = getDrawingColor(drawingData, 'skin', '#f2c9b8');
-      const hair = getDrawingColor(drawingData, 'hair', '#5b4a68');
-      const main = getDrawingColor(drawingData, 'main', '#6d4aa2');
-      const sub = getDrawingColor(drawingData, 'sub', '#d9d2e9');
-      const accent = getDrawingColor(drawingData, 'accent', '#d6ad4f');
-      const shadow = getDrawingColor(drawingData, 'shadow', '#4d3a62');
-      const bg = /^#[0-9a-f]{6}$/i.test(canvasInfo.background || '') ? canvasInfo.background : '#f8f6fb';
-      const headData = drawingData?.head || {};
-      const accessoryData = drawingData?.accessories || {};
-      const capeData = drawingData?.cape || {};
-      const capeColor = /^#[0-9a-f]{6}$/i.test(capeData.color || '') ? capeData.color : '#263896';
-      const capeLining = /^#[0-9a-f]{6}$/i.test(capeData.lining || '') ? capeData.lining : '#d8caa4';
-      const featherColor = /^#[0-9a-f]{6}$/i.test(accessoryData.featherColor || '') ? accessoryData.featherColor : '#dfe6f2';
-      const flowerColor = /^#[0-9a-f]{6}$/i.test(accessoryData.flowerColor || '') ? accessoryData.flowerColor : '#b23a32';
-      const visibleEyeColor = /^#[0-9a-f]{6}$/i.test(headData.visibleEyeColor || '') ? headData.visibleEyeColor : '#7fa6d9';
-
-      const gradient = ctx.createLinearGradient(0, 0, width, height);
-      gradient.addColorStop(0, bg);
-      gradient.addColorStop(1, '#ffffff');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-
-      const guide = drawingData?.bodyGuide || {};
-      const cx = width * (Number(guide.centerX) || 0.5);
-      const top = height * (Number(guide.topY) || 0.07);
-      const bodyHeight = height * (Number(guide.heightRatio) || 0.86);
-      const head = bodyHeight / 14;
-      const headCx = cx;
-      const headCy = top + head * 0.55;
-      const neckY = top + head * 1.15;
-      const shoulderY = top + head * 1.55;
-      const chestY = top + head * 2.55;
-      const waistY = top + head * 4.1;
-      const hipY = top + head * 5.0;
-      const kneeY = top + head * 9.5;
-      const footY = top + bodyHeight;
-      const shoulderW = head * 1.95;
-      const waistW = head * 1.1;
-      const hipW = head * 1.45;
-
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(3, width * 0.004);
-
-      ctx.globalAlpha = 0.11;
-      ctx.strokeStyle = main;
-      for (let i = 0; i <= 14; i++) {
-        const y = top + head * i;
-        ctx.beginPath();
-        ctx.moveTo(cx - head * 1.7, y);
-        ctx.lineTo(cx + head * 1.7, y);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = line;
-
-      ctx.fillStyle = capeColor;
-      ctx.beginPath();
-      ctx.moveTo(cx - head * 1.05, shoulderY);
-      ctx.bezierCurveTo(cx - head * 1.65, top + head * 3.1, cx - head * 1.35, top + head * 7.2, cx - head * 0.78, footY - head * 1.4);
-      ctx.lineTo(cx + head * 0.96, footY - head * 1.25);
-      ctx.bezierCurveTo(cx + head * 2.18, top + head * 8.4, cx + head * 2.45, top + head * 4.1, cx + head * 1.15, shoulderY + head * 0.08);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.strokeStyle = capeLining;
-      ctx.lineWidth = Math.max(5, width * 0.006);
-      ctx.beginPath();
-      ctx.moveTo(cx + head * 1.12, shoulderY + head * 0.25);
-      ctx.bezierCurveTo(cx + head * 1.86, top + head * 4.0, cx + head * 1.72, top + head * 8.8, cx + head * 0.8, footY - head * 1.35);
-      ctx.stroke();
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = Math.max(3, width * 0.004);
-      for (let i = 0; i < 5; i++) {
-        const y = shoulderY + head * (1.1 + i * 1.35);
-        ctx.beginPath();
-        ctx.arc(cx + head * 1.35, y, head * 0.11, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = line;
-
-      ctx.fillStyle = skin;
-      drawEllipsePath(ctx, headCx, headCy, head * 0.34, head * 0.45);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = hair;
-      ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.5, headCy - head * 0.18);
-      ctx.bezierCurveTo(headCx - head * 0.66, headCy - head * 0.82, headCx + head * 0.62, headCy - head * 0.84, headCx + head * 0.5, headCy - head * 0.08);
-      ctx.bezierCurveTo(headCx + head * 0.52, headCy + head * 1.8, headCx + head * 0.18, headCy + head * 2.35, headCx - head * 0.2, headCy + head * 1.6);
-      ctx.bezierCurveTo(headCx - head * 0.55, headCy + head * 0.72, headCx - head * 0.48, headCy + head * 0.18, headCx - head * 0.5, headCy - head * 0.18);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = main;
-      ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.47, headCy + head * 0.05);
-      ctx.lineTo(headCx + head * 0.46, headCy + head * 0.03);
-      ctx.lineTo(headCx + head * 0.38, headCy + head * 0.42);
-      ctx.lineTo(headCx - head * 0.52, headCy + head * 0.42);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = visibleEyeColor;
-      drawEllipsePath(ctx, headCx + head * 0.18, headCy - head * 0.02, head * 0.08, head * 0.11);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = main;
-      drawRoundedDiamond(ctx, headCx, headCy - head * 0.38, head * 0.62, head * 0.48);
-      ctx.fill();
-      ctx.stroke();
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = Math.max(2, width * 0.0026);
-      ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.21, headCy - head * 0.39);
-      ctx.quadraticCurveTo(headCx, headCy - head * 0.58, headCx + head * 0.21, headCy - head * 0.39);
-      ctx.moveTo(headCx - head * 0.14, headCy - head * 0.28);
-      ctx.quadraticCurveTo(headCx, headCy - head * 0.43, headCx + head * 0.14, headCy - head * 0.28);
-      ctx.stroke();
-      ctx.strokeStyle = line;
-
-      ctx.fillStyle = featherColor;
-      ctx.beginPath();
-      ctx.moveTo(headCx + head * 0.42, headCy - head * 0.58);
-      ctx.bezierCurveTo(headCx + head * 1.0, headCy - head * 1.6, headCx + head * 0.85, headCy - head * 2.35, headCx + head * 0.64, headCy - head * 2.85);
-      ctx.bezierCurveTo(headCx + head * 0.44, headCy - head * 2.1, headCx + head * 0.15, headCy - head * 1.25, headCx + head * 0.42, headCy - head * 0.58);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = flowerColor;
-      for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI * 2 * i) / 8;
-        drawEllipsePath(ctx, headCx + head * 0.52 + Math.cos(angle) * head * 0.12, headCy - head * 0.55 + Math.sin(angle) * head * 0.12, head * 0.08, head * 0.04);
-        ctx.fill();
-      }
-      ctx.fillStyle = accent;
-      drawEllipsePath(ctx, headCx + head * 0.52, headCy - head * 0.55, head * 0.06, head * 0.06);
-      ctx.fill();
-
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(2, width * 0.0026);
-      ctx.beginPath();
-      ctx.moveTo(headCx - head * 0.1, headCy + head * 0.18);
-      ctx.quadraticCurveTo(headCx, headCy + head * 0.24, headCx + head * 0.1, headCy + head * 0.18);
-      ctx.stroke();
-
-      ctx.fillStyle = main;
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(3, width * 0.004);
-      ctx.beginPath();
-      ctx.moveTo(cx - shoulderW / 2, shoulderY);
-      ctx.lineTo(cx + shoulderW / 2, shoulderY);
-      ctx.lineTo(cx + waistW / 2, waistY);
-      ctx.lineTo(cx + hipW / 2, hipY);
-      ctx.lineTo(cx + head * 0.52, footY - head * 0.45);
-      ctx.lineTo(cx + head * 0.12, footY - head * 0.28);
-      ctx.lineTo(cx, hipY + head * 0.15);
-      ctx.lineTo(cx - head * 0.12, footY - head * 0.28);
-      ctx.lineTo(cx - head * 0.52, footY - head * 0.45);
-      ctx.lineTo(cx - hipW / 2, hipY);
-      ctx.lineTo(cx - waistW / 2, waistY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = shadow;
-      ctx.globalAlpha = 0.24;
-      ctx.beginPath();
-      ctx.moveTo(cx, shoulderY);
-      ctx.lineTo(cx + waistW / 2, waistY);
-      ctx.lineTo(cx + head * 0.5, footY - head * 0.45);
-      ctx.lineTo(cx + head * 0.12, footY - head * 0.28);
-      ctx.lineTo(cx, hipY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = Math.max(4, width * 0.005);
-      ctx.beginPath();
-      ctx.moveTo(cx - shoulderW * 0.33, chestY);
-      ctx.quadraticCurveTo(cx, chestY + head * 0.42, cx + shoulderW * 0.33, chestY);
-      ctx.moveTo(cx - hipW * 0.42, hipY);
-      ctx.quadraticCurveTo(cx, hipY + head * 0.25, cx + hipW * 0.42, hipY);
-      ctx.stroke();
-
-      ctx.fillStyle = accent;
-      drawRoundedDiamond(ctx, cx, chestY + head * 0.12, head * 0.34, head * 0.52);
-      ctx.fill();
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(2, width * 0.0028);
-      ctx.stroke();
-
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(6, width * 0.007);
-      const rightHandX = cx - shoulderW * 0.95;
-      const leftHandX = cx + shoulderW * 0.95;
-      const handY = waistY + head * 0.2;
-      ctx.beginPath();
-      ctx.moveTo(cx - shoulderW / 2, shoulderY + head * 0.1);
-      ctx.lineTo(rightHandX, handY);
-      ctx.moveTo(cx + shoulderW / 2, shoulderY + head * 0.1);
-      ctx.lineTo(leftHandX, handY);
-      ctx.stroke();
-
-      const rightEq = drawingData?.equipment?.rightHand || {};
-      const leftEq = drawingData?.equipment?.leftHand || {};
-      const rightColor = /^#[0-9a-f]{6}$/i.test(rightEq.color || '') ? rightEq.color : '#2b2a28';
-      const rightAccent = /^#[0-9a-f]{6}$/i.test(rightEq.accent || '') ? rightEq.accent : '#b99a45';
-      const leftColor = /^#[0-9a-f]{6}$/i.test(leftEq.color || '') ? leftEq.color : '#f8f5ee';
-      const leftAccent = /^#[0-9a-f]{6}$/i.test(leftEq.accent || '') ? leftEq.accent : '#d6ad4f';
-      const emblemColor = /^#[0-9a-f]{6}$/i.test(leftEq.emblemColor || '') ? leftEq.emblemColor : '#b94b35';
-
-      ctx.strokeStyle = rightColor;
-      ctx.lineWidth = Math.max(8, width * 0.009);
-      ctx.beginPath();
-      ctx.moveTo(rightHandX - head * 0.1, handY + head * 0.3);
-      ctx.lineTo(rightHandX - head * 1.22, top + head * 3.0);
-      ctx.stroke();
-      ctx.fillStyle = rightColor;
-      ctx.beginPath();
-      ctx.moveTo(rightHandX - head * 1.58, top + head * 2.08);
-      ctx.lineTo(rightHandX - head * 0.36, top + head * 2.94);
-      ctx.lineTo(rightHandX - head * 1.08, top + head * 3.4);
-      ctx.lineTo(rightHandX - head * 1.34, top + head * 3.28);
-      ctx.lineTo(rightHandX - head * 1.82, top + head * 3.78);
-      ctx.lineTo(rightHandX - head * 1.72, top + head * 3.12);
-      ctx.lineTo(rightHandX - head * 2.06, top + head * 2.78);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(3, width * 0.004);
-      ctx.stroke();
-      ctx.strokeStyle = rightAccent;
-      ctx.lineWidth = Math.max(4, width * 0.005);
-      ctx.beginPath();
-      ctx.moveTo(rightHandX - head * 1.5, top + head * 2.22);
-      ctx.lineTo(rightHandX - head * 0.58, top + head * 2.9);
-      ctx.moveTo(rightHandX - head * 1.88, top + head * 2.78);
-      ctx.lineTo(rightHandX - head * 1.15, top + head * 3.28);
-      ctx.stroke();
-
-      ctx.fillStyle = leftColor;
-      drawPolygonPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.58, 10);
-      ctx.fill();
-      ctx.strokeStyle = line;
-      ctx.stroke();
-      ctx.strokeStyle = leftAccent;
-      ctx.lineWidth = Math.max(5, width * 0.006);
-      drawPolygonPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.48, 10);
-      ctx.stroke();
-      ctx.fillStyle = emblemColor;
-      drawStarPath(ctx, leftHandX + head * 0.18, handY + head * 0.22, head * 0.34, head * 0.1, 8);
-      ctx.fill();
-
-      ctx.strokeStyle = line;
-      ctx.lineWidth = Math.max(5, width * 0.006);
-      ctx.beginPath();
-      ctx.moveTo(cx - head * 0.12, hipY + head * 0.15);
-      ctx.lineTo(cx - head * 0.62, kneeY);
-      ctx.lineTo(cx - head * 0.52, footY - head * 0.25);
-      ctx.moveTo(cx + head * 0.12, hipY + head * 0.15);
-      ctx.lineTo(cx + head * 0.62, kneeY);
-      ctx.lineTo(cx + head * 0.52, footY - head * 0.25);
-      ctx.stroke();
-
-      ctx.restore();
-      return canvas.toDataURL('image/png');
-    }
-
-    async function handleSdToRealDrawingMvp(drawingMode = 'parameter_assisted_svg') {
-      if (!currentUser) {
-        showMessage('ログインが必要です。', 'error');
-        return;
-      }
-      if (!isSdToReal2DConversionSelected()) return;
-      if (!selectedReferenceAsset?.file_url) {
-        showMessage('SD→リアル2D変換では参照画像を選択してください。', 'error');
-        return;
-      }
-      const isHolistic = drawingMode === 'holistic_svg';
-      if (!isHolistic && (real2dParameterState.status !== 'confirmed' || !real2dParameterState.parameters)) {
-        showMessage('先にリアル2D生成用パラメータを確定してください。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-
-      sdDrawingState = { ...createInitialSdDrawingState(), status: 'generating' };
-      document.getElementById('saveBtn').disabled = true;
-      renderSdExtractionPanel();
-      showMessage('');
-      showProcessingOverlay(
-        isHolistic ? '一枚絵SVG抽出中...' : '描画データ作成中...',
-        isHolistic
-          ? '参照画像全体を解析し、SVGレイヤーとしてPNG化しています。'
-          : 'Geminiで描画JSONを作り、SVG/CanvasでPNG化しています。'
-      );
-
-      try {
-        const blob = await imageSourceToBlob(selectedReferenceAsset.file_url);
-        const imageBase64 = await blobToBase64(blob);
-        const imageMimeType = blob.type || 'image/webp';
-        const { data, error } = await window.supabaseClient.functions.invoke(SD_TO_REAL_DRAWING_FUNCTION_NAME, {
-          body: {
-            reference_image_base64: imageBase64,
-            reference_image_mime_type: imageMimeType,
-            target_gender: getFieldValue('tpl_character_sd_to_real_gender'),
-            mode_conversion: getFieldValue('tpl_character_mode_conversion'),
-            drawing_mode: drawingMode,
-            confirmed_parameters: isHolistic ? {
-              note: 'Holistic SVG mode: use the reference image as the primary source. Do not depend on old extraction fields.'
-            } : real2dParameterState.parameters
-          }
-        });
-
-        if (error) {
-          throw new Error(error.message || '描画データFunctionの呼び出しに失敗しました。');
-        }
-        if (!data?.ok || !data?.drawing_data) {
-          throw new Error(data?.message || data?.error || '描画データの作成に失敗しました。');
-        }
-
-        const rendered = await renderSdToRealDrawingSvg(data.drawing_data);
-        const dataUrl = rendered.dataUrl || renderSdToRealDrawingCanvas(data.drawing_data);
-        sdDrawingState = {
-          status: 'generated',
-          drawingData: {
-            ...data.drawing_data,
-            rendered_svg: rendered.svgText || ''
-          },
-          dataUrl,
-          model: data.model || '',
-          prompt: data.drawing_prompt || '',
-          modelText: data.model_text || '',
-          error: '',
-          warnings: data.warnings || []
-        };
-        currentGeneratedMode = 'character';
-        currentGeneratedMimeType = 'image/png';
-        currentGeneratedDataUrl = dataUrl;
-        renderPreview(dataUrl);
-        renderPromptDebug({
-          prompt: data.drawing_prompt || '',
-          modelText: data.model_text || ''
-        }, {
-          drawing_data: data.drawing_data,
-          rendered_svg: rendered.svgText || '',
-          source_page: 'nft_generate_v2_test',
-          conversion: isHolistic ? 'sd_to_real2d_holistic_svg_mvp' : 'sd_to_real2d_svg_mvp'
-        });
-        document.getElementById('saveBtn').disabled = false;
-        showMessage(isHolistic
-          ? '一枚絵SVG抽出のPNGを作成しました。必要ならイラスト保管庫に保存してください。'
-          : '描画方式MVPのPNGを作成しました。必要ならイラスト保管庫に保存してください。');
-      } catch (err) {
-        console.error(err);
-        sdDrawingState = {
-          ...createInitialSdDrawingState(),
-          status: 'error',
-          error: err.message || String(err)
-        };
-        showMessage(sdDrawingState.error, 'error');
-      } finally {
-        hideProcessingOverlay();
-        renderSdExtractionPanel();
       }
     }
 
@@ -2757,413 +2101,6 @@
       return FUNCTION_NAME;
     }
 
-    function buildSdToPhotorealIntermediatePayload() {
-      const gender = getFieldValue('tpl_character_sd_to_real_gender');
-      const userFreeText = getFieldValue('tpl_character_free_text');
-
-      return {
-        template_type: 'character',
-        source_page: 'nft_generate_v2_test',
-        generation_mode: 'reference',
-        sd_to_real_conversion_stage: 'photoreal_intermediate',
-        direct_image_edit: true,
-        tpl_character_mode_conversion: 'SDキャラから12頭身実写へ変換',
-        tpl_character_sd_to_real_gender: gender,
-        photoreal_user_note: userFreeText,
-        tpl_character_view: '元画像のキャンバス方向、カメラ、遠近、ポーズの意味、重心、場面配置を維持。再構築した全身と装備を収めるための最小限のズームアウトは許可し、SD体型の画素位置とシルエットは維持しない',
-        tpl_character_age: '25歳以上の成人。子供っぽさなし。',
-        tpl_character_pose: '直立・屈伸・座位・突進・空中など元画像のポーズ種別、重心、支持点、体と顔の向き、腕と脚の役割を維持。12頭身は直立時の基準骨格として適用し、曲げた脚を局所的に引き伸ばさない。すべての手持ち装備について、持つ手、握る位置、画面上の主軸、回転、向き、傾き、機能する側の位置、開閉・展開状態を維持',
-        tpl_character_outfit: '参照画像の髪型、衣装、装備、配色、装飾を再設計せず、物理的に説得力のある映画3DCG素材として維持',
-        tpl_character_lighting: '高予算の映画3DCGファンタジー作品のシネマティック照明',
-        tpl_character_art_style: 'premium high-budget cinematic 3D CGI fantasy feature-film protagonist, physically based rendering, canonical standing anatomy exactly twelve-heads-tall, head approximately 1/12 and legs 58 to 62 percent of canonical standing height, coherent articulated skeleton in any pose, not SD, not anime illustration, not low-quality game rendering, not cosplay photography',
-        reference_image_url: selectedReferenceAsset?.file_url || '',
-        reference_asset_id: selectedReferenceAsset?.id || null
-      };
-    }
-
-    async function chargeRealAnimeConversion() {
-      const { data: profile, error: profileError } = await window.supabaseClient
-        .from('profiles')
-        .select('np_balance')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
-      const currentNp = Number(profile.np_balance || 0);
-      if (currentNp < GENERATION_COST_NP) {
-        throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
-      }
-
-      const newNp = currentNp - GENERATION_COST_NP;
-      const { error: updateError } = await window.supabaseClient
-        .from('profiles')
-        .update({ np_balance: newNp })
-        .eq('id', currentUser.id);
-
-      if (updateError) {
-        throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
-      }
-
-      currentNpBalance = newNp;
-      renderNpBalance();
-
-      const { error: txError } = await window.supabaseClient
-        .from('transactions')
-        .insert({
-          user_id: currentUser.id,
-          tx_type: 'np_use',
-          type: 'ai_illustration_generation',
-          product_name: 'AIイラスト生成（リアルアニメ風2段階変換）',
-          amount_nvt: 0,
-          amount_np: -GENERATION_COST_NP,
-          balance_before_np: currentNp,
-          balance_after_np: newNp,
-          related_table: 'profiles',
-          related_id: currentUser.id
-        });
-
-      if (txError) console.error('transactions insert error:', txError);
-      return { transactionRecorded: !txError };
-    }
-
-    async function handleRealAnimeConversionWorkflow() {
-      if (!currentUser) {
-        showMessage('ログインが必要です。', 'error');
-        return;
-      }
-      if (!isSdToReal2DConversionSelected()) return;
-      if (!selectedReferenceAsset?.file_url) {
-        showMessage('リアルアニメ風変換では参照画像を選択してください。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-      if (!sdExtractionState.extractedParameters) {
-        showMessage('先に抽出してください。抽出完了後にリアルアニメ風へ変換できます。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-
-      const resumeFromIntermediate = Boolean(sdPhotorealIntermediateDataUrl);
-      const requiredNp = GENERATION_COST_NP;
-      const saveButton = document.getElementById('saveBtn');
-      const generateButton = document.getElementById('generateBtn');
-      const actionArea = document.getElementById('sdPhotorealActionArea');
-      const hasPreviousCompletedImage = Boolean(
-        currentGeneratedDataUrl &&
-        currentGeneratedDataUrl !== sdPhotorealIntermediateDataUrl
-      );
-      const previousGeneratedDataUrl = hasPreviousCompletedImage ? currentGeneratedDataUrl : '';
-      const previousGeneratedMimeType = hasPreviousCompletedImage ? currentGeneratedMimeType : '';
-      const previousGeneratedMode = hasPreviousCompletedImage ? currentGeneratedMode : 'character';
-      let workflowCompleted = false;
-
-      try {
-        const { data: profile, error: profileError } = await window.supabaseClient
-          .from('profiles')
-          .select('np_balance')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
-        const currentNp = Number(profile.np_balance || 0);
-        if (currentNp < requiredNp) {
-          throw new Error(`NP残高が不足しています（今回の処理に必要: ${requiredNp} NP）。`);
-        }
-
-        if (saveButton) saveButton.disabled = true;
-        if (generateButton) generateButton.disabled = true;
-        actionArea?.querySelectorAll('button').forEach((button) => {
-          button.disabled = true;
-        });
-
-        if (!resumeFromIntermediate) {
-          const photorealSucceeded = await handleSdToPhotorealIntermediate({
-            continueWorkflow: true
-          });
-          if (!photorealSucceeded) return;
-        }
-
-        const animeSucceeded = await handlePhotorealIntermediateToAnime2D({
-          continueWorkflow: true
-        });
-        if (!animeSucceeded) return;
-
-        const { transactionRecorded } = await chargeRealAnimeConversion();
-        workflowCompleted = true;
-        if (transactionRecorded) {
-          showMessage('リアルアニメ風への変換が完了しました。');
-        } else {
-          showMessage('リアルアニメ風への変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
-        }
-        if (isMobileControlWidth()) closeMobileControlPanel();
-      } catch (err) {
-        console.error(err);
-        showMessage(err.message || 'リアルアニメ風への変換に失敗しました。', 'error');
-      } finally {
-        if (!workflowCompleted) {
-          currentGeneratedDataUrl = previousGeneratedDataUrl;
-          currentGeneratedMimeType = previousGeneratedMimeType;
-          currentGeneratedMode = previousGeneratedMode;
-          renderPreview(currentGeneratedDataUrl);
-          renderPromptDebug(null);
-        }
-        hideProcessingOverlay();
-        if (generateButton) generateButton.disabled = false;
-        if (saveButton) saveButton.disabled = !workflowCompleted && !previousGeneratedDataUrl;
-        renderSdExtractionPanel();
-      }
-    }
-
-    async function handleSdToPhotorealIntermediate({ continueWorkflow = false } = {}) {
-      if (!currentUser) {
-        showMessage('ログインが必要です。', 'error');
-        return;
-      }
-      if (!isSdToReal2DConversionSelected()) return;
-      if (!selectedReferenceAsset?.file_url) {
-        showMessage('SD→実写化では参照画像を選択してください。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-      if (!sdExtractionState.extractedParameters) {
-        showMessage('先に抽出してください。抽出完了後に12頭身実写化を試せます。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-
-      const saveButton = document.getElementById('saveBtn');
-      const generateButton = document.getElementById('generateBtn');
-      if (saveButton) saveButton.disabled = true;
-      if (generateButton) generateButton.disabled = true;
-      currentGeneratedDataUrl = '';
-      currentGeneratedMimeType = '';
-      currentGeneratedMode = 'character';
-      renderPromptDebug(null);
-      showMessage('');
-      showProcessingOverlay(
-        continueWorkflow ? '生成中' : '12頭身実写化中...',
-        continueWorkflow ? '' : 'SD骨格を12頭身の成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。'
-      );
-
-      let succeeded = false;
-      try {
-        const { data: profile, error: profileError } = await window.supabaseClient
-          .from('profiles')
-          .select('np_balance')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
-        const currentNp = Number(profile.np_balance || 0);
-        if (currentNp < GENERATION_COST_NP) throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
-
-        const payload = buildSdToPhotorealIntermediatePayload();
-        console.log('sd photoreal intermediate payload', payload);
-        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
-        console.log('sd photoreal intermediate response', data);
-
-        if (error) {
-          throw new Error(await getFunctionErrorMessage(error, '実写化Functionの呼び出しに失敗しました。'));
-        }
-        if (!data?.ok && data?.status !== 'success') throw new Error(data?.error || '実写化に失敗しました。');
-
-        renderPromptDebug(data, payload);
-        const generatedImage = extractGeneratedImageSource(data);
-        if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
-
-        if (!continueWorkflow) {
-          const newNp = currentNp - GENERATION_COST_NP;
-          const { error: updateError } = await window.supabaseClient
-            .from('profiles')
-            .update({ np_balance: newNp })
-            .eq('id', currentUser.id);
-
-          if (updateError) throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
-
-          currentNpBalance = newNp;
-          renderNpBalance();
-
-          const { error: txError } = await window.supabaseClient
-            .from('transactions')
-            .insert({
-              user_id: currentUser.id,
-              tx_type: 'np_use',
-              type: 'ai_illustration_generation',
-              product_name: 'AIイラスト生成（SD→12頭身実写化テスト）',
-              amount_nvt: 0,
-              amount_np: -GENERATION_COST_NP,
-              balance_before_np: currentNp,
-              balance_after_np: newNp,
-              related_table: 'profiles',
-              related_id: currentUser.id
-            });
-
-          if (txError) {
-            console.error('transactions insert error:', txError);
-            showMessage('12頭身実写化は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
-          } else {
-            showMessage('12頭身実写化が完了しました。次はこの画像を参照画像として2Dアニメ風へ変換できます。');
-          }
-        }
-
-        currentGeneratedMimeType = generatedImage.mimeType || '';
-        currentGeneratedDataUrl = generatedImage.source;
-        sdPhotorealIntermediateMimeType = currentGeneratedMimeType;
-        sdPhotorealIntermediateDataUrl = currentGeneratedDataUrl;
-        renderPreview(currentGeneratedDataUrl);
-        renderSdExtractionPanel();
-        if (!continueWorkflow && isMobileControlWidth()) closeMobileControlPanel();
-        if (!continueWorkflow && saveButton) saveButton.disabled = false;
-        succeeded = true;
-      } catch (err) {
-        console.error(err);
-        showMessage(err.message || '12頭身実写化に失敗しました。', 'error');
-      } finally {
-        if (!continueWorkflow) {
-          hideProcessingOverlay();
-          if (generateButton) generateButton.disabled = false;
-        }
-      }
-      return succeeded;
-    }
-
-    async function handlePhotorealIntermediateToAnime2D({ continueWorkflow = false } = {}) {
-      if (!currentUser) {
-        showMessage('ログインが必要です。', 'error');
-        return;
-      }
-      if (!isSdToReal2DConversionSelected()) return;
-      if (!sdPhotorealIntermediateDataUrl) {
-        showMessage('先に12頭身実写化を完了してください。', 'error');
-        renderSdExtractionPanel();
-        return;
-      }
-
-      const saveButton = document.getElementById('saveBtn');
-      const generateButton = document.getElementById('generateBtn');
-      const actionArea = document.getElementById('sdPhotorealActionArea');
-      if (saveButton) saveButton.disabled = true;
-      if (generateButton) generateButton.disabled = true;
-      actionArea?.querySelectorAll('button').forEach((button) => {
-        button.disabled = true;
-      });
-      currentGeneratedMode = 'character';
-      renderPromptDebug(null);
-      showMessage('');
-      showProcessingOverlay(
-        continueWorkflow ? '生成中' : '2Dアニメ風へ変換中...',
-        continueWorkflow ? '' : '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。'
-      );
-
-      let succeeded = false;
-      try {
-        const { data: profile, error: profileError } = await window.supabaseClient
-          .from('profiles')
-          .select('np_balance')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError || !profile) throw new Error('プロフィールの取得に失敗しました。');
-        const currentNp = Number(profile.np_balance || 0);
-        if (currentNp < GENERATION_COST_NP) {
-          throw new Error(`NP残高が不足しています（必要: ${GENERATION_COST_NP} NP）。`);
-        }
-
-        const sourceBlob = await imageSourceToBlob(sdPhotorealIntermediateDataUrl);
-        const sourceBase64 = await blobToBase64(sourceBlob);
-        const sourceMimeType = sourceBlob.type || sdPhotorealIntermediateMimeType || 'image/png';
-        const payload = {
-          template_type: 'character',
-          source_page: 'nft_generate_v2_test',
-          generation_mode: 'reference',
-          sd_to_real_conversion_stage: 'anime_2d_final',
-          direct_image_edit: true,
-          tpl_character_mode_conversion: '12頭身映画3DCGから2Dアニメへ変換',
-          tpl_character_sd_to_real_gender: getFieldValue('tpl_character_sd_to_real_gender'),
-          reference_image_base64: sourceBase64,
-          reference_image_mime_type: sourceMimeType,
-          reference_image_role: 'generated_ten_heads_intermediate',
-          tpl_character_view: '生成済み12頭身画像のキャンバス、構図、カメラ、人物位置、背景配置を固定',
-          tpl_character_pose: '生成済み12頭身画像のポーズと全装備の持ち手、向き、角度、位置、状態を固定',
-          tpl_character_outfit: '生成済み12頭身画像の髪型、衣装、装備、配色、装飾を維持',
-          tpl_character_art_style: 'premium Japanese 2D anime key art; change rendering medium only'
-        };
-
-        console.log('cinematic to anime 2D payload', {
-          ...payload,
-          reference_image_base64: `[base64 ${sourceBase64.length} chars]`
-        });
-        const { data, error } = await window.supabaseClient.functions.invoke(FUNCTION_NAME, { body: payload });
-        console.log('cinematic to anime 2D response', data);
-
-        if (error) {
-          throw new Error(await getFunctionErrorMessage(error, '2Dアニメ変換Functionの呼び出しに失敗しました。'));
-        }
-        if (!data?.ok && data?.status !== 'success') {
-          throw new Error(data?.error || '2Dアニメ風への変換に失敗しました。');
-        }
-
-        renderPromptDebug(data, payload);
-        const generatedImage = extractGeneratedImageSource(data);
-        if (!generatedImage?.source) throw new Error('生成画像が返されませんでした。');
-
-        if (!continueWorkflow) {
-          const newNp = currentNp - GENERATION_COST_NP;
-          const { error: updateError } = await window.supabaseClient
-            .from('profiles')
-            .update({ np_balance: newNp })
-            .eq('id', currentUser.id);
-
-          if (updateError) {
-            throw new Error('画像は生成されましたが、NP消費に失敗したため結果を破棄しました。時間をおいて再実行してください。');
-          }
-
-          currentNpBalance = newNp;
-          renderNpBalance();
-
-          const { error: txError } = await window.supabaseClient
-            .from('transactions')
-            .insert({
-              user_id: currentUser.id,
-              tx_type: 'np_use',
-              type: 'ai_illustration_generation',
-              product_name: 'AIイラスト生成（12頭身中間画像→2Dアニメ変換）',
-              amount_nvt: 0,
-              amount_np: -GENERATION_COST_NP,
-              balance_before_np: currentNp,
-              balance_after_np: newNp,
-              related_table: 'profiles',
-              related_id: currentUser.id
-            });
-
-          if (txError) {
-            console.error('transactions insert error:', txError);
-            showMessage('2Dアニメ変換は完了しましたが、transactions記録に失敗しました。NP残高は更新済みです。', 'error');
-          } else {
-            showMessage('生成済みの12頭身画像を基準に、構図を維持した2Dアニメ風変換が完了しました。');
-          }
-        }
-
-        currentGeneratedMimeType = generatedImage.mimeType || '';
-        currentGeneratedDataUrl = generatedImage.source;
-        renderPreview(currentGeneratedDataUrl);
-        if (!continueWorkflow && isMobileControlWidth()) closeMobileControlPanel();
-        if (!continueWorkflow && saveButton) saveButton.disabled = false;
-        succeeded = true;
-      } catch (err) {
-        console.error(err);
-        showMessage(err.message || '2Dアニメ風への変換に失敗しました。', 'error');
-        if (!continueWorkflow && saveButton && currentGeneratedDataUrl) saveButton.disabled = false;
-      } finally {
-        if (!continueWorkflow) {
-          hideProcessingOverlay();
-          if (generateButton) generateButton.disabled = false;
-          renderSdExtractionPanel();
-        }
-      }
-      return succeeded;
-    }
-
     async function handleGenerate() {
       if (!currentUser) {
         showMessage('ログインが必要です。', 'error');
@@ -3339,15 +2276,6 @@
 
     function renderPreview(dataUrl) {
       const previewArea = document.getElementById('previewArea');
-      if (!dataUrl) {
-        previewArea.innerHTML = `
-          <div class="preview-placeholder">
-            <p style="font-size:16px; margin:0 0 8px;">ここに生成した画像が表示されます。</p>
-            <p class="muted" style="margin:0;">右側の設定からキャライラストを生成してください。</p>
-          </div>
-        `;
-        return;
-      }
       previewArea.innerHTML = `<img class="preview-image" src="${escapeAttr(dataUrl)}" alt="生成画像" />`;
     }
 
