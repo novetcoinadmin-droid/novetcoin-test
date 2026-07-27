@@ -916,6 +916,7 @@
 
       titleEl.textContent = title;
       textEl.textContent = text;
+      textEl.style.display = text ? '' : 'none';
       overlay.classList.add('open');
       overlay.setAttribute('aria-hidden', 'false');
     }
@@ -2940,8 +2941,8 @@
       renderPromptDebug(null);
       showMessage('');
       showProcessingOverlay(
-        continueWorkflow ? 'リアルアニメ風に変換中（1/2）' : '12頭身実写化中...',
-        'SD骨格を12頭身の成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。'
+        continueWorkflow ? '生成中' : '12頭身実写化中...',
+        continueWorkflow ? '' : 'SD骨格を12頭身の成人モデル骨格へ再構築し、ポーズの意味と装備方向を移植しています。'
       );
 
       let succeeded = false;
@@ -3050,8 +3051,8 @@
       renderPromptDebug(null);
       showMessage('');
       showProcessingOverlay(
-        continueWorkflow ? 'リアルアニメ風に変換中（2/2）' : '2Dアニメ風へ変換中...',
-        '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。'
+        continueWorkflow ? '生成中' : '2Dアニメ風へ変換中...',
+        continueWorkflow ? '' : '生成済みの12頭身画像を基準に、構図を保ったまま2Dアニメ風へ変換しています。'
       );
 
       let succeeded = false;
