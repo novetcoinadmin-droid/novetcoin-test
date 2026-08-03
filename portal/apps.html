@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NovetCoin運営事務局が制作・運営するアプリの一覧です。">
+  <title>制作アプリ一覧 | NovetCoin</title>
+  <style>
+    :root {
+      --main: #2f6fed;
+      --main-dark: #1f4fae;
+      --bg: #f6f8fc;
+      --card: #ffffff;
+      --text: #202938;
+      --sub: #687386;
+      --line: #dfe5ee;
+      --max: 1040px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", Meiryo, sans-serif;
+      line-height: 1.75;
+    }
+    a { color: var(--main); }
+    .container { width: min(calc(100% - 32px), var(--max)); margin: 0 auto; }
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .header-inner {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .logo {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    nav { display: flex; flex-wrap: wrap; gap: 20px; }
+    nav a { color: var(--sub); text-decoration: none; font-size: .95rem; }
+    nav a:hover, nav a.current { color: var(--main); }
+    .hero {
+      padding: 68px 0 42px;
+      text-align: center;
+    }
+    .hero h1 { margin: 0 0 14px; font-size: clamp(2rem, 5vw, 3rem); }
+    .hero p { margin: 0 auto; max-width: 720px; color: var(--sub); }
+    main { padding-bottom: 72px; }
+    .app-card {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 28px;
+      padding: 30px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(30, 52, 84, .06);
+    }
+    .app-icon {
+      min-height: 150px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 3.5rem;
+      background: linear-gradient(145deg, #eaf1ff, #dce8ff);
+      border: 1px solid #cbdafa;
+    }
+    .label {
+      display: inline-block;
+      padding: 3px 10px;
+      margin-bottom: 8px;
+      border-radius: 999px;
+      background: #edf3ff;
+      color: var(--main-dark);
+      font-size: .8rem;
+      font-weight: 700;
+    }
+    h2 { margin: 0 0 6px; font-size: 1.6rem; }
+    .meta { margin: 0 0 16px; color: var(--sub); font-size: .92rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 22px; }
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 11px;
+      color: var(--sub);
+      font-size: .82rem;
+      background: #fafbfd;
+    }
+    .buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      background: var(--main);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .button.sub { background: #fff; color: var(--main); border: 1px solid var(--main); }
+    .notice {
+      margin-top: 22px;
+      padding: 16px 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--sub);
+      font-size: .92rem;
+    }
+    footer {
+      background: #fff;
+      border-top: 1px solid var(--line);
+      padding: 28px 0;
+      color: var(--sub);
+      font-size: .9rem;
+    }
+    .footer-inner { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    @media (max-width: 680px) {
+      .header-inner { align-items: flex-start; padding: 14px 0; }
+      nav { justify-content: flex-end; gap: 12px; }
+      .hero { padding-top: 46px; }
+      .app-card { grid-template-columns: 1fr; padding: 22px; }
+      .app-icon { min-height: 120px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container header-inner">
+    <a class="logo" href="./index.html">NovetCoin</a>
+    <nav aria-label="メインメニュー">
+      <a href="./index.html">トップ</a>
+      <a href="./apps.html" class="current">アプリ</a>
+      <a href="./contact.html">お問い合わせ</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <h1>制作アプリ一覧</h1>
+    <p>NovetCoin運営事務局が制作・運営するゲームおよびアプリをご案内します。</p>
+  </div>
+</section>
+
+<main>
+  <div class="container">
+    <article class="app-card">
+      <div class="app-icon" aria-hidden="true">🚀</div>
+      <div>
+        <span class="label">Androidゲーム</span>
+        <h2>絶対に撃てない波○砲！</h2>
+        <p class="meta">制作・運営：NovetCoin運営事務局</p>
+        <p>
+          発射シーケンスを突破し、最後まで波○砲の発射を目指すタイミングゲームです。
+          ステージが進むほど、速度変化、点滅、振動、画面揺れなどの妨害が強くなります。
+        </p>
+        <div class="tags">
+          <span class="tag">タイミングゲーム</span>
+          <span class="tag">全11ステージ</span>
+          <span class="tag">Android</span>
+        </div>
+        <div class="buttons">
+          <a class="button" href="./ginga-hadouhou-privacy.html">プライバシーポリシー</a>
+          <a class="button sub" href="mailto:support@novetcoin.com">お問い合わせ</a>
+        </div>
+      </div>
+    </article>
+
+    <div class="notice">
+      Google Playでの公開後、このページにストアへのリンクを追加できます。
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© NovetCoin運営事務局</span>
+    <a href="./ginga-hadouhou-privacy.html">プライバシーポリシー</a>
+  </div>
+</footer>
+</body>
+</html>
