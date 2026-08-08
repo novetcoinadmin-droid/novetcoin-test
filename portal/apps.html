@@ -68,9 +68,16 @@
       border-radius: 18px;
       display: grid;
       place-items: center;
-      font-size: 3.5rem;
+      padding: 10px;
       background: linear-gradient(145deg, #eaf1ff, #dce8ff);
       border: 1px solid #cbdafa;
+      overflow: hidden;
+    }
+    .app-icon img {
+      display: block;
+      max-width: 100%;
+      max-height: 128px;
+      object-fit: contain;
     }
     .label {
       display: inline-block;
@@ -107,15 +114,6 @@
       font-weight: 700;
     }
     .button.sub { background: #fff; color: var(--main); border: 1px solid var(--main); }
-    .notice {
-      margin-top: 22px;
-      padding: 16px 18px;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      color: var(--sub);
-      font-size: .92rem;
-    }
     footer {
       background: #fff;
       border-top: 1px solid var(--line);
@@ -130,6 +128,7 @@
       .hero { padding-top: 46px; }
       .app-card { grid-template-columns: 1fr; padding: 22px; }
       .app-icon { min-height: 120px; }
+      .app-icon img { max-height: 104px; }
     }
   </style>
 </head>
@@ -155,14 +154,17 @@
 <main>
   <div class="container">
     <article class="app-card">
-      <div class="app-icon" aria-hidden="true">🚀</div>
+      <div class="app-icon">
+        <img src="./new_opn2.png" alt="絶対に撃てない波○砲！ タイトルロゴ">
+      </div>
       <div>
         <span class="label">Androidゲーム</span>
         <h2>絶対に撃てない波○砲！</h2>
         <p class="meta">制作・運営：NovetCoin運営事務局</p>
         <p>
-          発射シーケンスを突破し、最後まで波○砲の発射を目指すタイミングゲームです。
-          ステージが進むほど、速度変化、点滅、振動、画面揺れなどの妨害が強くなります。
+          波○砲の発射シーケンスを最後まで突破するタイミングゲームです。
+          各ステージでタイミング操作を行い、進むほど速度変化、点滅、振動、画面揺れなどの妨害が増えていきます。
+          失敗すると最初から、またはコンティニューで再挑戦できます。
         </p>
         <div class="tags">
           <span class="tag">タイミングゲーム</span>
@@ -170,15 +172,12 @@
           <span class="tag">Android</span>
         </div>
         <div class="buttons">
-          <a class="button" href="./ginga-hadouhou-privacy.html">プライバシーポリシー</a>
+          <a class="button" href="https://play.google.com/store/apps/details?id=com.novetcoin.namimaru" target="_blank" rel="noopener">Google Playでダウンロード</a>
+          <a class="button sub" href="./ginga-hadouhou-privacy.html">プライバシーポリシー</a>
           <a class="button sub" href="mailto:support@novetcoin.com">お問い合わせ</a>
         </div>
       </div>
     </article>
-
-    <div class="notice">
-      Google Playでの公開後、このページにストアへのリンクを追加できます。
-    </div>
   </div>
 </main>
 
