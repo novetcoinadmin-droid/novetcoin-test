@@ -33,6 +33,10 @@ use chrome, FireFox or Internet Explorer 11`)}var a=e(`safe-buffer`),o=e(`random
       <span class="service-name">AI Excel アシスタント</span>
       <span class="beta">MVP</span>
     </div>
+    <div class="ai-notice">
+      ※Excelアシスタントの回答は必ずしも正しいとは限りません。重要な情報は確認するようにしてください。
+    </div>
+
 
     <div
       class="privacy"
