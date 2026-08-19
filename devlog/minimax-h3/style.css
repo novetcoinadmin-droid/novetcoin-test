@@ -260,6 +260,28 @@ h1 {
   color: var(--accent-strong);
 }
 
+
+.screenshot-figure {
+  margin: 24px 0 30px;
+}
+
+.screenshot-figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(37, 24, 50, 0.08);
+}
+
+.screenshot-figure figcaption {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 .version-box,
 .tool-card,
 .callout {

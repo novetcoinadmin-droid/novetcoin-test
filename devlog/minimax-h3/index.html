@@ -109,10 +109,48 @@
             <li>今回は「参照画像から動画生成」を選択</li>
           </ol>
 
-          <div class="media-placeholder">
-            <strong>スクリーンショット予定</strong>
-            <span>MiniMax H3 起動画面 / テンプレート選択</span>
-          </div>
+          <h3>まずは画面全体を見てみます</h3>
+          <p>
+            最初にこの画面を見たときは、
+            「は？ なにこれ？ どうするのこれ？」
+            という感じでした。
+          </p>
+          <p>
+            ノードや線がたくさん表示されているので、
+            初見ではかなり複雑そうに見えます。
+          </p>
+          <p>
+            ただ、実際に触ってみると意外に簡単でした。
+          </p>
+          <p>今回の動画生成で主に触るのは、このあたりです。</p>
+          <ul class="simple-list">
+            <li>生成方法の選択</li>
+            <li>参照画像</li>
+            <li>プロンプト</li>
+            <li>実行</li>
+          </ul>
+          <figure class="screenshot-figure">
+            <img src="assets/screenshots/全体.png" alt="MiniMax H3のワークフロー全体" loading="lazy">
+            <figcaption>MiniMax H3のワークフロー全体</figcaption>
+          </figure>
+
+          <h3>まずはどんな方法で生成するのか選びます</h3>
+          <p>
+            画面左側のテンプレートから「MiniMax」で検索します。
+          </p>
+          <p>
+            今回は、
+            「MiniMax H3：参照から動画」
+            を選択しました。
+          </p>
+          <p>
+            今回はキャラクターやドラゴンなどの画像を参照させながら
+            動画を作りたかったため、このテンプレートを使用しています。
+          </p>
+          <figure class="screenshot-figure">
+            <img src="assets/screenshots/model.png" alt="MiniMax H3テンプレートの選択" loading="lazy">
+            <figcaption>MiniMax H3テンプレートの選択</figcaption>
+          </figure>
 
           <p>
             今回制作した動画では、基本的に
@@ -144,10 +182,58 @@
             ただ、実際によく触る場所はそれほど多くありません。
           </p>
 
-          <div class="media-placeholder large">
-            <strong>スクリーンショット予定</strong>
-            <span>参照画像 / プロンプト / 動画時間 / Generate の位置を説明</span>
-          </div>
+          <h3>参照画像を選択します</h3>
+          <p>
+            次に、動画生成に使用する参照画像を設定します。
+          </p>
+          <p>
+            今回の例では、
+            キャラクター画像とドラゴン画像を参照画像として設定しています。
+          </p>
+          <p>
+            3枚目、4枚目など参照画像を増やしたい場合は、
+            上の方にある「ref_image」のうち、
+            まだ線がつながっていない丸をクリックしたまま
+            下方向へマウスを動かします。
+          </p>
+          <p>
+            すると線がついてくるので、
+            新しく追加した参照画像のノードへ接続できます。
+          </p>
+          <p>
+            逆に参照画像を削除したい場合は、
+            下側にある不要な参照画像の枠（ノード）を右クリックし、
+            表示されたメニューの一番下にある削除を選択します。
+          </p>
+          <figure class="screenshot-figure">
+            <img src="assets/screenshots/参照画像.png" alt="参照画像を接続した状態" loading="lazy">
+            <figcaption>参照画像を接続した状態</figcaption>
+          </figure>
+
+          <h3>プロンプトを入れて実行</h3>
+          <p>
+            参照画像の準備ができたら、
+            生成したい動画の内容に合わせてプロンプトを貼り直します。
+          </p>
+          <p>
+            準備ができたら、画面右上にある
+            「実行する」
+            を押します。
+          </p>
+          <p>
+            生成が完了すると、
+            画面の一番右側に生成された動画ファイルが
+            プレイヤーで再生できる形式で表示されます。
+          </p>
+          <p>
+            そこで完成した動画を確認し、
+            イメージと違えば参照画像やプロンプトを修正して
+            再度生成していきます。
+          </p>
+          <figure class="screenshot-figure">
+            <img src="assets/screenshots/プロンプト.png" alt="プロンプト入力と実行ボタン" loading="lazy">
+            <figcaption>プロンプト入力と実行ボタン</figcaption>
+          </figure>
 
           <ul class="simple-list">
             <li>参照画像を設定する</li>
