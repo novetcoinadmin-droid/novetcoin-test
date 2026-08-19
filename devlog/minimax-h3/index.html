@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NovetCoin 開発備忘録。MiniMax H3を使った動画生成の制作過程と素材を公開します。">
+  <title>MiniMax_H3で動画生成 | NovetCoin 開発備忘録</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/my-site/index.html" aria-label="NovetCoin トップへ">
+        <span class="brand-mark">N</span>
+        <span class="brand-text">NovetCoin</span>
+      </a>
+
+      <nav class="global-nav" aria-label="グローバルナビゲーション">
+        <a href="/my-site/index.html">トップ</a>
+        <a href="/my-site/works.html">本棚</a>
+        <a href="/my-site/market.html">NNFTマーケットへ</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-shell">
+    <main class="article-column">
+      <article class="blog-article">
+        <header class="article-header">
+          <p class="eyebrow">NovetCoin 開発備忘録</p>
+          <h1>MiniMax H3を使った動画作成について</h1>
+          <p class="article-lead">
+            現在運営中のnovetcoin.comに、開発用の備忘録ページを作成し、
+            今回作った動画の制作過程を残しておきたいと思います。
+          </p>
+          <p class="article-lead">
+            このページは今後も不定期で更新していく予定です。
+          </p>
+        </header>
+
+        <section class="article-section" id="about">
+          <h2>このページについて</h2>
+          <p>
+            本ページは、AIや制作過程についての備忘録として利用します。
+          </p>
+          <p>
+            また、本ページ内でダウンロード可能としている素材ファイルについては、
+            基本的に自由に利用できるものとして公開します。
+          </p>
+          <p class="note">
+            ※利用した外部ツール等について、当サイトからの配布は行いません。
+          </p>
+        </section>
+
+        <section class="article-section" id="test">
+          <h2>MiniMax H3を使った動画生成をテスト</h2>
+          <p>
+            当サイト管理人が以前ハマっていたゲームタイトルについて、
+            そろそろ再開も近いのでは？という話をちらちら見かけるようになりました。
+          </p>
+          <p>
+            そこで「何かできないかな？」と考えていたところ、
+            ちょうどローカル環境で動画生成ができる <strong>MiniMax H3</strong> を知りました。
+          </p>
+          <p>
+            生成される動画のクオリティもかなり高そうだったため、
+            「それなら今後のためにも一度ちゃんと動画を作ってみよう」
+            となったわけです。
+          </p>
+        </section>
+
+        <section class="article-section" id="environment">
+          <h2>現時点での開発環境</h2>
+          <p>
+            おそらくですが、私の環境は生成できるか・できないかという意味では、
+            かなりギリギリのラインだと思います。
+          </p>
+          <p>
+            クオリティの話ではなく、最後まで生成処理を完了できるかどうか、という意味です。
+          </p>
+
+          <div class="spec-grid">
+            <div><span>ComfyUI</span><strong>0.31.0</strong></div>
+            <div><span>RAM</span><strong>64GB</strong></div>
+            <div><span>GPU</span><strong>NVIDIA GeForce RTX 3060 12GB</strong></div>
+            <div><span>OS</span><strong>Linux</strong></div>
+            <div class="wide"><span>参考生成時間</span><strong>6秒動画：約15分</strong></div>
+          </div>
+        </section>
+
+        <section class="article-section" id="setup">
+          <h2>準備方法</h2>
+          <p>
+            MiniMax H3のダウンロードからセットアップまでは、
+            <strong>Codex（CLI）</strong> に一括で依頼しました。
+          </p>
+          <p>ほぼ全部任せです。すいません。</p>
+        </section>
+
+        <section class="article-section" id="launch">
+          <h2>準備完了後にMiniMax H3を起動</h2>
+          <p>ローカルで動かすタイプのサービスでは、だいたい以下のような流れになります。</p>
+
+          <ol class="steps">
+            <li>MiniMax H3を動かすローカルサーバーを起動する</li>
+            <li>ブラウザからローカルサーバーへアクセスする</li>
+            <li>ブラウザ上に動画生成画面が表示される</li>
+            <li>画面左側のテンプレートから「MiniMax」で検索する</li>
+            <li>今回は「参照画像から動画生成」を選択</li>
+          </ol>
+
+          <div class="media-placeholder">
+            <strong>スクリーンショット予定</strong>
+            <span>MiniMax H3 起動画面 / テンプレート選択</span>
+          </div>
+
+          <p>
+            今回制作した動画では、基本的に
+            <strong>参照画像から動画を生成する方法</strong>を使用しました。
+          </p>
+
+          <p class="note">
+            ※使用している環境やバージョンによっては、
+            「参照画像から動画生成」のテンプレートが表示されない場合があります。
+          </p>
+
+          <div class="version-box">
+            <h3>今回使用した環境</h3>
+            <ul>
+              <li>ComfyUI-H3：/home/haishinapusu/tools/stable-diffusion/ComfyUI-H3</li>
+              <li>MiniMax H3：Ref2VA</li>
+              <li>使用モデル：minimax_h3_ref2va_pruned_int8_convrot.safetensors</li>
+              <li>使用モデル：qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors</li>
+              <li>使用モデル：minimax_h3_video_vae_fp16.safetensors</li>
+              <li>使用モデル：minimax_h3_audio_vae_fp32.safetensors</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="article-section" id="generation">
+          <h2>動画生成</h2>
+          <p>
+            初めて見ると、生成画面には色々な項目があって少しびっくりします。
+            ただ、実際によく触る場所はそれほど多くありません。
+          </p>
+
+          <div class="media-placeholder large">
+            <strong>スクリーンショット予定</strong>
+            <span>参照画像 / プロンプト / 動画時間 / Generate の位置を説明</span>
+          </div>
+
+          <ul class="simple-list">
+            <li>参照画像を設定する</li>
+            <li>必要に応じて参照画像を追加・削除する</li>
+            <li>プロンプトを入力する</li>
+            <li>動画の長さなどを設定する</li>
+            <li>生成する</li>
+          </ul>
+
+          <h3>実際に作った動画の例</h3>
+          <p>ここでは今回制作した <code>cut01.mp4</code> を例にします。</p>
+
+          <video class="article-video" controls preload="metadata">
+            <source src="assets/videos/cut01.mp4" type="video/mp4">
+            お使いのブラウザは動画再生に対応していません。
+          </video>
+
+          <p>
+            まず、ドラゴンタワーのプレイ画面と、
+            ボスとして使用するドラゴンの画像を参照画像として用意しました。
+          </p>
+
+          <p>
+            その画像をChatGPTブラウザ版にも渡し、
+            MiniMax H3用のプロンプトを作ってもらいました。
+          </p>
+
+          <blockquote>
+            <p>この動画はオープニングに使います。</p>
+            <p>1. ボス戦闘開始。</p>
+            <p>このボスは「星の一撃」という必殺技を持っています。</p>
+            <p>
+              動画生成の一発目は、このダンジョンにいるボスが
+              「星の一撃」を繰り出すシーンです。
+            </p>
+            <p>
+              メテオのような火球を吐き出し、画面正面に向かって火球が飛んでくる。
+              火球は正面へ近づくにつれてどんどん大きくなり、
+              最後には画面を埋め尽くすようにしたい。
+            </p>
+          </blockquote>
+
+          <p>
+            あとはプロンプトと参照画像を設定して生成を待ちます。
+          </p>
+          <p>
+            生成された動画がイメージと違った場合は、
+            「何を修正するのか」「何を維持するのか」を分けてChatGPTに伝えます。
+          </p>
+          <p>
+            また、ChatGPTが作った英語プロンプトについては日本語版も一緒に出してもらい、
+            「自分が指定した内容が抜けていないか？」を確認するようにしました。
+          </p>
+
+          <aside class="callout">
+            <strong>1カット15分以上。</strong>
+            <p>
+              私のPCではこれくらいかかるので、
+              生成前にできるだけ確認して修正回数を減らすようにしました。
+            </p>
+          </aside>
+        </section>
+
+        <section class="article-section" id="join">
+          <h2>全カット完成後</h2>
+          <p>
+            同じような方法で必要なカットをすべて作成します。
+          </p>
+          <p>
+            今回の動画では、完成した各カットを一度
+            <strong>音声なしで連結</strong>しました。
+          </p>
+          <p>
+            まず映像だけを一本につなぎ、
+            カットの順番や映像としてのつながりを確認しました。
+          </p>
+        </section>
+
+        <section class="article-section" id="bgm">
+          <h2>BGMを生成</h2>
+          <p>
+            動画がまとまったところで、次はBGMです。
+          </p>
+          <p>
+            このとき私は、
+            「MiniMax H3があるならMusicもローカルで使えるんじゃないか？」
+            と思っていました。
+          </p>
+          <p>
+            ところが調べてみると、Musicについては自分が想定していたような
+            ローカル環境ではなく、クラウドサービスを利用する形でした。
+          </p>
+          <p>
+            基本、クラウドサービス＝課金だと思っているので、
+            知ったときは小さく舌打ちしたのを覚えています。
+          </p>
+          <p>
+            そんな時は、ドラ○もんことChatGPTに相談です。
+          </p>
+          <p>
+            「ローカルでBGMを作成できるツールを用意して」
+            と相談して出てきたのが <strong>ACE-Step 1.5</strong> です。
+          </p>
+
+          <div class="tool-card">
+            <div>
+              <span class="tool-label">BGM生成</span>
+              <h3>ACE-Step 1.5</h3>
+            </div>
+            <p>
+              参考にしたい音源を用意して、
+              「この音源のような方向性のBGMを作りたい」
+              と指定できるのが面白いところでした。
+            </p>
+          </div>
+        </section>
+
+        <section class="article-section" id="materials">
+          <h2>各種素材一覧</h2>
+          <p>
+            今回の制作で使用・生成した素材のうち、
+            当ページで配布するものをまとめています。
+          </p>
+
+          <div class="download-group">
+            <h3>動画カット</h3>
+            <div class="download-grid">
+              <a download href="assets/videos/cut01.mp4">cut01.mp4</a>
+              <a download href="assets/videos/cut02.mp4">cut02.mp4</a>
+              <a download href="assets/videos/cut03.mp4">cut03.mp4</a>
+              <a download href="assets/videos/cut04new.mp4">cut04new.mp4</a>
+              <a download href="assets/videos/cut05.mp4">cut05.mp4</a>
+              <a download href="assets/videos/cut06.mp4">cut06.mp4</a>
+              <a download href="assets/videos/cut07.mp4">cut07.mp4</a>
+              <a download href="assets/videos/cut08.mp4">cut08.mp4</a>
+              <a download href="assets/videos/cut09.mp4">cut09.mp4</a>
+            </div>
+          </div>
+
+          <div class="download-group">
+            <h3>BGM</h3>
+            <div class="download-grid">
+              <a download href="assets/audio/gensokishi_battle_bgm_v6_master.wav">gensokishi_battle_bgm_v6_master.wav</a>
+            </div>
+          </div>
+
+          <div class="download-group">
+            <h3>SE</h3>
+            <div class="download-grid">
+              <a download href="assets/audio/sound-effects.zip">sound-effects.zip</a>
+            </div>
+          </div>
+
+          <div class="download-group">
+            <h3>静止画像</h3>
+            <div class="download-grid">
+              <a download href="assets/images/generated-images.zip">generated-images.zip</a>
+            </div>
+          </div>
+
+          <p class="note">
+            ※配布対象は当ページで明示したファイルのみです。
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <aside class="sidebar" aria-label="ブログメニュー">
+      <div class="sidebar-card sticky">
+        <p class="sidebar-title">開発備忘録</p>
+
+        <nav class="side-menu">
+          <a class="active" href="#top">MiniMax_H3で動画生成</a>
+          <a href="#materials">各種素材一覧</a>
+        </nav>
+
+        <div class="archive">
+          <p class="archive-title">過去の一覧</p>
+          <p class="archive-empty">現在なし</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <nav>
+        <a href="/portal/about.html">Novetについて</a>
+        <a href="/portal/token.html">NVTについて</a>
+        <a href="/portal/contact.html">お問い合わせ</a>
+        <a href="/portal/terms.html">利用規約</a>
+        <a href="/portal/privacy.html">プライバシーポリシー</a>
+      </nav>
+      <p>© NovetCoin運営事務局</p>
+    </div>
+  </footer>
+</body>
+</html>
