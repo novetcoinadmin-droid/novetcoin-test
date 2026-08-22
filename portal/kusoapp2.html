@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>クソアプリ2 - 超連打レーザー</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #050505;
+      font-family: sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      pointer-events: none;
+      font-size: 14px;
+      text-shadow: 0 0 5px #000, 0 0 10px #000;
+    }
+
+    .level-indicator {
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .total-counter {
+      font-size: 20px;
+      color: #ffeb3b;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ui">
+    <div class="total-counter">TOTAL: <span id="total">0</span> 打</div>
+    <div>CPS (連打速度): <span id="cps">0.0</span>/s</div>
+    <div class="level-indicator">STATE: <span id="state">NORMAL</span></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const cpsEl = document.getElementById('cps');
+    const stateEl = document.getElementById('state');
+    const totalEl = document.getElementById('total');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    let clickTimestamps = [];
+    let bullets = [];
+    let totalClicks = 0;
+    let angleOffset = 0;
+
+    // タップ・クリックイベント
+    function handleInput(e) {
+      if (e.type === 'touchstart') e.preventDefault();
+
+      const now = performance.now();
+      clickTimestamps.push(now);
+
+      // 総連打数をカウントアップ
+      totalClicks++;
+      totalEl.textContent = totalClicks.toLocaleString();
+
+      const originX = canvas.width / 2;
+      const originY = canvas.height - 30;
+
+      let targetX = originX;
+      let targetY = 0;
+
+      if (e.touches && e.touches.length > 0) {
+        targetX = e.touches[0].clientX;
+        targetY = e.touches[0].clientY;
+      } else {
+        targetX = e.clientX;
+        targetY = e.clientY;
+      }
+
+      const angle = Math.atan2(targetY - originY, targetX - originX);
+
+      bullets.push({
+        x: originX,
+        y: originY,
+        angle: angle,
+        speed: 30,
+        id: Math.random()
+      });
+    }
+
+    window.addEventListener('mousedown', handleInput);
+    window.addEventListener('touchstart', handleInput, { passive: false });
+
+    // メイン更新ループ
+    function update() {
+      const now = performance.now();
+
+      // CPS計算
+      clickTimestamps = clickTimestamps.filter(t => now - t < 1000);
+      const cps = clickTimestamps.length;
+      cpsEl.textContent = cps.toFixed(1);
+
+      // 形態テキスト更新
+      let stateText = "NORMAL";
+      if (cps >= 14) stateText = "SPIRAL PLASMA";
+      else if (cps >= 9) stateText = "PLASMA";
+      else if (cps >= 5) stateText = "RAINBOW LASER";
+      stateEl.textContent = stateText;
+
+      // 背景の動的変化処理
+      let bgStyle = 'rgba(5, 5, 5, 0.3)';
+
+      if (cps >= 14) {
+        // 螺旋プラズマ: 紫〜赤のグラデーション＋フラッシュ
+        const hue = (now / 5) % 360;
+        const alpha = 0.2 + Math.sin(now / 50) * 0.1;
+        bgStyle = `hsla(${hue}, 80%, 10%, ${alpha})`;
+      } else if (cps >= 9) {
+        // プラズマ: 青く明滅するサイバー空間
+        const flash = Math.random() * 0.1;
+        bgStyle = `rgba(0, 20, 40, ${0.2 + flash})`;
+      } else if (cps >= 5) {
+        // 虹色レーザー: 赤みがかったグラデーション
+        bgStyle = 'rgba(30, 5, 10, 0.3)';
+      }
+
+      // 背景塗りと残像
+      ctx.fillStyle = bgStyle;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      angleOffset += 0.25;
+
+      // 発射台
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height - 30, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 弾の更新と描画
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+
+        b.x += Math.cos(b.angle) * b.speed;
+        b.y += Math.sin(b.angle) * b.speed;
+
+        if (
+          b.x < -50 ||
+          b.x > canvas.width + 50 ||
+          b.y < -50 ||
+          b.y > canvas.height + 50
+        ) {
+          bullets.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.angle);
+
+        if (cps < 5) {
+          // 通常弾
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (cps < 9) {
+          // 虹色レーザー
+          const hue = (now / 2 + b.id * 100) % 360;
+          ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+          ctx.lineWidth = 14;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-20, 0);
+          ctx.lineTo(20, 0);
+          ctx.stroke();
+        } else if (cps < 14) {
+          // プラズマ
+          ctx.strokeStyle = '#00ffff';
+          ctx.lineWidth = 20;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = '#00ffff';
+
+          ctx.beginPath();
+          ctx.moveTo(-25, (Math.random() - 0.5) * 12);
+          ctx.lineTo(0, (Math.random() - 0.5) * 18);
+          ctx.lineTo(25, (Math.random() - 0.5) * 12);
+          ctx.stroke();
+        } else {
+          // 螺旋プラズマ
+          const hue = (now / 2) % 360;
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+
+          for (let side = -1; side <= 1; side += 2) {
+            ctx.strokeStyle = `hsl(${(hue + side * 40) % 360}, 100%, 70%)`;
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            const wave =
+              Math.sin(angleOffset + (b.x + b.y) * 0.05) * 20 * side;
+            ctx.arc(0, wave, 8, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    update();
+  </script>
+</body>
+</html>
