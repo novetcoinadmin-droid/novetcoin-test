@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>一輪マシン レース練習版 | NovetCoin</title>
+<meta name="description" content="街を駆け抜ける一輪マシンのレース練習版。PCとゲームパッドでAI2台に挑戦。7色のシールドを選んでスタート。">
+<link rel="icon" href="data:,"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a href="../apps.html">← 制作アプリ一覧</a><a href="../../index.html">NovetCoin</a></header>
+<main>
+<div class="heading"><div><span class="eyebrow">PC BROWSER / PRACTICE</span><h1>一輪マシン <span>レース練習版</span></h1></div><a class="help-link" href="#controls">操作方法 ↓</a></div>
+<p class="intro">シールドを選び、街を駆け抜けよう。AI 2台とのレースを何度でも練習できます。</p>
+<section id="game" aria-label="レースゲーム">
+<div id="game-frame">
+<canvas id="unity-canvas" width="960" height="600" tabindex="0" aria-label="一輪マシン レース練習版。操作方法は画面下にあります。"></canvas>
+<div id="launch-screen" class="overlay">
+<span class="eyebrow">RACE PRACTICE</span><h2>準備ができたら、スタート。</h2>
+<p>ゲームパッドをPCに接続してください。<br>ゲームを開いてから、シールドの色を選べます。</p>
+<button id="launch" type="button">PCで遊ぶ</button>
+<p class="small">ゲームパッド操作専用 · 音が出ます<br>スマホのタッチ操作は準備中です。</p>
+<noscript>ゲームを遊ぶにはブラウザのJavaScriptを有効にしてください。</noscript>
+</div>
+<div id="loading" class="overlay" hidden><h2>ゲームを読み込んでいます</h2><progress id="progress" max="100" value="0" aria-label="読み込み状況"></progress><p id="load-status" role="status">0%</p><p class="small">初回はデータの読み込みに時間がかかる場合があります。</p></div>
+<div id="error" class="overlay" hidden><h2>ゲームを開けませんでした</h2><p id="error-message" role="alert"></p><button id="retry" type="button">再読み込み</button><a href="#controls">動作環境・操作方法を確認する</a></div>
+</div>
+<div class="toolbar"><span id="controller-status" role="status">ゲームパッドを接続し、ボタンを1回押してください。</span><button id="fullscreen" type="button" disabled>全画面</button></div>
+</section>
+<section id="controls" class="info">
+<div><span class="eyebrow">HOW TO PLAY</span><h2>操作方法</h2><p>現在のPC版はゲームパッド操作です。キーボードだけでは走行できません。USBで接続し、ボタンを1回押すとブラウザに認識されます。</p>
+<table><thead><tr><th scope="col">操作</th><th scope="col">ゲームパッド</th></tr></thead><tbody>
+<tr><th scope="row">アクセル</th><td>右トリガー（ZR / RT）</td></tr>
+<tr><th scope="row">左右に曲がる</th><td>十字キーの左右</td></tr>
+<tr><th scope="row">アームを開く・ドリフト</th><td>右スティックを左右へ倒す</td></tr>
+<tr><th scope="row">アームパンチ</th><td>右側4ボタンの上側</td></tr>
+<tr><th scope="row">ブレーキ</th><td>右ショルダー（R / RB）</td></tr>
+<tr><th scope="row">バック</th><td>右側4ボタンの右側。前進中は減速してからバック</td></tr>
+<tr><th scope="row">ニトロ</th><td>右トリガー＋右側4ボタンの左側</td></tr>
+</tbody></table><p class="small">ボタンの文字表記は機種で異なるため、4ボタンは位置で案内しています。4速以上で加速するとニトロが溜まり、残量があると発動できます。パンチはキーボードの X でも操作できます。</p></div>
+<div class="tips"><h2>遊び方</h2><ol><li>「PCで遊ぶ」を押して読み込みます。</li><li>シールドを横にスライドして色を選び、「配色決定」→「GameStart」。</li><li>「3、2、GO」でレース開始。上部のカメラをクリックすると視点を切り替えられます。</li><li>ゴール後は「コンティニュー」でスタートから再挑戦できます。</li></ol>
+<h3>プレイ環境</h3><p>PCの最新版Chrome・Edgeを推奨します。ゲームパッドを認識しないときは、接続後にボタンを押し、ゲーム画面をクリックしてください。</p>
+<p>スマホ操作は今後対応予定です。この練習版ではレースパートを遊べます。ダンジョンボスパートは本編に向けて準備中です。</p>
+<a href="mailto:support@novetcoin.com">不具合・ご感想はこちら →</a></div>
+</section>
+</main><footer>© NovetCoin運営事務局 <span>PC練習版 · 2026.09.08</span></footer>
+<script>
+window.novetRaceBuild = {
+ loaderUrl: "Build/026845cdcc78198ab14bd2779cfca090.loader.js",
+ config: {
+  dataUrl: "Build/a64a83c433707327691c3ad78ee07ab4.data.unityweb",
+  frameworkUrl: "Build/9b3ca7e659574acebcc96e4183d939a5.framework.js.unityweb",
+  codeUrl: "Build/cf39e3decddab85050a0468713c92430.wasm.unityweb",
+  streamingAssetsUrl: "StreamingAssets",
+  companyName: "DefaultCompany",
+  productName: "OneWheelPrototype",
+  productVersion: "1.0",
+  devicePixelRatio: 1
+ }
+};
+</script><script src="launcher.js"></script>
+</body></html>
