@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>一輪マシン レース練習版 | NovetCoin</title>
-<meta name="description" content="街を駆け抜ける一輪マシンのレース練習版。PCとゲームパッドでAI2台に挑戦。7色のシールドを選んでスタート。">
+<meta name="description" content="街を駆け抜ける一輪マシンのレース練習版。PCはゲームパッド、スマホはタッチ操作でAI2台に挑戦。7色のシールドを選んでスタート。">
 <link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=20260908-slime">
+<link rel="stylesheet" href="mobile.css?v=20260908-mobile">
 </head>
 <body>
 <header><a href="../apps.html">← 制作アプリ一覧</a><a href="../../index.html">NovetCoin</a></header>
@@ -18,11 +19,20 @@
 <span class="eyebrow">RACE PRACTICE</span><h2>準備ができたら、スタート。</h2>
 <p>ゲームパッドをPCに接続してください。<br>ゲームを開いてから、シールドの色を選べます。</p>
 <button id="launch" type="button">PCで遊ぶ</button>
-<p class="small">ゲームパッド操作専用 · 音が出ます<br>スマホのタッチ操作は準備中です。</p>
+<p class="small">ゲームパッド操作専用 · 音が出ます<br>スマホはタッチ操作で遊べます。<br><a href="?mode=mobile" class="mode-link">スマホで遊ぶ →</a></p>
 <noscript>ゲームを遊ぶにはブラウザのJavaScriptを有効にしてください。</noscript>
 </div>
 <div id="loading" class="overlay" hidden><h2>ゲームを読み込んでいます</h2><progress id="progress" max="100" value="0" aria-label="読み込み状況"></progress><p id="load-status" role="status">0%</p><p class="small">初回はデータの読み込みに時間がかかる場合があります。</p></div>
 <div id="error" class="overlay" hidden><h2>ゲームを開けませんでした</h2><p id="error-message" role="alert"></p><button id="retry" type="button">再読み込み</button><a href="#controls">動作環境・操作方法を確認する</a></div>
+
+<div id="touch-controls" class="mobile-only" hidden aria-label="走行操作">
+ <div class="touch-pad steer-pad" data-pad="left" aria-label="左右の操舵"><span id="touch-left" class="touch-key">◀</span><span id="touch-right" class="touch-key">▶</span></div>
+ <div class="touch-pad action-pad" data-pad="right" aria-label="アクセルから指を滑らせて操作"><span id="touch-gas" class="touch-key">アクセル<small>押してスライド</small></span><span id="touch-arm-left" class="touch-key">左<br>アーム</span><span id="touch-arm-right" class="touch-key">右<br>アーム</span><span id="touch-punch" class="touch-key">パンチ</span><span id="touch-brake" class="touch-key">ブレーキ<br>バック</span></div>
+</div>
+<div id="mobile-stats" class="mobile-only" hidden><div class="mobile-speed-panel"><span id="mobile-speed">0</span><small>km/h</small><span class="gear">GEAR <b id="mobile-gear">1</b></span></div><span id="mobile-time">00:00.0</span><div id="mobile-nitro"><span id="mobile-nitro-label">NITRO</span><div id="mobile-nitro-bar"><div id="mobile-nitro-fill"></div></div></div></div>
+<button id="mobile-pause" class="mobile-only" type="button">一時停止</button>
+<div id="mobile-menu" class="mobile-modal mobile-only" hidden><div><h2>一時停止</h2><p>左親指：左右キーで操舵</p><p>右親指：アクセルを押しながら左右でアーム、上でパンチ。<br>下へ滑らせると減速してからバックします。</p><p>ニトロ残量があればアクセルをWタップで発動。</p><button id="mobile-resume" type="button">ゲームに戻る</button><br><a href="../apps.html">アプリ一覧へ戻る</a></div></div>
+<div id="rotate-phone" class="mobile-modal mobile-only" hidden><div><h2>スマホを横向きにしてください</h2><p>両親指で操作できる横画面で遊べます。<br>横向きに戻すとゲームを再開します。</p></div></div>
 </div>
 <div class="toolbar"><span id="controller-status" role="status">ゲームパッドを接続し、ボタンを1回押してください。</span><button id="fullscreen" type="button" disabled>全画面</button></div>
 </section>
@@ -39,17 +49,17 @@
 </tbody></table><p class="small">ボタンの文字表記は機種で異なるため、4ボタンは位置で案内しています。4速以上で加速するとニトロが溜まり、残量があると発動できます。パンチはキーボードの X でも操作できます。</p></div>
 <div class="tips"><h2>遊び方</h2><ol><li>「PCで遊ぶ」を押して読み込みます。</li><li>シールドを横にスライドして色を選び、「配色決定」→「GameStart」。</li><li>「3、2、GO」でレース開始。上部のカメラをクリックすると視点を切り替えられます。</li><li>ゴール後は「コンティニュー」でスタートから再挑戦できます。</li></ol>
 <h3>プレイ環境</h3><p>PCの最新版Chrome・Edgeを推奨します。ゲームパッドを認識しないときは、接続後にボタンを押し、ゲーム画面をクリックしてください。</p>
-<p>スマホ操作は今後対応予定です。この練習版ではレースパートを遊べます。ダンジョンボスパートは本編に向けて準備中です。</p>
+<p><a href="?mode=mobile">スマホ版はこちら。</a>この練習版ではレースパートを遊べます。ダンジョンボスパートは本編に向けて準備中です。</p>
 <a href="mailto:support@novetcoin.com">不具合・ご感想はこちら →</a></div>
 </section>
-</main><footer>© NovetCoin運営事務局 <span>PC練習版 · 2026.09.08</span></footer>
+</main><footer>© NovetCoin運営事務局 <span>PC・スマホ練習版 · 2026.09.08</span></footer>
 <script>
 window.novetRaceBuild = {
- loaderUrl: "Build/3dfc543da2ad2966da825ebdb1937f55.loader.js",
+ loaderUrl: "Build/7330226024dcbcbab2bf4f7cafa5dc0d.loader.js",
  config: {
-  dataUrl: "Build/de30381b494bc911282d5034758a5bf0.data.unityweb",
-  frameworkUrl: "Build/e1056695b7036e2f589a185bca90afb2.framework.js.unityweb",
-  codeUrl: "Build/dd45df39b5e37751c459f88c0b9cc084.wasm.unityweb",
+  dataUrl: "Build/6166562fffc6ecf13349705896fa5ee4.data.unityweb",
+  frameworkUrl: "Build/767c4ab851e44d2ac41705b9fcd07c4e.framework.js.unityweb",
+  codeUrl: "Build/afcca08b356e248f96415b5a9c1d0405.wasm.unityweb",
   streamingAssetsUrl: "StreamingAssets",
   companyName: "DefaultCompany",
   productName: "OneWheelPrototype",
@@ -57,5 +67,5 @@ window.novetRaceBuild = {
   devicePixelRatio: 1
  }
 };
-</script><script src="gamepad.js?v=20260908-slime"></script><script src="launcher-v2.js?v=20260908-slime"></script>
+</script><script src="gamepad.js?v=20260908-slime"></script><script src="mobile-input.js?v=20260908-mobile"></script><script src="mobile-controls.js?v=20260908-mobile"></script><script src="launcher-v3.js?v=20260908-mobile"></script>
 </body></html>
