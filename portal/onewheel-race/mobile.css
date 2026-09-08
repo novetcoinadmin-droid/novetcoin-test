@@ -11,7 +11,7 @@
 #touch-controls{position:absolute;inset:0;pointer-events:none;z-index:5;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #touch-controls[hidden],#mobile-stats[hidden],#mobile-menu[hidden],#rotate-phone[hidden]{display:none}
 .touch-pad{position:absolute;pointer-events:auto;touch-action:none}
-.steer-pad{left:16px;bottom:20px;width:144px;height:144px;border:2px solid #b0d6e1b3;border-radius:50%;overflow:hidden;background:#102d40c9;box-shadow:0 4px 18px #0006,inset 0 1px 2px #e0f9ff44}
+.steer-pad{pointer-events:none;position:absolute;left:16px;bottom:20px;width:144px;height:144px;border:2px solid #b0d6e1b3;border-radius:50%;overflow:hidden;background:#102d40c9;box-shadow:0 4px 18px #0006,inset 0 1px 2px #e0f9ff44}
 .action-pad{right:12px;bottom:10px;width:246px;height:230px;border-radius:50%;border:2px solid #ff8b95c9;background:radial-gradient(ellipse at 50% 40%,#c63349d9,#761326df);box-shadow:0 4px 20px #0006,inset 0 1px 3px #ffc2c655}
 .touch-key{border:2px solid #a8cbd9b3;color:#e7faff;background:#112936bf;box-shadow:0 3px 14px #0005,inset 0 1px 0 #ffffff22;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-weight:700;line-height:1.2;pointer-events:none;padding:0;text-shadow:0 1px 2px #0009;font-size:12px;transition:background .06s,border-color .06s}
 .touch-key.pressed{background:#218b80df;border-color:#a5ffe0;box-shadow:0 0 16px #67ffd766;color:#fff}
@@ -40,3 +40,10 @@
 .mobile-playing,.mobile-playing #game-frame,.mobile-playing #unity-canvas,.mobile-playing .touch-pad{touch-action:none;-webkit-text-size-adjust:100%;}
 #mobile-fullscreen[hidden]{display:none!important}
 .mobile:fullscreen,.mobile:-webkit-full-screen{width:100%;height:100%;overflow:hidden;background:#050a10}
+
+/* Invisible steering surface. The top camera strip and right controls stay free. */
+.steer-area{left:0;top:23%;bottom:0;width:48%;background:transparent;border:0}
+.mobile-display-guide{margin:18px 0;padding:14px 18px;border:1px solid #65889466;border-radius:12px;background:#0d2633;color:#d9edf1;font-size:13px}
+.mobile-display-guide summary,.mobile-modal summary{cursor:pointer;font-weight:700}
+.mobile-display-guide p{margin:8px 0}
+[data-display-help][hidden]{display:none!important}
