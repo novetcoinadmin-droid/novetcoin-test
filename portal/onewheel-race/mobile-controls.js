@@ -5,12 +5,41 @@
   if(!mobile)return;
   document.documentElement.classList.add('mobile');
   const el=id=>document.getElementById(id);
+  // Fullscreen must be requested from the user's tap, before async game loading.
+  const fullscreenRoot=document.documentElement;
+  const fullscreenRequest=fullscreenRoot.requestFullscreen || fullscreenRoot.webkitRequestFullscreen;
+  const inFullscreen=()=>!!(document.fullscreenElement || document.webkitFullscreenElement);
+  function updateFullscreenButton(){const button=el('mobile-fullscreen');if(button)button.hidden=!fullscreenRequest || inFullscreen();}
+  function requestMobileFullscreen(){
+    if(!fullscreenRequest || inFullscreen())return;
+    try {
+      const pending=fullscreenRequest.call(fullscreenRoot,{navigationUI:'hide'});
+      Promise.resolve(pending).then(updateFullscreenButton).catch(updateFullscreenButton);
+    } catch { updateFullscreenButton(); }
+  }
+  el('launch').addEventListener('click',requestMobileFullscreen);
+  el('mobile-fullscreen')?.addEventListener('click',requestMobileFullscreen);
+  document.addEventListener('fullscreenchange',updateFullscreenButton);
+  document.addEventListener('webkitfullscreenchange',updateFullscreenButton);
+  updateFullscreenButton();
+  // Keep browser zoom gestures separate from the game's two-thumb inputs.
+  document.querySelector('meta[name="viewport"]').content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  const playing=()=>document.body.classList.contains('mobile-playing');
+  const preventZoom=e=>{if(playing() && e.cancelable)e.preventDefault();};
+  for(const name of ['gesturestart','gesturechange','gestureend','dblclick'])document.addEventListener(name,preventZoom,{passive:false});
+  for(const name of ['touchstart','touchmove'])document.addEventListener(name,e=>{
+    if(playing() && e.touches.length>1 && e.cancelable)e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchend',e=>{
+    if(playing() && e.target.closest?.('.touch-pad') && e.cancelable)e.preventDefault();
+  },{passive:false});
+
   document.querySelector('.heading .eyebrow').textContent='MOBILE BROWSER / PRACTICE';
   el('launch').textContent='スマホで遊ぶ';
   el('launch-screen').querySelector('p').innerHTML='横画面で、両親指を使って操作します。<br>読み込み後にシールドの色を選べます。';
   el('launch-screen').querySelector('.small').textContent='タッチ操作 · 音が出ます';
   el('controller-status').textContent='スマホを横向きにして遊べます。';
-  el('controls').innerHTML=`<div><span class="eyebrow">TOUCH TO RACE</span><h2>両親指で操作</h2><p>左の丸い左右キーで曲がります。右の大きなアクセルを押しながら、親指を周囲へ滑らせて操作してください。</p><table><tbody><tr><th>左右へスライド</th><td>加速しながらアーム・ドリフト</td></tr><tr><th>上へスライド</th><td>加速しながらアームパンチ</td></tr><tr><th>下へスライド</th><td>減速してからバック</td></tr><tr><th>アクセルを2回タップ</th><td>ニトロ残量があれば発動。2回目はそのまま押し続けられます。</td></tr></tbody></table></div><div><h2>横画面でスタート</h2><p>カラーを横にスライドして選び、「配色決定」→「GameStart」。3、2、GOでレースが始まります。</p><p>指を離すと操作が解除されます。上部の3カメラはタップで切り替え。ゴール後はコンティニューで再挑戦できます。</p><p>iPhoneはSafari、AndroidはChromeで開いてください。アプリ内ブラウザで起動しない場合は、通常のブラウザで開いてください。</p><a href="?mode=pc">PC・ゲームパッドで遊ぶ →</a></div>`;
+  el('controls').innerHTML=`<div><span class="eyebrow">TOUCH TO RACE</span><h2>両親指で操作</h2><p>左の1つの丸いパッドの中で、指を左右に滑らせて曲がります。右の大きなアクセルを押しながら、親指を周囲へ滑らせて操作してください。</p><table><tbody><tr><th>左右へスライド</th><td>加速しながらアーム・ドリフト</td></tr><tr><th>上へスライド</th><td>加速しながらアームパンチ</td></tr><tr><th>下へスライド</th><td>減速してからバック</td></tr><tr><th>アクセルを2回タップ</th><td>ニトロ残量があれば発動。2回目はそのまま押し続けられます。</td></tr></tbody></table></div><div><h2>横画面でスタート</h2><p>カラーを横にスライドして選び、「配色決定」→「GameStart」。3、2、GOでレースが始まります。</p><p>指を離すと操作が解除されます。上部の3カメラはタップで切り替え。ゴール後はコンティニューで再挑戦できます。</p><p>iPhoneはSafari、AndroidはChromeで開いてください。アプリ内ブラウザで起動しない場合は、通常のブラウザで開いてください。</p><a href="?mode=pc">PC・ゲームパッドで遊ぶ →</a></div>`;
   window.NovetMobileControls=function(game) {
     const input=new window.NovetMobileInput();
     let state={phase:0,charge:0},menu=false,paused=null,signature='',lastSent=0;
@@ -31,6 +60,8 @@
     }
     function paint(){
       const p=input.packet(performance.now());
+      const thumb=el('steer-thumb');
+      if(thumb){const pad=thumb.parentElement;const offset=input.left && (p.buttons[14] || p.buttons[15]) ? Math.max(-1,Math.min(1,input.left.x))*pad.clientWidth*.26 : 0;pad.style.setProperty('--steer-offset',offset+'px');}
       for(const [id,on] of Object.entries({'touch-left':p.buttons[14],'touch-right':p.buttons[15],'touch-gas':p.buttons[7],'touch-arm-left':p.axes[2]<0,'touch-arm-right':p.axes[2]>0,'touch-punch':p.buttons[3],'touch-brake':p.buttons[1]}))el(id).classList.toggle('pressed',!!on);
     }
     for(const pad of controls.querySelectorAll('[data-pad]')){

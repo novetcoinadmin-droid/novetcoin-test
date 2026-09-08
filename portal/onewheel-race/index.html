@@ -5,7 +5,7 @@
 <title>一輪マシン レース練習版 | NovetCoin</title>
 <meta name="description" content="街を駆け抜ける一輪マシンのレース練習版。PCはゲームパッド、スマホはタッチ操作でAI2台に挑戦。7色のシールドを選んでスタート。">
 <link rel="icon" href="data:,"><link rel="stylesheet" href="style.css?v=20260908-slime">
-<link rel="stylesheet" href="mobile.css?v=20260908-mobile">
+<link rel="stylesheet" href="mobile.css?v=20260908-pad2">
 </head>
 <body>
 <header><a href="../apps.html">← 制作アプリ一覧</a><a href="../../index.html">NovetCoin</a></header>
@@ -26,12 +26,12 @@
 <div id="error" class="overlay" hidden><h2>ゲームを開けませんでした</h2><p id="error-message" role="alert"></p><button id="retry" type="button">再読み込み</button><a href="#controls">動作環境・操作方法を確認する</a></div>
 
 <div id="touch-controls" class="mobile-only" hidden aria-label="走行操作">
- <div class="touch-pad steer-pad" data-pad="left" aria-label="左右の操舵"><span id="touch-left" class="touch-key">◀</span><span id="touch-right" class="touch-key">▶</span></div>
+ <div class="touch-pad steer-pad" data-pad="left" aria-label="丸い操舵パッド。指を左右へ滑らせて曲がる"><span id="touch-left" class="touch-key">◀</span><span id="touch-right" class="touch-key">▶</span><span id="steer-thumb" aria-hidden="true"></span></div>
  <div class="touch-pad action-pad" data-pad="right" aria-label="アクセルから指を滑らせて操作"><span id="touch-gas" class="touch-key">アクセル<small>押してスライド</small></span><span id="touch-arm-left" class="touch-key">左<br>アーム</span><span id="touch-arm-right" class="touch-key">右<br>アーム</span><span id="touch-punch" class="touch-key">パンチ</span><span id="touch-brake" class="touch-key">ブレーキ<br>バック</span></div>
 </div>
 <div id="mobile-stats" class="mobile-only" hidden><div class="mobile-speed-panel"><span id="mobile-speed">0</span><small>km/h</small><span class="gear">GEAR <b id="mobile-gear">1</b></span></div><span id="mobile-time">00:00.0</span><div id="mobile-nitro"><span id="mobile-nitro-label">NITRO</span><div id="mobile-nitro-bar"><div id="mobile-nitro-fill"></div></div></div></div>
 <button id="mobile-pause" class="mobile-only" type="button">一時停止</button>
-<div id="mobile-menu" class="mobile-modal mobile-only" hidden><div><h2>一時停止</h2><p>左親指：左右キーで操舵</p><p>右親指：アクセルを押しながら左右でアーム、上でパンチ。<br>下へ滑らせると減速してからバックします。</p><p>ニトロ残量があればアクセルをWタップで発動。</p><button id="mobile-resume" type="button">ゲームに戻る</button><br><a href="../apps.html">アプリ一覧へ戻る</a></div></div>
+<div id="mobile-menu" class="mobile-modal mobile-only" hidden><div><h2>一時停止</h2><p>左親指：丸いパッドの中で左右にスライド</p><p>右親指：アクセルを押しながら左右でアーム、上でパンチ。<br>下へ滑らせると減速してからバックします。</p><p>ニトロ残量があればアクセルをWタップで発動。</p><button id="mobile-resume" type="button">ゲームに戻る</button> <button id="mobile-fullscreen" type="button" hidden>全画面にする</button><br><a href="../apps.html">アプリ一覧へ戻る</a></div></div>
 <div id="rotate-phone" class="mobile-modal mobile-only" hidden><div><h2>スマホを横向きにしてください</h2><p>両親指で操作できる横画面で遊べます。<br>横向きに戻すとゲームを再開します。</p></div></div>
 </div>
 <div class="toolbar"><span id="controller-status" role="status">ゲームパッドを接続し、ボタンを1回押してください。</span><button id="fullscreen" type="button" disabled>全画面</button></div>
@@ -67,5 +67,5 @@ window.novetRaceBuild = {
   devicePixelRatio: 1
  }
 };
-</script><script src="gamepad.js?v=20260908-slime"></script><script src="mobile-input.js?v=20260908-mobile"></script><script src="mobile-controls.js?v=20260908-mobile"></script><script src="launcher-v3.js?v=20260908-mobile"></script>
+</script><script src="gamepad.js?v=20260908-slime"></script><script src="mobile-input.js?v=20260908-pad2"></script><script src="mobile-controls.js?v=20260908-pad2"></script><script src="launcher-v3.js?v=20260908-mobile"></script>
 </body></html>

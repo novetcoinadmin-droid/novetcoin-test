@@ -36,7 +36,7 @@
     }
     packet(now) {
       const buttons=Array(16).fill(0),axes=[0,0,0,0],l=this.left,r=this.right;
-      if(l && Math.abs(l.x)<=1.15 && Math.abs(l.y)<=1.15){buttons[14]=l.x<-.12?1:0;buttons[15]=l.x>.12?1:0;}
+      if(l && Math.hypot(l.x,l.y)<=1.15){buttons[14]=l.x<-.12?1:0;buttons[15]=l.x>.12?1:0;}
       if(r && r.zone!=='outside'){
         buttons[7]=r.gas && r.zone!=='brake'?1:0;
         axes[2]=r.zone==='left'?-1:r.zone==='right'?1:0;
