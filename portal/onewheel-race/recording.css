@@ -1,0 +1,13 @@
+#recording-prompt{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#051019ed;padding:16px;touch-action:manipulation;text-align:center}
+#recording-prompt[hidden],#recording-tools[hidden],#recording-stop[hidden],#recording-files[hidden]{display:none}
+.recording-card{width:min(560px,100%);max-height:100%;overflow:auto;padding:16px;border:1px solid #527887;border-radius:16px;background:#102530;box-shadow:0 16px 60px #0008}
+.recording-card h2{font-size:clamp(19px,3vw,28px);margin:8px 0 14px;line-height:1.45}.recording-card p{font-size:14px;color:#cedfe8;margin:8px 0}.recording-card .small{font-size:12px}
+.recording-choices{display:flex;gap:14px;margin:16px 0 4px}.recording-choices button{flex:1;min-height:64px;border:1px solid #99efd8;border-radius:9px;background:#8defcc;color:#092f2a;font-weight:800;font-size:22px;padding:8px}.recording-choices span{display:block;font-size:12px;font-weight:600}.recording-choices #recording-no{background:#223c4b;color:#effaff;border-color:#7f9fab}
+#recording-message{color:#ffdd9b;min-height:0}#recording-message:empty{display:none}
+#recording-tools{position:absolute;z-index:16;left:50%;bottom:10px;transform:translateX(-50%);max-width:80%;padding:6px 10px;border-radius:8px;background:#07151ee8;border:1px solid #78979d;color:#fff;font-size:12px;display:flex;align-items:center;gap:10px}
+#recording-tools button{white-space:nowrap;min-height:38px;border:1px solid #f4a2ad;border-radius:6px;background:#7f2638;color:white;padding:4px 10px}
+#recording-tools summary{cursor:pointer;white-space:nowrap;min-height:36px;display:flex;align-items:center;color:#9cffdd;font-weight:700}
+#recording-files[open]{position:absolute;bottom:100%;left:0;min-width:260px;max-width:85vw;max-height:50vh;overflow:auto;background:#102530;border:1px solid #78979d;border-radius:8px;padding:10px}
+#recording-downloads a,#recording-previous a{display:block;font-size:12px;padding:8px;color:#9cffdd}
+.mobile-playing #recording-tools{bottom:90px;max-width:44%;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px 7px;font-size:10px}.mobile-playing #recording-tools button{min-height:34px;font-size:11px}.mobile-playing #recording-status{width:100%;text-align:center}
+@media(max-height:450px){.recording-card{padding:10px 16px}.recording-card h2{margin:0 0 6px;font-size:21px}.recording-card p{margin:4px 0;font-size:12px}.recording-card .small{font-size:10px}.recording-choices{margin-top:10px}.recording-choices button{min-height:54px;font-size:20px}.recording-card>.eyebrow{display:none}}
