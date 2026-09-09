@@ -69,25 +69,98 @@
       if(thumb){const pad=thumb.parentElement;const offset=input.left && (p.buttons[14] || p.buttons[15]) ? Math.max(-1,Math.min(1,input.left.x))*pad.clientWidth*.26 : 0;pad.style.setProperty('--steer-offset',offset+'px');}
       for(const [id,on] of Object.entries({'touch-left':p.buttons[14],'touch-right':p.buttons[15],'touch-gas':p.buttons[7],'touch-arm-left':p.axes[2]<0,'touch-arm-right':p.axes[2]>0,'touch-punch':p.buttons[3],'touch-brake':p.buttons[1]}))el(id).classList.toggle('pressed',!!on);
     }
-    for(const pad of controls.querySelectorAll('[data-pad]')){
-      const steering=pad.dataset.pad==='left';
-      let originX=0;
-      // A fresh thumb contact becomes the center; 8 px of horizontal motion turns.
-      // Pointer capture keeps steering active outside the hint and hit area.
-      const point=e=>{
-        if(steering)return [(e.clientX-originX)/64,0];
-        const r=pad.getBoundingClientRect();return [(e.clientX-r.left)/r.width*2-1,(e.clientY-r.top)/r.height*2-1];
-      };
+    const pads=Object.fromEntries([...controls.querySelectorAll('[data-pad]')].map(pad=>[pad.dataset.pad,pad]));
+    const originX={left:0,right:0};
+    function point(side,contact){
+      // Keep the existing relative steering and combined gas/arm zones.
+      if(side==='left')return [(contact.clientX-originX.left)/64,0];
+      const r=pads[side].getBoundingClientRect();
+      return [(contact.clientX-r.left)/r.width*2-1,(contact.clientY-r.top)/r.height*2-1];
+    }
+    function sideOf(id){return ['left','right'].find(side=>input[side]?.id===id);}
+    function beginContact(id,side,contact){
+      if(!available()||input[side])return false;
+      originX[side]=contact.clientX;
+      return input.down(id,side,...point(side,contact),performance.now());
+    }
+    function endContact(id,cancel){
+      if(!sideOf(id))return false;
+      input.up(id,performance.now(),cancel);return true;
+    }
+    function flush(force=false){paint();send(input.packet(performance.now()),force);}
+    function reconcileTouches(touches){
+      const live=new Set(Array.from(touches,t=>'touch:'+t.identifier));
+      let changed=false;
+      for(const side of ['left','right']){
+        const id=input[side]?.id;
+        if(typeof id==='string'&&id.startsWith('touch:')&&!live.has(id))changed=endContact(id,true)||changed;
+      }
+      return changed;
+    }
+    // Touch identifiers are NOT PointerEvent.pointerId. Use the actual finger
+    // lifecycle, globally, so release does not depend on pointer capture or on
+    // the finger still being over its original button. Each event's live list
+    // also clears a stale finger before accepting a new one.
+    const nativeTouch='ontouchstart' in window;
+    if(nativeTouch){
+      window.addEventListener('touchstart',e=>{
+        let changed=reconcileTouches(e.touches),handled=false;
+        for(const touch of Array.from(e.changedTouches)){
+          const id='touch:'+touch.identifier;
+          // A fresh touchstart may reuse an identifier whose earlier touchend
+          // was lost. It is a new contact, never a continuation of that owner.
+          changed=endContact(id,true)||changed;
+          const pad=touch.target.closest?.('[data-pad]');
+          if(!pad||pads[pad.dataset.pad]!==pad)continue;
+          if(beginContact(id,pad.dataset.pad,touch)){changed=true;handled=true;}
+        }
+        if(handled&&e.cancelable)e.preventDefault();
+        if(changed)flush();
+      },{capture:true,passive:false});
+      window.addEventListener('touchmove',e=>{
+        let changed=reconcileTouches(e.touches),handled=false;
+        for(const touch of Array.from(e.changedTouches)){
+          const id='touch:'+touch.identifier,side=sideOf(id);
+          if(!side)continue;
+          input.move(id,...point(side,touch));changed=true;handled=true;
+        }
+        if(handled&&e.cancelable)e.preventDefault();
+        if(changed)flush();
+      },{capture:true,passive:false});
+      for(const type of ['touchend','touchcancel'])window.addEventListener(type,e=>{
+        let changed=false;
+        for(const touch of Array.from(e.changedTouches))changed=endContact('touch:'+touch.identifier,type==='touchcancel')||changed;
+        changed=reconcileTouches(e.touches)||changed;
+        // Send the remaining finger's state immediately; do not wait for rAF
+        // or disconnect both fingers when only the accelerator finger lifts.
+        if(changed)flush(true);
+      },{capture:true,passive:true});
+    }
+    // Mouse/pen (and pointer-only touch environments) keep pointer controls.
+    // A native touch must not also start a second, synthetic pointer gesture.
+    const usePointer=e=>!(nativeTouch&&e.pointerType==='touch');
+    for(const [side,pad] of Object.entries(pads)){
       pad.addEventListener('pointerdown',e=>{
-        if(!available())return;e.preventDefault();e.stopPropagation();
-        if(input[pad.dataset.pad])return;
-        if(steering)originX=e.clientX;
-        if(input.down(e.pointerId,pad.dataset.pad,...point(e),performance.now())){pad.setPointerCapture(e.pointerId);paint();}
+        if(!usePointer(e)||!available())return;
+        e.preventDefault();e.stopPropagation();
+        const id='pointer:'+e.pointerId;
+        if(!beginContact(id,side,e))return;
+        try{pad.setPointerCapture(e.pointerId);}catch{endContact(id,true);}
+        flush();
       });
-      pad.addEventListener('pointermove',e=>{e.preventDefault();input.move(e.pointerId,...point(e));paint();});
-      for(const type of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(type,e=>{e.preventDefault();input.up(e.pointerId,performance.now(),type!=='pointerup');paint();});
       pad.addEventListener('contextmenu',e=>e.preventDefault());
     }
+    window.addEventListener('pointermove',e=>{
+      if(!usePointer(e))return;
+      const id='pointer:'+e.pointerId,side=sideOf(id);
+      if(!side)return;
+      if(e.buttons===0)endContact(id,true);
+      else input.move(id,...point(side,e));
+      flush();
+    },{capture:true,passive:true});
+    for(const type of ['pointerup','pointercancel','lostpointercapture'])window.addEventListener(type,e=>{
+      if(usePointer(e)&&endContact('pointer:'+e.pointerId,type!=='pointerup'))flush(true);
+    },{capture:true,passive:true});
     el('mobile-pause').onclick=()=>{menu=true;syncPause();};
     el('mobile-resume').onclick=()=>{menu=false;canvasFocus();syncPause();};
     function canvasFocus(){el('unity-canvas').focus({preventScroll:true});}
