@@ -81,6 +81,28 @@
       max-height: 128px;
       object-fit: contain;
     }
+    .app-card--featured {
+      grid-template-columns: 384px minmax(0, 1fr);
+      align-items: start;
+    }
+    .app-card--featured .app-icon {
+      width: 100%;
+      max-width: 384px;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+    }
+    .app-card--featured .app-icon img {
+      width: 100%;
+      height: auto;
+      max-height: none;
+    }
+    @media (max-width: 900px) {
+      .app-card--featured { grid-template-columns: minmax(0, 1fr); }
+      .app-card--featured .app-icon { justify-self: center; }
+    }
     .label {
       display: inline-block;
       padding: 3px 10px;
@@ -164,9 +186,9 @@
 
 <main>
   <div class="container">
-    <article class="app-card" id="onewheel-race">
+    <article class="app-card app-card--featured" id="onewheel-race">
       <div class="app-icon">
-        <img src="./onewheel-race/preview.jpg?v=20260908-slime" alt="レースコースに登場する青いスライムとバス" loading="lazy">
+        <img src="./onewheel-race/one-wheel-cover-20260909.png" alt="ONE WHEEL：未来都市のコースを走る黄色・赤・白の一輪マシン" width="1672" height="941" decoding="async">
       </div>
       <div>
         <span class="label">PC・スマホ ブラウザゲーム · 練習版</span>
