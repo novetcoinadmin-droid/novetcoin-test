@@ -1,0 +1,6 @@
+Stroke paths: KanjiVG, Ulrich Apel and contributors.
+https://github.com/KanjiVG/kanjivg
+Licensed CC BY-SA 3.0: https://creativecommons.org/licenses/by-sa/3.0/
+Adaptation: extracted four characters and rendered as progressive spark strokes.
+The adapted stroke data and stroke artwork remain under CC BY-SA 3.0.
+Music: original composition and synthesis for The Last Liturgy.
