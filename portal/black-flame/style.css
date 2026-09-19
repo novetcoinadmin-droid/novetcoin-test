@@ -7,3 +7,8 @@
 body.final-cast #sigils{z-index:20}body.final-cast #release{z-index:21;opacity:var(--release-opacity,1)}
 body.white-result{background:#fff;color:#25232c}body.white-result #fire,body.white-result .grain{visibility:hidden}body.white-result #sigils{z-index:-1}
 body.white-result #game{background:#fff;border-color:#dedbe4;box-shadow:none;backdrop-filter:none}body.white-result #result h2,body.white-result #phase,body.white-result #stageMark,body.white-result #stageClear,body.white-result .eyebrow{color:#554167}body.white-result #result p,body.white-result .intro,body.white-result footer,body.white-result small{color:#6a6273}body.white-result .primary{background:#292331;color:#fff}body.white-result header button,body.white-result footer button{background:#fff;color:#554167;border-color:#ccc}body.white-result #game,body.white-result header,body.white-result .stage-view{animation:whiteArrival 1.8s ease both}@keyframes whiteArrival{from{opacity:0}to{opacity:1}}
+
+/* Keep the chant legible as luminous backgrounds drift behind it. */
+header,.eyebrow,h1,.intro,.stage-view,footer{text-shadow:0 2px 12px #000b}
+body.white-result header,body.white-result .eyebrow,body.white-result h1,body.white-result .intro,body.white-result .stage-view,body.white-result footer{text-shadow:none}
+body:not(.casting) .eyebrow,body:not(.casting) #stageMark,body:not(.casting) #stageClear,body:not(.casting) #phase,body:not(.casting) #seals i{transition:color 3s,background-color 3s,box-shadow 3s}
