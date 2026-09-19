@@ -35,14 +35,24 @@ if(v<6.5){
  for(let i=0;i<32;i++){const x=(i+.5)/32*W,flow=v*(reduced?.22:1),height=H*(.13+.13*(.5+.5*Math.sin(i*7.13+flow*.6))),sway=Math.sin(i*2.7+flow*.8)*28,w=18+i%5*7;
  const g=ctx.createLinearGradient(x,H,x,H-height);g.addColorStop(0,'rgba(225,232,243,.03)');g.addColorStop(.55,'rgba(241,244,255,.19)');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x-w,H);ctx.bezierCurveTo(x-w+sway,H-height*.3,x+sway*1.8,H-height*.55,x+sway,H-height);ctx.bezierCurveTo(x+sway+w,H-height*.4,x+w,H-height*.2,x+w,H);ctx.fill();
  }
+ const smooth=(start,end)=>{const q=clamp((v-start)/(end-start));return q*q*(3-2*q)};
  const face=clamp(v/2.8),turn=face*face*(3-2*face),charge=clamp((v-2.4)/3.4);
- for(let j=0;j<20;j++){const r=base*(.44+j*.026)*(1-charge*.18),y=cy+(9.5-j)*10*(1-turn);seal(cx,y,r,.30+.70*turn,j%2?20:15,v,.22+.31*turn,false)}
+ // Three contractions with short holds: a broad sigil, a tight seal, then one white point.
+ const first=smooth(2.9,3.75),second=smooth(3.95,4.7),third=smooth(4.85,5.65);
+ const contraction=(1-.46*first)*(1-.68*second)*(1-.94*third);
+ for(let j=0;j<20;j++){const r=base*(.44+j*.026)*contraction,y=cy+(9.5-j)*10*(1-turn);seal(cx,y,r,.30+.70*turn,j%2?20:15,v,(.22+.31*turn)*(1-third),false)}
  const inwardTime=Math.max(0,v-1.3);
  if(v>1.3){ctx.save();ctx.strokeStyle='#fff';ctx.shadowColor='#fff';ctx.shadowBlur=9;for(let i=0;i<(reduced?30:240);i++){let a=i*2.399963,birth=(i%40)/40*2.6,travel=clamp((inwardTime-birth)/2.5);if(travel<=0||travel>=1)continue;let far=Math.hypot(W,H)*(.42+(i%7)*.035),d=far*Math.pow(1-travel,1.7),x=cx+Math.cos(a)*d,y=cy+Math.sin(a)*d;ctx.globalAlpha=Math.sin(travel*Math.PI);ctx.lineWidth=i%5===0?2:1;line(x,y,x+Math.cos(a)*(3+travel*17),y+Math.sin(a)*(3+travel*17))}ctx.restore()}
- const core=8+charge*charge*62,g=ctx.createRadialGradient(cx,cy,0,cx,cy,core*2);g.addColorStop(0,'rgba(255,255,255,'+charge+')');g.addColorStop(.28,'rgba(255,255,255,'+charge*.9+')');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.fillRect(cx-core*2,cy-core*2,core*4,core*4);
+ const core=(7+charge*16)*(1-.65*third),halo=core*(2.7-third*1.3),g=ctx.createRadialGradient(cx,cy,core*.4,cx,cy,halo);
+ g.addColorStop(0,'rgba(255,255,255,'+charge+')');g.addColorStop(.4,'rgba(255,255,255,'+charge*.75+')');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.fillRect(cx-halo,cy-halo,halo*2,halo*2);
+ // The dark rim loses both thickness and opacity before the white release begins.
+ const rim=clamp((v-3.4)/.5)*(1-third),rimWidth=(2+charge*9)*(1-third);
+ if(rimWidth>.05){ctx.save();ctx.strokeStyle='rgba(0,0,0,'+rim*.85+')';ctx.lineWidth=rimWidth;ctx.beginPath();ctx.arc(cx,cy,core+rimWidth*.6,0,TAU);ctx.stroke();ctx.restore()}
+ ctx.fillStyle='rgba(255,255,255,'+charge+')';ctx.beginPath();ctx.arc(cx,cy,core,0,TAU);ctx.fill();
+
 }
 if(v>=5.9){
- const release=clamp((v-5.9)/.65),reach=Math.hypot(W,H)*release*release;
+ const release=clamp((v-5.9)/.65),reach=8+Math.hypot(W,H)*release*release;
  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,Math.max(1,reach),0,TAU);ctx.fill();
  if(v>=6.55)ctx.fillRect(0,0,W,H);
  {
