@@ -26,8 +26,23 @@ if(n===11){for(let j=0;j<9;j++){let x=cx+(j-4)*55;line(x,0,x+Math.sin(j*2+t)*35,
 if(n===12||n===13){for(let j=0;j<36;j++){let x=(j*137)%W,y=(j*53+t*(100+j%5*25))%H;line(x,y,x-4,y+25)}}
 if(n===14||n===15){for(let j=0;j<16;j++){let y=cy+20+j*j*2;line(cx-30-j*16,y,cx+30+j*16,y)}line(cx-30,cy,cx-300,H);line(cx+30,cy,cx+300,H)}
 ctx.restore()}
+// The boundary retreats continuously; detached ash whitens before it vanishes.
+function finale(elapsed,reduced){
+const begin=reduced?1:3,duration=reduced?6:10;
+const p=clamp((elapsed-begin)/duration),ease=p*p*(3-2*p);
+const cx=W*.5,cy=H*.39,maxR=Math.hypot(Math.max(cx,W-cx),Math.max(cy,H-cy))*1.08;
+ctx.save();ctx.globalCompositeOperation='source-over';
+ctx.fillStyle='rgba(255,255,255,'+clamp(p*7)+')';ctx.fillRect(0,0,W,H);
+const radius=maxR*(1-ease),edge=Math.min(22,radius*.15);
+if(radius>0){ctx.fillStyle='#030307';ctx.beginPath();for(let i=0;i<=240;i++){let a=i*TAU/240,r=radius+edge*(Math.sin(a*19+elapsed*.7)*.45+Math.sin(a*37-elapsed*.5)*.3);let x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fill();
+ctx.globalAlpha=1-clamp((p-.2)/.65);for(let j=0;j<8;j++)seal(cx,cy+(j-3.5)*20,Math.min(radius*.65,135+j*8),.35,j%2?20:15,elapsed,.8,true);ctx.globalAlpha=1;
+}
+if(!reduced&&p<1){for(let i=0;i<520;i++){let seed=((Math.sin(i*127.1+311.7)*43758.5453)%1+1)%1,birth=seed*.94,age=(p-birth)*duration;if(age<0||age>1.8)continue;let a=i*2.399963,be=birth*birth*(3-2*birth),r=maxR*(1-be)+age*(16+i%29);let x=cx+Math.cos(a)*r+Math.sin(i+age*2)*age*9,y=cy+Math.sin(a)*r-age*20;let life=clamp(age/1.8),shade=Math.floor(255*life),size=(1-life)*(2+i%5);ctx.fillStyle='rgba('+shade+','+shade+','+shade+','+(1-life)+')';ctx.fillRect(x,y,size,size)}}
+ctx.restore();document.body.style.setProperty('--release-opacity',String(1-clamp((p-.12)/.4)));
+}
 function frame(now){requestAnimationFrame(frame);if(now-last<(fx.reduced?60:30))return;const dt=Math.min(.1,(now-last)/1000);last=now;const dpr=Math.min(devicePixelRatio,1.5);W=innerWidth;H=innerHeight;if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr)}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-let casting=!!fx.cast,elapsed=casting?(now-fx.cast)/1000:0;const end=fx.reduced?2.5:6.5+fx.level*.09;let active=casting&&elapsed<end;let t=now/1000*(fx.reduced?.15:1);let n=casting?fx.level:fx.completed;let count=casting?n:n+fx.progress;displayCount+=(count-displayCount)*Math.min(1,dt*8);let cx=active?W*.5:W*(W<700?.60:.65);const area=document.querySelector('.stage-view').getBoundingClientRect();let cy=active?H*.39:area.top+area.height*.5-65+displayCount*4;let radius=Math.min(W*.31,215);let pulse=Math.exp(-Math.max(0,now-fx.pulse)/550);let v=active?(fx.reduced?elapsed*2.6:elapsed):0;
+let casting=!!fx.cast,elapsed=casting?(now-fx.cast)/1000:0;const end=fx.level===20?(fx.reduced?9:16):(fx.reduced?2.5:6.5+fx.level*.09);let active=casting&&elapsed<end;let t=now/1000*(fx.reduced?.15:1);let n=casting?fx.level:fx.completed;let count=casting?n:n+fx.progress;displayCount+=(count-displayCount)*Math.min(1,dt*8);let cx=active?W*.5:W*(W<700?.60:.65);const area=document.querySelector('.stage-view').getBoundingClientRect();let cy=active?H*.39:area.top+area.height*.5-65+displayCount*4;let radius=Math.min(W*.31,215);let pulse=Math.exp(-Math.max(0,now-fx.pulse)/550);let v=active?(fx.reduced?elapsed*2.6:elapsed):0;
+if(casting&&n===20&&elapsed>=(fx.reduced?1:3)){finale(elapsed,fx.reduced);return;}
 // Twenty independent rotating seals, held in a vertical column.
 let layers=Math.ceil(displayCount);let compression=active?1-.65*clamp(v/1.35):1;
 for(let j=0;j<Math.max(1,layers);j++){let opacity=j<Math.floor(displayCount)?.55:.15+.4*(displayCount%1);let y=cy+80-(j*11)*compression;let r=radius*(.58+.018*j);seal(cx,y,r,.30+(active?.11:0),j+1,t,opacity+(active?.2:0),j>=15);}
